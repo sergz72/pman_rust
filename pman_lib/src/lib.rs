@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use thiserror::Error;
-use crate::keepass_database::KeePassDatabase;
-use crate::pman_database::PmanDatabase;
+use crate::keepass::keepass_database::KeePassDatabase;
+use crate::pman::pman_database::PmanDatabase;
 use crate::structs_interfaces::{DownloadAction, PasswordDatabase};
 
-mod pman_database;
 mod structs_interfaces;
-mod keepass_database;
+mod keepass;
+mod pman;
 
 uniffi::include_scaffolding!("pman_lib");
 
