@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::io::Error;
+use std::io::{Error, ErrorKind};
 use std::sync::{Arc, RwLock};
 use crate::structs_interfaces::{DatabaseSearchResult, DownloadAction, PasswordDatabase, SaveAction};
 
@@ -8,6 +8,11 @@ pub struct PmanDatabase {
 }
 
 impl PasswordDatabase for PmanDatabase {
+    fn create(&mut self, password: String, password2: Option<String>,
+              key_file_contents: Option<Vec<u8>>) -> Result<(), Error> {
+        todo!()
+    }
+
     fn is_read_only(&self) -> bool {
         false
     }
@@ -16,7 +21,8 @@ impl PasswordDatabase for PmanDatabase {
         todo!()
     }
 
-    fn pre_open(&mut self, password: String, password2: Option<String>, key_file_contents: &Vec<u8>) -> Result<Vec<DownloadAction>, Error> {
+    fn pre_open(&mut self, password: String, password2: Option<String>,
+                key_file_contents: Option<Vec<u8>>) -> Result<Vec<DownloadAction>, Error> {
         todo!()
     }
 
@@ -63,9 +69,14 @@ impl PasswordDatabase for PmanDatabase {
 }
 
 impl PmanDatabase {
-    pub fn new(contents: &Vec<u8>) -> Result<Arc<RwLock<dyn PasswordDatabase>>, Error> {
+    pub fn new_from_file(contents: &Vec<u8>) -> Result<Arc<RwLock<dyn PasswordDatabase>>, Error> {
         let mut database = PmanDatabase {};
         database.prepare(contents)?;
         Ok(Arc::new(RwLock::new(database)))
+    }
+
+    pub fn new(password: String, password2: Option<String>,
+               key_file_contents: Option<Vec<u8>>) -> Result<Arc<RwLock<dyn PasswordDatabase>>, Error> {
+        Err(Error::new(ErrorKind::Unsupported, "not implemented"))
     }
 }

@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::io::Error;
+use std::io::{Error, ErrorKind};
 use std::sync::{Arc, RwLock};
 use crate::structs_interfaces::{DatabaseSearchResult, DownloadAction, PasswordDatabase, SaveAction};
 
@@ -8,6 +8,11 @@ pub struct KeePassDatabase {
 }
 
 impl PasswordDatabase for KeePassDatabase {
+    fn create(&mut self, password: String, password2: Option<String>,
+              key_file_contents: Option<Vec<u8>>) -> Result<(), Error> {
+        todo!()
+    }
+
     fn is_read_only(&self) -> bool {
         todo!()
     }
@@ -16,7 +21,8 @@ impl PasswordDatabase for KeePassDatabase {
         todo!()
     }
 
-    fn pre_open(&mut self, password: String, password2: Option<String>, key_file_contents: &Vec<u8>) -> Result<Vec<DownloadAction>, Error> {
+    fn pre_open(&mut self, password: String, password2: Option<String>,
+                key_file_contents: Option<Vec<u8>>) -> Result<Vec<DownloadAction>, Error> {
         todo!()
     }
 
@@ -52,7 +58,8 @@ impl PasswordDatabase for KeePassDatabase {
         todo!()
     }
 
-    fn add_entity(&mut self, group: String, name: String, user_id: usize, password: String, url: Option<String>, properties: HashMap<String, String>) -> Result<(), Error> {
+    fn add_entity(&mut self, group: String, name: String, user_id: usize, password: String,
+                  url: Option<String>, properties: HashMap<String, String>) -> Result<(), Error> {
         todo!()
     }
 
@@ -62,9 +69,14 @@ impl PasswordDatabase for KeePassDatabase {
 }
 
 impl KeePassDatabase {
-    pub fn new(contents: &Vec<u8>) -> Result<Arc<RwLock<dyn PasswordDatabase>>, Error> {
+    pub fn new_from_file(contents: &Vec<u8>) -> Result<Arc<RwLock<dyn PasswordDatabase>>, Error> {
         let mut database = KeePassDatabase {};
         database.prepare(contents)?;
         Ok(Arc::new(RwLock::new(database)))
+    }
+
+    pub fn new(password: String, password2: Option<String>,
+               key_file_contents: Option<Vec<u8>>) -> Result<Arc<RwLock<dyn PasswordDatabase>>, Error> {
+        Err(Error::new(ErrorKind::Unsupported, "not implemented"))
     }
 }

@@ -1,10 +1,12 @@
 namespace pman_lib {
   [Throws=PmanError]
-  u64 prepare([ByRef]bytes data, [ByRef]string file_name);
+  u64 create(PasswordDatabaseType database_ype, string password, string? password2, bytes? key_file_contents);
+  [Throws=PmanError]
+  u64 prepare([ByRef]bytes data, string file_name);
   [Throws=PmanError]
   boolean is_read_only(u64 database_id);
   [Throws=PmanError]
-  sequence<DownloadAction> pre_open(u64 database_id, string password, string? password2, [ByRef]bytes key_file_contents);
+  sequence<DownloadAction> pre_open(u64 database_id, string password, string? password2, bytes? key_file_contents);
 };
 
 [Error]
@@ -15,4 +17,17 @@ interface PmanError {
 interface DownloadAction {
     string get_url();
     sequence<string> get_headers();
+};
+
+enum PasswordDatabaseType {
+	"KeePass",
+	"Pman",
+};
+
+enum HashAlgorithm {
+	"Argon2",
+};
+
+enum CryptoEngine {
+	"AES",
 };

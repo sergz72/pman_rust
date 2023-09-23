@@ -52,11 +52,13 @@ pub struct SaveAction {
 }
 
 pub trait PasswordDatabase {
+    fn create(&mut self, password: String, password2: Option<String>,
+              key_file_contents: Option<Vec<u8>>) -> Result<(), Error>;
     fn is_read_only(&self) -> bool;
     // prepare - validates local file contents.
     fn prepare(&mut self, contents: &Vec<u8>) -> Result<(), Error>;
     // pre_open - tries to decrypt local file and returns download file actions.
-    fn pre_open(&mut self, password: String, password2: Option<String>, key_file_contents: &Vec<u8>)
+    fn pre_open(&mut self, password: String, password2: Option<String>, key_file_contents: Option<Vec<u8>>)
                 -> Result<Vec<DownloadAction>, Error>;
     // open - opens database using download results.
     fn open(&mut self, download_result: Vec<&Vec<u8>>) -> Result<(), Error>;
@@ -72,3 +74,15 @@ pub trait PasswordDatabase {
     fn save(&mut self) -> Result<SaveAction, Error>;
 }
 
+pub enum HashAlgorithm {
+    Argon2
+}
+
+pub enum CryptoEngine {
+    AES
+}
+
+pub enum PasswordDatabaseType {
+    KeePass,
+    Pman
+}
