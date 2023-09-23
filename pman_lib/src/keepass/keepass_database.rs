@@ -7,14 +7,18 @@ pub struct KeePassDatabase {
 
 }
 
+pub fn build_read_only_db_error() -> Error {
+    Error::new(ErrorKind::Unsupported, "database is read only")
+}
+
 impl PasswordDatabase for KeePassDatabase {
     fn create(&mut self, password: String, password2: Option<String>,
               key_file_contents: Option<Vec<u8>>) -> Result<(), Error> {
-        todo!()
+        Err(build_read_only_db_error())
     }
 
     fn is_read_only(&self) -> bool {
-        todo!()
+        true
     }
 
     fn prepare(&mut self, contents: &Vec<u8>) -> Result<(), Error> {
@@ -35,11 +39,11 @@ impl PasswordDatabase for KeePassDatabase {
     }
 
     fn add_user(&mut self, name: String) -> Result<usize, Error> {
-        todo!()
+        Err(build_read_only_db_error())
     }
 
     fn remove_user(&mut self, id: usize) -> Result<(), Error> {
-        todo!()
+        Err(build_read_only_db_error())
     }
 
     fn search(&self, search_string: String) -> Result<Vec<DatabaseSearchResult>, Error> {
@@ -47,24 +51,24 @@ impl PasswordDatabase for KeePassDatabase {
     }
 
     fn add_group(&mut self, name: String) -> Result<(), Error> {
-        todo!()
+        Err(build_read_only_db_error())
     }
 
     fn delete_group(&mut self, name: String) -> Result<(), Error> {
-        todo!()
+        Err(build_read_only_db_error())
     }
 
     fn delete_entity(&mut self, group: String, name: String) -> Result<(), Error> {
-        todo!()
+        Err(build_read_only_db_error())
     }
 
     fn add_entity(&mut self, group: String, name: String, user_id: usize, password: String,
                   url: Option<String>, properties: HashMap<String, String>) -> Result<(), Error> {
-        todo!()
+        Err(build_read_only_db_error())
     }
 
     fn save(&mut self) -> Result<SaveAction, Error> {
-        todo!()
+        Err(build_read_only_db_error())
     }
 }
 

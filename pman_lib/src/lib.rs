@@ -33,7 +33,7 @@ struct DatabaseFile {
 static mut DATABASES: Option<HashMap<u64, DatabaseFile>> = None;
 static mut NEXT_DB_ID: u64 = 1;
 
-fn init() {
+pub fn lib_init() {
     unsafe {
         DATABASES = Some(HashMap::new())
     }
@@ -46,7 +46,7 @@ pub fn prepare(data: &Vec<u8>, file_name: String) -> Result<u64, PmanError> {
     }
     let f_name = Some(file_name.clone());
     match unsafe{DATABASES.as_ref()}.unwrap().into_iter()
-        .find(|(id, db)|db.file_name == f_name) {
+        .find(|(_id, db)|db.file_name == f_name) {
         None => {
             let suffix = &file_name[l-5..l];
             let database = match suffix {
@@ -79,7 +79,6 @@ pub fn create(database_type: PasswordDatabaseType, password: String, password2: 
         PasswordDatabaseType::Pman =>
             PmanDatabase::new(password, password2, key_file_contents)
                 .map_err(|e| PmanError::message(e.to_string()))?,
-        _ => return Err(PmanError::message("unsupported database type"))
     };
     let db_id = unsafe{NEXT_DB_ID};
     unsafe{
