@@ -1,25 +1,35 @@
+use std::collections::HashMap;
 use std::io::{Error, ErrorKind, Read};
 use std::env::args;
 use std::fs::File;
 use arguments_parser::{Arguments, IntParameter, SizeParameter, BoolParameter, Switch, StringParameter, EnumParameter};
 use pman_lib::{create, get_database_type, prepare};
 
+const LOCATIONS_VALUES: HashMap<String, > = vec!["local".to_string()];
+const HASH_VALUES: Vec<String> = vec!["argon2".to_string()];
+const ENCRYPTION_VALUES: Vec<String> = vec!["aes".to_string()];
+const TIME_DEFAULT: isize = 1000;
+const PARALLELISM_DEFAULT: isize = 6;
+const MEMORY_DEFAULT: isize = 128;
+
 fn main() -> Result<(), Error> {
-    let names_file_parameter = StringParameter::new("local");
-    let passwords_file_parameter = StringParameter::new("local");
+    let locations = LOCATIONS_VALUES.values().collect();
+    let names_file_parameter = EnumParameter::new(locations, "local");
+    let passwords_file_parameter = EnumParameter::new(locations.clone(), "local");
     let password_parameter = StringParameter::new("");
     let password2_parameter = StringParameter::new("");
-    let hash_parameter = EnumParameter::new(vec!["argon2".to_string()], "argon2");
-    let hash2_parameter = EnumParameter::new(vec!["argon2".to_string()], "argon2");
-    let encryption_parameter = EnumParameter::new(vec!["aes".to_string()], "aes");
+    let hash_parameter = EnumParameter::new(HASH_VALUES, "argon2");
+    let hash2_parameter = EnumParameter::new(HASH_VALUES, "argon2");
+    let encryption_parameter = EnumParameter::new(ENCRYPTION_VALUES, "aes");
+    let encryption2_parameter = EnumParameter::new(ENCRYPTION_VALUES, "aes");
     let verbose_parameter = BoolParameter::new();
     let create_parameter = BoolParameter::new();
-    let time_parameter = IntParameter::new(1000);
-    let parallelism_parameter = IntParameter::new(6);
-    let time2_parameter = IntParameter::new(1000);
-    let parallelism2_parameter = IntParameter::new(6);
-    let memory_parameter = IntParameter::new(128);
-    let memory2_parameter = IntParameter::new(128);
+    let time_parameter = IntParameter::new(TIME_DEFAULT);
+    let parallelism_parameter = IntParameter::new(PARALLELISM_DEFAULT);
+    let time2_parameter = IntParameter::new(TIME_DEFAULT);
+    let parallelism2_parameter = IntParameter::new(PARALLELISM_DEFAULT);
+    let memory_parameter = IntParameter::new(MEMORY_DEFAULT);
+    let memory2_parameter = IntParameter::new(MEMORY_DEFAULT);
     let switches = [
         Switch::new("first password", None, Some("pw"),
                     &password_parameter),
@@ -31,7 +41,9 @@ fn main() -> Result<(), Error> {
                     &hash2_parameter),
         Switch::new("verbose", Some('v'), None, &verbose_parameter),
         Switch::new("create mode", Some('c'), None, &create_parameter),
-        Switch::new("encryption algorithm", Some('e'), None,
+        Switch::new("encryption algorithm for names file", Some('e'), None,
+                    &encryption_parameter),
+        Switch::new("encryption algorithm for passwords file", None, Some("e2"),
                     &encryption_parameter),
         Switch::new("hash build time in ms for first hash algorithm", Some('t'),
                     None, &time_parameter),

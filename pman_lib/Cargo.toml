@@ -9,6 +9,7 @@ crate-type = ["cdylib", "staticlib"]
 [dependencies]
 uniffi = { version = "0.24.3", features = [ "cli" ] }
 thiserror = "1.0"
+rand = "0.8.5"
 
 [build-dependencies]
 uniffi_build = "0.24.3"
