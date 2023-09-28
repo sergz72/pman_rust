@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::io::Error;
+use crate::structs_interfaces::PasswordDatabaseType::Pman;
 
 pub trait DatabaseEntity {
     fn get_name(&self) -> String;
@@ -82,7 +83,14 @@ pub enum CryptoEngine {
     AES
 }
 
+#[derive(PartialEq)]
 pub enum PasswordDatabaseType {
     KeePass,
     Pman
+}
+
+impl PasswordDatabaseType {
+    pub fn requires_second_password(&self) -> bool {
+        return *self == Pman
+    }
 }

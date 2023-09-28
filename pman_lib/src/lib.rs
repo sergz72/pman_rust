@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::{Error, ErrorKind};
 use std::sync::{Arc, RwLock};
 use thiserror::Error;
 use crate::keepass::keepass_database::KeePassDatabase;
@@ -39,24 +40,33 @@ pub fn lib_init() {
     }
 }
 
-pub fn prepare(data: &Vec<u8>, file_name: String) -> Result<u64, PmanError> {
+pub fn get_database_type(file_name: &String) -> Result<PasswordDatabaseType, Error> {
     let l = file_name.len();
     if l < 6 {
-        return Err(PmanError::message("file name is too short"));
+        return Err(Error::new(ErrorKind::InvalidInput, "file name is too short"));
     }
+    let suffix = &file_name[l-5..l];
+    match suffix {
+        ".kdbx" => Ok(PasswordDatabaseType::KeePass),
+        ".pdbf" => Ok(PasswordDatabaseType::Pman),
+        _ => return Err(Error::new(ErrorKind::InvalidInput, "unsupported database type"))
+    }
+}
+
+pub fn prepare(data: &Vec<u8>, file_name: String) -> Result<u64, PmanError> {
+    let database_type = get_database_type(&file_name)
+        .map_err(|e|PmanError::message(e.to_string()))?;
     let f_name = Some(file_name.clone());
     match unsafe{DATABASES.as_ref()}.unwrap().into_iter()
         .find(|(_id, db)|db.file_name == f_name) {
         None => {
-            let suffix = &file_name[l-5..l];
-            let database = match suffix {
-                ".kdbx" =>
+            let database = match database_type {
+                PasswordDatabaseType::KeePass =>
                     KeePassDatabase::new_from_file(data)
                         .map_err(|e| PmanError::message(e.to_string()))?,
-                ".pdbf" =>
+                PasswordDatabaseType::Pman =>
                     PmanDatabase::new_from_file(data)
                         .map_err(|e| PmanError::message(e.to_string()))?,
-                _ => return Err(PmanError::message("unsupported database type"))
             };
             let db_id = unsafe{NEXT_DB_ID};
             unsafe{
