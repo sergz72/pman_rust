@@ -1,19 +1,28 @@
 /*
-
 database file structure
     header -> id_value_map
         database version
         names_file_hash_algorithm properties
         names_file_encryption_algorithm properties
         names_file_location
-    names_file_properties -> id_value_map
-        for local names file -> file contents
+    entities -> id_value_map
+    // encrypted //
+    names_file -> see below
+    // not encrypted //
     sha512 for file data
 
-names file structure -> id_value_map
-    header -> id_name_map
+names file structure
+    header -> id_value_map
         passwords_file_hash_algorithm properties
         passwords_file_encryption_algorithm properties
         passwords_file_location
+    names_map -> id_value_map
+    // encrypted //
+    passwords_file -> see below
+    // not encrypted //
+    sha512 for file data
 
+passwords file structure
+    passwords_map -> id_value_map
+    sha512 for file data
 */

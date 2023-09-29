@@ -3,15 +3,15 @@ use std::io::{Error, ErrorKind};
 use uniffi::deps::bytes::BufMut;
 use crate::crypto::{build_corrupted_data_error, CryptoProcessor};
 
-pub struct IdNameMap {
+pub struct IdValueMap {
     next_id: u32,
     map: HashMap<u32, Vec<u8>>,
     processor: Box<dyn CryptoProcessor>
 }
 
-impl IdNameMap {
-    pub fn new(processor: Box<dyn CryptoProcessor>) -> IdNameMap {
-        IdNameMap{next_id: 1, map: HashMap::new(), processor}
+impl IdValueMap {
+    pub fn new(processor: Box<dyn CryptoProcessor>) -> IdValueMap {
+        IdValueMap{next_id: 1, map: HashMap::new(), processor}
     }
 
     pub fn add(&mut self, value: Vec<u8>) -> u32 {
@@ -122,13 +122,13 @@ mod tests {
     use rand::RngCore;
     use rand::rngs::OsRng;
     use crate::crypto::AesProcessor;
-    use crate::pman::id_name_map::IdNameMap;
+    use crate::pman::id_value_map::IdValueMap;
 
     #[test]
     fn test_id_name_map() -> Result<(), Error> {
         let mut key = [0u8;32];
         OsRng.fill_bytes(&mut key);
-        let mut map = IdNameMap::new(AesProcessor::new(key));
+        let mut map = IdValueMap::new(AesProcessor::new(key));
         let idx = map.add_string("test".to_string());
         map.set_string(idx, "test2".to_string())?;
         map.remove(idx)?;
@@ -138,8 +138,9 @@ mod tests {
         let idx3 = map.add_string(s3.clone());
         let mut v = Vec::new();
         map.save(&mut v);
-        let mut map2 = IdNameMap::new(AesProcessor::new(key));
-        map2.load(&v, 0)?;
+        let mut map2 = IdValueMap::new(AesProcessor::new(key));
+        let end = map2.load(&v, 0)?;
+        assert_eq!(end, v.len());
         assert_eq!(map2.map.len(), map.map.len());
         assert_eq!(map2.next_id, map.next_id);
         let v2 = map2.get_string(idx2)?;
