@@ -2,7 +2,7 @@ use crate::crypto::CryptoProcessor;
 use crate::pman::id_value_map::IdValueMap;
 
 pub struct NamesFile {
-    names: IdValueMap
+    names: IdValueMap<String>
 }
 
 impl NamesFile {

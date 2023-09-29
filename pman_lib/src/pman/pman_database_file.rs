@@ -27,7 +27,7 @@ passwords file structure
     sha512 for file data
 */
 
-use crate::pman::entity_map::EntityMap;
+use crate::pman::header_entity::HeaderEntity;
 use crate::pman::id_value_map::IdValueMap;
 use crate::pman::names_file::NamesFile;
 

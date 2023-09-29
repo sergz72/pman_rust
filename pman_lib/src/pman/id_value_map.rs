@@ -1,26 +1,20 @@
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
+use std::marker::PhantomData;
+use std::ops::Deref;
 use uniffi::deps::bytes::BufMut;
 use crate::crypto::{build_corrupted_data_error, CryptoProcessor};
 
-trait ByteValue<T> {
-    fn from_bytes(source: Vec<u8>) -> Result<T, Error>;
+pub trait ByteValue {
+    fn from_bytes(source: Vec<u8>) -> Result<Box<Self>, Error>;
     fn to_bytes(&self) -> Vec<u8>;
 }
 
-impl<T> ByteValue<T> for Vec<u8> {
-    fn from_bytes(source: Vec<u8>) -> Result<Vec<u8>, Error> {
-        Ok(source)
-    }
-
-    fn to_bytes(&self) -> Vec<u8> {
-        self.clone()
-    }
-}
-
-impl<T> ByteValue<T> for String {
-    fn from_bytes(source: Vec<u8>) -> Result<String, Error> {
-        String::from_utf8(source).map_err(|e|Error::new(ErrorKind::InvalidData, e.to_string()))
+impl ByteValue for String {
+    fn from_bytes(source: Vec<u8>) -> Result<Box<String>, Error> {
+        String::from_utf8(source)
+            .map(|v|Box::new(v))
+            .map_err(|e|Error::new(ErrorKind::InvalidData, e.to_string()))
     }
 
     fn to_bytes(&self) -> Vec<u8> {
@@ -31,12 +25,13 @@ impl<T> ByteValue<T> for String {
 pub struct IdValueMap<T> {
     next_id: u32,
     map: HashMap<u32, Vec<u8>>,
-    processor: Box<dyn CryptoProcessor>
+    processor: Box<dyn CryptoProcessor>,
+    phantom: PhantomData<T>
 }
 
-impl<T: ByteValue<T>> IdValueMap<T> {
+impl<T: ByteValue> IdValueMap<T> {
     pub fn new(processor: Box<dyn CryptoProcessor>) -> IdValueMap<T> {
-        IdValueMap{next_id: 1, map: HashMap::new(), processor}
+        IdValueMap{next_id: 1, map: HashMap::new(), processor, phantom: Default::default()}
     }
 
     pub fn add(&mut self, value: T) -> u32 {
@@ -71,7 +66,8 @@ impl<T: ByteValue<T>> IdValueMap<T> {
         self.exists(id)?;
         let v = self.map.get(&id).unwrap();
         let decoded = self.processor.decode(v)?;
-        T::from_bytes(decoded)
+        let value = T::from_bytes(decoded)?;
+        Ok(*value)
     }
 
     pub fn save(&self, output: &mut Vec<u8>) {
