@@ -87,6 +87,24 @@ impl AesProcessor {
     }
 }
 
+pub struct NoEncryptionProcessor {
+}
+
+impl CryptoProcessor for NoEncryptionProcessor {
+    fn encode(&self, data: Vec<u8>) -> Vec<u8> {
+        data
+    }
+
+    fn decode(&self, data: &Vec<u8>) -> Result<Vec<u8>, Error> {
+        Ok(data.clone())
+    }
+}
+
+impl NoEncryptionProcessor {
+    pub fn new() -> Box<dyn CryptoProcessor> {
+        Box::new(NoEncryptionProcessor{})
+    }
+}
 #[cfg(test)]
 mod tests {
     use std::io::Error;

@@ -26,3 +26,19 @@ passwords file structure
     passwords_map -> id_value_map
     sha512 for file data
 */
+
+use crate::pman::entity_map::EntityMap;
+use crate::pman::id_value_map::IdValueMap;
+use crate::pman::names_file::NamesFile;
+
+struct PmanDatabaseFile {
+    header: IdValueMap<String>,
+    entities: IdValueMap<HeaderEntity>,
+    names_file: NamesFile
+}
+
+impl PmanDatabaseFile {
+    fn save(output: &mut Vec<u8>) {
+
+    }
+}

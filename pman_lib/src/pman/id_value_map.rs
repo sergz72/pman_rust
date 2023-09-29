@@ -3,36 +3,53 @@ use std::io::{Error, ErrorKind};
 use uniffi::deps::bytes::BufMut;
 use crate::crypto::{build_corrupted_data_error, CryptoProcessor};
 
-pub struct IdValueMap {
+trait ByteValue<T> {
+    fn from_bytes(source: Vec<u8>) -> Result<T, Error>;
+    fn to_bytes(&self) -> Vec<u8>;
+}
+
+impl<T> ByteValue<T> for Vec<u8> {
+    fn from_bytes(source: Vec<u8>) -> Result<Vec<u8>, Error> {
+        Ok(source)
+    }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        self.clone()
+    }
+}
+
+impl<T> ByteValue<T> for String {
+    fn from_bytes(source: Vec<u8>) -> Result<String, Error> {
+        String::from_utf8(source).map_err(|e|Error::new(ErrorKind::InvalidData, e.to_string()))
+    }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        self.as_bytes().to_vec()
+    }
+}
+
+pub struct IdValueMap<T> {
     next_id: u32,
     map: HashMap<u32, Vec<u8>>,
     processor: Box<dyn CryptoProcessor>
 }
 
-impl IdValueMap {
-    pub fn new(processor: Box<dyn CryptoProcessor>) -> IdValueMap {
+impl<T: ByteValue<T>> IdValueMap<T> {
+    pub fn new(processor: Box<dyn CryptoProcessor>) -> IdValueMap<T> {
         IdValueMap{next_id: 1, map: HashMap::new(), processor}
     }
 
-    pub fn add(&mut self, value: Vec<u8>) -> u32 {
-        let v = self.processor.encode(value);
+    pub fn add(&mut self, value: T) -> u32 {
+        let v = self.processor.encode(value.to_bytes());
         let id = self.next_id;
         self.map.insert(id, v);
         self.next_id += 1;
         id
     }
 
-    pub fn add_string(&mut self, value: String) -> u32 {
-        self.add(value.as_bytes().to_vec())
-    }
-
-    pub fn set_string(&mut self, id: u32, value: String) -> Result<(), Error> {
-        self.set(id, value.as_bytes().to_vec())
-    }
-
-    pub fn set(&mut self, id: u32, value: Vec<u8>) -> Result<(), Error> {
+    pub fn set(&mut self, id: u32, value: T) -> Result<(), Error> {
         self.exists(id)?;
-        let v = self.processor.encode(value);
+        let v = self.processor.encode(value.to_bytes());
         self.map.insert(id, v);
         Ok(())
     }
@@ -50,16 +67,11 @@ impl IdValueMap {
         Ok(())
     }
 
-    pub fn get(&self, id: u32) -> Result<Vec<u8>, Error> {
+    pub fn get(&self, id: u32) -> Result<T, Error> {
         self.exists(id)?;
         let v = self.map.get(&id).unwrap();
-        self.processor.decode(v)
-    }
-
-    pub fn get_string(&self, id: u32) -> Result<String, Error> {
-        let v = self.get(id)?;
-        String::from_utf8(v)
-            .map_err(|e|Error::new(ErrorKind::InvalidData, e.to_string()))
+        let decoded = self.processor.decode(v)?;
+        T::from_bytes(decoded)
     }
 
     pub fn save(&self, output: &mut Vec<u8>) {
@@ -128,24 +140,24 @@ mod tests {
     fn test_id_name_map() -> Result<(), Error> {
         let mut key = [0u8;32];
         OsRng.fill_bytes(&mut key);
-        let mut map = IdValueMap::new(AesProcessor::new(key));
-        let idx = map.add_string("test".to_string());
-        map.set_string(idx, "test2".to_string())?;
+        let mut map: IdValueMap<String> = IdValueMap::new(AesProcessor::new(key));
+        let idx = map.add("test".to_string());
+        map.set(idx, "test2".to_string())?;
         map.remove(idx)?;
         let s2 = "test2".to_string();
         let s3 = "test3dmbfjsdhfgjsdgdfjsdgfjdsagfjsdgfjsguweyrtq  uieydhz`kjvbadfkulghewiurthkghfvkzjxviugrthiertfbdert".to_string();
-        let idx2 = map.add_string(s2.clone());
-        let idx3 = map.add_string(s3.clone());
+        let idx2 = map.add(s2.clone());
+        let idx3 = map.add(s3.clone());
         let mut v = Vec::new();
         map.save(&mut v);
-        let mut map2 = IdValueMap::new(AesProcessor::new(key));
+        let mut map2: IdValueMap<String> = IdValueMap::new(AesProcessor::new(key));
         let end = map2.load(&v, 0)?;
         assert_eq!(end, v.len());
         assert_eq!(map2.map.len(), map.map.len());
         assert_eq!(map2.next_id, map.next_id);
-        let v2 = map2.get_string(idx2)?;
+        let v2 = map2.get(idx2)?;
         assert_eq!(v2, s2);
-        let v3 = map2.get_string(idx3)?;
+        let v3 = map2.get(idx3)?;
         assert_eq!(v3, s3);
         Ok(())
     }
