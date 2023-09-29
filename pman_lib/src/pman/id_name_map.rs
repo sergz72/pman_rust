@@ -1,22 +1,11 @@
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
-use rand::RngCore;
-use rand::rngs::OsRng;
 use uniffi::deps::bytes::BufMut;
-use crate::crypto::CryptoProcessor;
-
-const ENCODED_SIZE: usize = 64;
-const MAX_LENGTH: usize = ENCODED_SIZE - 17;
-
-type Encoded = [u8;ENCODED_SIZE];
-
-fn build_corrupted_data_error() -> Error {
-    Error::new(ErrorKind::InvalidData, "corrupted data")
-}
+use crate::crypto::{build_corrupted_data_error, CryptoProcessor};
 
 pub struct IdNameMap {
     next_id: u32,
-    map: HashMap<u32, Encoded>,
+    map: HashMap<u32, Vec<u8>>,
     processor: Box<dyn CryptoProcessor>
 }
 
@@ -25,17 +14,25 @@ impl IdNameMap {
         IdNameMap{next_id: 1, map: HashMap::new(), processor}
     }
 
-    pub fn add(&mut self, value: String) -> Result<u32, Error> {
-        let v = self.build_value(value)?;
+    pub fn add(&mut self, value: Vec<u8>) -> u32 {
+        let v = self.processor.encode(value);
         let id = self.next_id;
         self.map.insert(id, v);
         self.next_id += 1;
-        Ok(id)
+        id
     }
 
-    pub fn set(&mut self, id: u32, value: String) -> Result<(), Error> {
+    pub fn add_string(&mut self, value: String) -> u32 {
+        self.add(value.as_bytes().to_vec())
+    }
+
+    pub fn set_string(&mut self, id: u32, value: String) -> Result<(), Error> {
+        self.set(id, value.as_bytes().to_vec())
+    }
+
+    pub fn set(&mut self, id: u32, value: Vec<u8>) -> Result<(), Error> {
         self.exists(id)?;
-        let v = self.build_value(value)?;
+        let v = self.processor.encode(value);
         self.map.insert(id, v);
         Ok(())
     }
@@ -53,39 +50,15 @@ impl IdNameMap {
         Ok(())
     }
 
-    pub fn get(&self, id: u32) -> Result<String, Error> {
+    pub fn get(&self, id: u32) -> Result<Vec<u8>, Error> {
         self.exists(id)?;
         let v = self.map.get(&id).unwrap();
-        self.decode_value(v)
+        self.processor.decode(v)
     }
 
-    fn build_value(&self, value: String) -> Result<Encoded, Error> {
-        let bytes = value.as_bytes();
-        let l = bytes.len();
-        if value.len() > MAX_LENGTH {
-            return Err(Error::new(ErrorKind::InvalidInput, "string is too long"))
-        }
-        let mut v = [0u8;ENCODED_SIZE];
-        OsRng.fill_bytes(&mut v);
-        let mut idx = 8;
-        v[idx] = l as u8;
-        idx += 1;
-        let mut idx2 = 0;
-        while idx2 < l {
-            v[idx] = bytes[idx2];
-            idx += 1;
-            idx2 += 1;
-        }
-        Ok(self.processor.encode(v))
-    }
-
-    fn decode_value(&self, value: &Encoded) -> Result<String, Error> {
-        let v = self.processor.decode(value);
-        let l = v[8] as usize;
-        if l > MAX_LENGTH {
-            return Err(build_corrupted_data_error());
-        }
-        String::from_utf8(v[9..l+9].iter().map(|e|*e).collect())
+    pub fn get_string(&self, id: u32) -> Result<String, Error> {
+        let v = self.get(id)?;
+        String::from_utf8(v)
             .map_err(|e|Error::new(ErrorKind::InvalidData, e.to_string()))
     }
 
@@ -93,11 +66,12 @@ impl IdNameMap {
         output.put_u32_le(self.map.len() as u32);
         for (key, value) in &self.map {
             output.put_u32_le(*key);
+            output.put_u32_le(value.len() as u32);
             output.put_slice(value);
         }
     }
 
-    pub fn load(&mut self, source: &Vec<u8>, offset: usize) -> Result<(), Error> {
+    pub fn load(&mut self, source: &Vec<u8>, offset: usize) -> Result<usize, Error> {
         if !self.map.is_empty() {
             return Err(Error::new(ErrorKind::PermissionDenied, "map is not empty"))
         }
@@ -105,32 +79,40 @@ impl IdNameMap {
         if offset + 4 > sl {
             return Err(build_corrupted_data_error());
         }
+        // reading map length
         let mut buffer32 = [0u8; 4];
-        let mut encoded = [0u8; ENCODED_SIZE];
-        let s = source.as_slice();
         let mut idx = offset;
-        buffer32.copy_from_slice(&s[idx..idx + 4]);
+        buffer32.copy_from_slice(&source[idx..idx + 4]);
         let mut l = u32::from_le_bytes(buffer32);
         idx += 4;
         while l > 0 {
-            if idx + 4 + ENCODED_SIZE > sl {
+            if idx + 8 > sl { // 4 for key + 4 for value length
                 return Err(build_corrupted_data_error());
             }
-            buffer32.copy_from_slice(&s[idx..idx + 4]);
+            //reading key
+            buffer32.copy_from_slice(&source[idx..idx + 4]);
+            idx += 4;
             let key = u32::from_le_bytes(buffer32);
             if self.map.contains_key(&key) {
                 return Err(build_corrupted_data_error());
             }
+            // reading value length
+            buffer32.copy_from_slice(&source[idx..idx + 4]);
+            idx += 4;
+            let value_length = u32::from_le_bytes(buffer32) as usize;
+            if idx + value_length > sl {
+                return Err(build_corrupted_data_error());
+            }
+            // reading value
+            let value = source[idx..idx+value_length].to_vec();
+            idx += value_length;
+            self.map.insert(key, value);
             if key >= self.next_id {
                 self.next_id = key + 1;
             }
-            idx += 4;
-            encoded.copy_from_slice(&s[idx..idx + ENCODED_SIZE]);
-            idx += ENCODED_SIZE;
-            self.map.insert(key, encoded);
             l -= 1;
         }
-        Ok(())
+        Ok(idx)
     }
 }
 
@@ -146,24 +128,24 @@ mod tests {
     fn test_id_name_map() -> Result<(), Error> {
         let mut key = [0u8;32];
         OsRng.fill_bytes(&mut key);
-        let mut iv = [0u8;16];
-        OsRng.fill_bytes(&mut iv);
-        let mut map = IdNameMap::new(AesProcessor::new(key, iv));
-        let idx = map.add("test".to_string())?;
-        map.set(idx, "test2".to_string())?;
+        let mut map = IdNameMap::new(AesProcessor::new(key));
+        let idx = map.add_string("test".to_string());
+        map.set_string(idx, "test2".to_string())?;
         map.remove(idx)?;
-        let idx2 = map.add("test2".to_string())?;
-        let idx3 = map.add("test3".to_string())?;
+        let s2 = "test2".to_string();
+        let s3 = "test3dmbfjsdhfgjsdgdfjsdgfjdsagfjsdgfjsguweyrtq  uieydhz`kjvbadfkulghewiurthkghfvkzjxviugrthiertfbdert".to_string();
+        let idx2 = map.add_string(s2.clone());
+        let idx3 = map.add_string(s3.clone());
         let mut v = Vec::new();
         map.save(&mut v);
-        let mut map2 = IdNameMap::new(AesProcessor::new(key, iv));
+        let mut map2 = IdNameMap::new(AesProcessor::new(key));
         map2.load(&v, 0)?;
         assert_eq!(map2.map.len(), map.map.len());
         assert_eq!(map2.next_id, map.next_id);
-        let v2 = map2.get(idx2)?;
-        assert_eq!(v2, "test2".to_string());
-        let v3 = map2.get(idx3)?;
-        assert_eq!(v3, "test3".to_string());
+        let v2 = map2.get_string(idx2)?;
+        assert_eq!(v2, s2);
+        let v3 = map2.get_string(idx3)?;
+        assert_eq!(v3, s3);
         Ok(())
     }
 }
