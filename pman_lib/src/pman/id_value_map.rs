@@ -1,13 +1,23 @@
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 use std::marker::PhantomData;
-use std::ops::Deref;
+use std::sync::Arc;
 use uniffi::deps::bytes::BufMut;
 use crate::crypto::{build_corrupted_data_error, CryptoProcessor};
 
 pub trait ByteValue {
     fn from_bytes(source: Vec<u8>) -> Result<Box<Self>, Error>;
     fn to_bytes(&self) -> Vec<u8>;
+}
+
+impl ByteValue for Vec<u8> {
+    fn from_bytes(source: Vec<u8>) -> Result<Box<Vec<u8>>, Error> {
+        Ok(Box::new(source))
+    }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        self.clone()
+    }
 }
 
 impl ByteValue for String {
@@ -25,12 +35,12 @@ impl ByteValue for String {
 pub struct IdValueMap<T> {
     next_id: u32,
     map: HashMap<u32, Vec<u8>>,
-    processor: Box<dyn CryptoProcessor>,
+    processor: Arc<dyn CryptoProcessor>,
     phantom: PhantomData<T>
 }
 
 impl<T: ByteValue> IdValueMap<T> {
-    pub fn new(processor: Box<dyn CryptoProcessor>) -> IdValueMap<T> {
+    pub fn new(processor: Arc<dyn CryptoProcessor>) -> IdValueMap<T> {
         IdValueMap{next_id: 1, map: HashMap::new(), processor, phantom: Default::default()}
     }
 
@@ -40,6 +50,18 @@ impl<T: ByteValue> IdValueMap<T> {
         self.map.insert(id, v);
         self.next_id += 1;
         id
+    }
+
+    pub fn add_with_id(&mut self, id: u32, value: T) -> Result<(), Error> {
+        if self.map.contains_key(&id) {
+            return Err(Error::new(ErrorKind::InvalidInput, "record already exists"));
+        }
+        let v = self.processor.encode(value.to_bytes());
+        self.map.insert(id, v);
+        if id >= self.next_id {
+            self.next_id = id + 1;
+        }
+        Ok(())
     }
 
     pub fn set(&mut self, id: u32, value: T) -> Result<(), Error> {

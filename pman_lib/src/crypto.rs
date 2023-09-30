@@ -1,5 +1,6 @@
 use std::cmp::min;
 use std::io::{Error, ErrorKind};
+use std::sync::Arc;
 use aes::Aes256;
 use aes::cipher::{BlockDecrypt, BlockEncrypt, KeyInit};
 use aes::cipher::generic_array::GenericArray;
@@ -81,9 +82,9 @@ impl CryptoProcessor for AesProcessor {
 }
 
 impl AesProcessor {
-    pub fn new(key: [u8;32]) -> Box<dyn CryptoProcessor> {
+    pub fn new(key: [u8;32]) -> Arc<dyn CryptoProcessor> {
         let k = GenericArray::from(key);
-        Box::new(AesProcessor{ cipher: Aes256::new(&k) })
+        Arc::new(AesProcessor{ cipher: Aes256::new(&k) })
     }
 }
 
@@ -101,13 +102,14 @@ impl CryptoProcessor for NoEncryptionProcessor {
 }
 
 impl NoEncryptionProcessor {
-    pub fn new() -> Box<dyn CryptoProcessor> {
-        Box::new(NoEncryptionProcessor{})
+    pub fn new() -> Arc<dyn CryptoProcessor> {
+        Arc::new(NoEncryptionProcessor{})
     }
 }
 #[cfg(test)]
 mod tests {
     use std::io::Error;
+    use std::sync::Arc;
     use rand::RngCore;
     use rand::rngs::OsRng;
     use crate::crypto::{AesProcessor, CryptoProcessor};
@@ -121,7 +123,7 @@ mod tests {
         test_crypto_processor(AesProcessor::new(key))
     }
 
-    fn test_crypto_processor(processor: Box<dyn CryptoProcessor>) -> Result<(), Error> {
+    fn test_crypto_processor(processor: Arc<dyn CryptoProcessor>) -> Result<(), Error> {
         let mut data = [0u8;64];
         OsRng.fill_bytes(&mut data);
         let encoded = processor.encode(data.to_vec());
