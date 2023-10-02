@@ -23,19 +23,16 @@ impl NamesFile {
 
     pub fn load(algorithm_parameters: Vec<u8>, encryption_key: [u8; 32],
                 password2_hash: Vec<u8>, data: Vec<u8>, offset: usize, length: usize) -> Result<(NamesFile, PasswordsFile), Error> {
+
         let l = validate_data_hash(&data, offset, length)?;
-        let mut h: IdValueMap<Vec<u8>> = IdValueMap::new(NoEncryptionProcessor::new());
-        let offset2 = h.load(&data, offset)?;
-        let (alg1, alg2) = get_encryption_algorithms(&h)?;
-        let encryption_key2 = build_encryption_key(&h, &password2_hash)?;
-        let l2 = validate_data_hmac(&encryption_key, &data, offset2, l)?;
-        decrypt_data(alg1, &encryption_key2, &data, offset2, l2);
-        let mut entities: IdValueMap<HeaderEntity> = IdValueMap::new(NoEncryptionProcessor::new());
-        let offset3 = entities.load(&data, offset2)?;
         let encryption_processor = build_encryption_processor(algorithm_parameters, encryption_key)?;
+        let mut h: IdValueMap<Vec<u8>> = IdValueMap::new(encryption_processor.clone());
+        let offset2 = h.load(&data, offset)?;
+        let mut entities: IdValueMap<HeaderEntity> = IdValueMap::new(encryption_processor.clone());
+        let offset3 = entities.load(&data, offset2)?;
         let mut names: IdValueMap<String> = IdValueMap::new(encryption_processor);
         let offset4 = names.load(&data, offset3)?;
-        let passwords_file = PasswordsFile::load(alg2, encryption_key2, data, offset4, l2)?;
+        let passwords_file = PasswordsFile::load(&h, data, offset4, l2)?;
         Ok((NamesFile{
             processor: Arc::new(()),
             header: h,
@@ -47,8 +44,4 @@ impl NamesFile {
     pub fn save() {
 
     }
-}
-
-fn build_encryption_processor(algorithm_parameters: Vec<u8>, encryption_key: [u8; 32]) -> Result<Arc<dyn CryptoProcessor>, Error> {
-    todo!()
 }

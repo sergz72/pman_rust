@@ -1,42 +1,50 @@
 /*
+
+password1,2 -> hashed using sha256
+
 database file structure
-    header -> id_value_map
-        database version
-        names_file_hash_algorithm properties
-        names_file_encryption_algorithm properties
-        names_file_location
-    // encrypted //
-    names_file -> see below
-    // not encrypted //
-    sha512 for file data
+|--|-header -> id_value_map
+|  |     database version
+|  |     names_file_hash_algorithm properties (supported: argon2)
+|  |     names_file_encryption1_algorithm properties (supported: chacha20)
+|  |     names_file_encryption2_algorithm properties (supported: aes)
+|* |-names_files_info -> id_value_map (encrypted with password1_hash, names_file_hash_algorithm properties, names_file_encryption2_algorithm)
+|* |     names files locations
+|* |     passwords_file_hash_algorithm properties (supported: argon2)
+|* |     passwords_file_encryption1_algorithm properties (supported: chacha20)
+|* |     passwords_file_encryption2_algorithm properties (supported: aes)
+|*&|-passwords_files_info -> id_value_map (encrypted with password2_hash,passwords_file_hash_algorithm properties, passwords_file_encryption2_algorithm)
+|*&|     passwords files locations
+|  |-hmacsha256 for file data (using password1_hash, names_file_hash_algorithm properties)
+|----sha256 for file data
+
+* - encrypted using password1_hash, names_file_encryption1_algorithm
+& - encrypted using password2_hash, passwords_file_encryption1_algorithm
 
 names file structure
-    entities -> id_value_map
-    header -> id_value_map
-        passwords_file_hash_algorithm properties
-        passwords_file_encryption_algorithm properties
-        passwords_file_location
-    names_map -> id_value_map
-    // encrypted //
-    passwords_file -> see below
-    // not encrypted //
-    sha512 for file data
+|* | entities -> id_value_map (encrypted with password1_hash,names_file_hash_algorithm properties, names_file_encryption2_algorithm)
+|* | names -> id_value_map (encrypted with password1_hash,names_file_hash_algorithm properties, names_file_encryption2_algorithm)
+|  |-hmacsha256 for file data (using password1_hash, names_file_hash_algorithm properties)
+|----sha256 for file data
 
 passwords file structure
-    passwords_map -> id_value_map
-    sha512 for file data
+|& | passswords -> id_value_map (encrypted with password2_hash,passsords_file_hash_algorithm properties, passwords_file_encryption2_algorithm)
+|  |-hmacsha256 for file data (using password2_hash, passwords_file_hash_algorithm properties
+|----sha256 for file data
+
 */
 
 use std::io::Error;
+use std::sync::Arc;
 use rand::RngCore;
 use rand::rngs::OsRng;
-use crate::crypto::NoEncryptionProcessor;
+use crate::crypto::{build_corrupted_data_error, CryptoProcessor, NoEncryptionProcessor};
 use crate::pman::id_value_map::IdValueMap;
 use crate::pman::ids::{DATABASE_VERSION_ID, ENCRYPTION_ALGORITHM1_PROPERTIES_ID,
-                       ENCRYPTION_ALGORITHM2_PROPERTIES_ID, HASH_ALGORITHM_PROPERTIES_ID,
-                       NAMES_FILES_LOCATIONS_ID};
+                       ENCRYPTION_ALGORITHM2_PROPERTIES_ID, HASH_ALGORITHM_PROPERTIES_ID};
 use crate::pman::names_file::NamesFile;
 use crate::pman::passwords_file::PasswordsFile;
+use crate::structs_interfaces::DownloadAction;
 
 const DATABASE_VERSION: u16 = 0x100; // 1.0
 pub const HASH_ALGORITHM_ARGON2: u8 = 1;
@@ -49,9 +57,16 @@ pub const FILE_LOCATION_LOCAL: u8 = 1;
 
 struct PmanDatabaseFile {
     password_hash: Vec<u8>,
+    password2_hash: Vec<u8>,
+    encryption_key: [u8; 32],
+    encryption2_key: [u8; 32],
+    processor11: Arc<dyn CryptoProcessor>,
+    processor12: Arc<dyn CryptoProcessor>,
+    processor21: Arc<dyn CryptoProcessor>,
+    processor22: Arc<dyn CryptoProcessor>,
     header: IdValueMap<Vec<u8>>,
-    names_file: NamesFile,
-    passwords_file: PasswordsFile
+    names_file: Option<NamesFile>,
+    passwords_file: Option<PasswordsFile>
 }
 
 impl PmanDatabaseFile {
@@ -64,19 +79,55 @@ impl PmanDatabaseFile {
         PmanDatabaseFile{password_hash, header: h, names_file: NamesFile::new(processor1, processor2)}
     }
 
-    fn open(data: Vec<u8>, password_hash: Vec<u8>, password2_hash: Vec<u8>) -> Result<PmanDatabaseFile, Error> {
-        let l = validate_data_hash(&data, 0, data.len())?;
+    fn pre_open(data: Vec<u8>, password_hash: Vec<u8>, password2_hash: Vec<u8>) -> Result<(PmanDatabaseFile, Vec<DownloadAction>), Error> {
+        let l = validate_data_hash(&data)?;
         let mut h: IdValueMap<Vec<u8>> = IdValueMap::new(NoEncryptionProcessor::new());
         let offset = h.load(&data, 0)?;
         let _v = validate_database_version(&h)?;
         let (alg1, alg2) = get_encryption_algorithms(&h)?;
         let encryption_key = build_encryption_key(&h, &password_hash)?;
-        let l2 = validate_data_hmac(&encryption_key, &data, 0, l)?;
-        decrypt_data(alg1, &encryption_key, &data, offset, l2);
-        let (names_file, passwords_file) = NamesFile::load(alg2, encryption_key,
-                                         password2_hash, data, offset, l2)?;
-        let db = PmanDatabaseFile{password_hash, header: h, names_file, passwords_file};
-        Ok(db)
+        let l2 = validate_data_hmac(&encryption_key, &data, l)?;
+        let processor11 = build_encryption_processor(alg1, encryption_key)?;
+        decrypt_data(processor11.clone(), &data, offset, l2);
+
+        let processor12 = build_encryption_processor(alg2, encryption_key)?;
+        let mut names_files_info: IdValueMap<Vec<u8>> = IdValueMap::new(processor12.clone());
+        let offset2 = names_files_info.load(&data, offset)?;
+
+        let (alg21, alg22) = get_encryption_algorithms(&names_files_info)?;
+        let encryption2_key = build_encryption_key(&names_files_info, &password2_hash)?;
+        let processor21 = build_encryption_processor(alg21, encryption2_key)?;
+        decrypt_data(processor21.clone(), &data, offset2, l2);
+        let processor22 = build_encryption_processor(alg22, encryption2_key)?;
+        let mut passwords_files_info: IdValueMap<Vec<u8>> = IdValueMap::new(processor22.clone());
+        let offset3 = passwords_files_info.load(&data, offset2)?;
+
+        if offset3 != l2 {
+            return Err(build_corrupted_data_error());
+        }
+
+        let command = build_download_command(names_files_info)?;
+        let command2 = build_download_command(passwords_files_info)?;
+        let commands = vec![command, command2];
+
+        let db = PmanDatabaseFile{
+            password_hash,
+            password2_hash,
+            encryption_key,
+            encryption2_key,
+            processor11,
+            processor12,
+            processor21,
+            processor22,
+            header: h,
+            names_file: None,
+            passwords_file: None,
+        };
+        Ok((db, commands))
+    }
+
+    fn open(&mut self, download_result: Vec<Vec<u8>>) -> Result<(), Error> {
+        Ok(())
     }
 
     fn save(&mut self, output: &mut Vec<u8>) -> Result<(), Error> {
@@ -87,21 +138,28 @@ impl PmanDatabaseFile {
         self.names_file.save(output, &encryption_key);
         let (alg1, alg2) = get_encryption_algorithms(&self.header)?;
         encrypt_data(alg1, &encryption_key, output, offset, output.len());
-        add_data_hmac(output, encryption_key);
-        add_data_hash(output);
+        add_data_hash_and_hmac(output, encryption_key);
         Ok(())
     }
+}
+
+fn build_download_command(file_info: IdValueMap<Vec<u8>>) -> Result<DownloadAction, Error> {
+    todo!()
+}
+
+fn build_encryption_processor(algorithm_parameters: Vec<u8>, encryption_key: [u8; 32]) -> Result<Arc<dyn CryptoProcessor>, Error> {
+    todo!()
 }
 
 pub fn modify_algorithm_properties(header: &IdValueMap<Vec<u8>>) {
     todo!()
 }
 
-fn encrypt_data(algorithm_parameters: Vec<u8>, encryption_key: &[u8; 32], data: &mut Vec<u8>, offset: usize, length: usize) {
+fn encrypt_data(processor: Arc<dyn CryptoProcessor>, data: &mut Vec<u8>, offset: usize, length: usize) {
     todo!()
 }
 
-pub fn decrypt_data(algorithm_parameters: Vec<u8>, encryption_key: &[u8; 32], data: &Vec<u8>, offset: usize, length: usize) {
+pub fn decrypt_data(processor: Arc<dyn CryptoProcessor>, data: &Vec<u8>, offset: usize, length: usize) {
     todo!()
 }
 
@@ -109,11 +167,7 @@ pub fn get_encryption_algorithms(header: &IdValueMap<Vec<u8>>) -> Result<(Vec<u8
     todo!()
 }
 
-fn add_data_hmac(output: &mut Vec<u8>, encryption_key: [u8; 32]) {
-    todo!()
-}
-
-pub fn validate_data_hmac(encryption_key: &[u8; 32], data: &Vec<u8>, offset: usize, length: usize) -> Result<usize, Error> {
+pub fn validate_data_hmac(encryption_key: &[u8; 32], data: &Vec<u8>, length: usize) -> Result<usize, Error> {
     todo!()
 }
 
@@ -126,11 +180,11 @@ fn validate_database_version(header: &IdValueMap<Vec<u8>>) -> Result<usize, Erro
 }
 
 // validate data using sha512
-fn add_data_hash(data: &mut Vec<u8>) {
+fn add_data_hash_and_hmac(data: &mut Vec<u8>, encryption_key: [u8; 32]) {
     todo!()
 }
 
-pub fn validate_data_hash(data: &Vec<u8>, offset: usize, length: usize) -> Result<usize, Error> {
+pub fn validate_data_hash(data: &Vec<u8>) -> Result<usize, Error> {
     todo!()
 }
 
