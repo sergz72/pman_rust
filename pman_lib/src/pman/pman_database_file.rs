@@ -27,14 +27,16 @@ passwords file structure
     sha512 for file data
 */
 
-use std::io::{Error, ErrorKind};
-use std::sync::Arc;
+use std::io::Error;
 use rand::RngCore;
 use rand::rngs::OsRng;
-use crate::crypto::{CryptoProcessor, NoEncryptionProcessor};
+use crate::crypto::NoEncryptionProcessor;
 use crate::pman::id_value_map::IdValueMap;
-use crate::pman::ids::{DATABASE_VERSION_ID, ENCRYPTION_ALGORITHM_PROPERTIES_ID, HASH_ALGORITHM_PROPERTIES_ID, NAMES_FILES_LOCATIONS_ID};
+use crate::pman::ids::{DATABASE_VERSION_ID, ENCRYPTION_ALGORITHM1_PROPERTIES_ID,
+                       ENCRYPTION_ALGORITHM2_PROPERTIES_ID, HASH_ALGORITHM_PROPERTIES_ID,
+                       NAMES_FILES_LOCATIONS_ID};
 use crate::pman::names_file::NamesFile;
+use crate::pman::passwords_file::PasswordsFile;
 
 const DATABASE_VERSION: u16 = 0x100; // 1.0
 pub const HASH_ALGORITHM_ARGON2: u8 = 1;
@@ -48,7 +50,8 @@ pub const FILE_LOCATION_LOCAL: u8 = 1;
 struct PmanDatabaseFile {
     password_hash: Vec<u8>,
     header: IdValueMap<Vec<u8>>,
-    names_file: NamesFile
+    names_file: NamesFile,
+    passwords_file: PasswordsFile
 }
 
 impl PmanDatabaseFile {
@@ -56,9 +59,9 @@ impl PmanDatabaseFile {
         let mut h = IdValueMap::new(NoEncryptionProcessor::new());
         h.add_with_id(DATABASE_VERSION_ID, DATABASE_VERSION.to_le_bytes().to_vec()).unwrap();
         h.add_with_id(HASH_ALGORITHM_PROPERTIES_ID, default_argon2_properties()).unwrap();
-        h.add_with_id(ENCRYPTION_ALGORITHM_PROPERTIES_ID, default_aes_chacha_properties()).unwrap();
-        h.add_with_id(NAMES_FILES_LOCATIONS_ID, vec![FILE_LOCATION_LOCAL]).unwrap();
-        PmanDatabaseFile{header: h, names_file: NamesFile::new(processor1, processor2)}
+        h.add_with_id(ENCRYPTION_ALGORITHM1_PROPERTIES_ID, default_chacha_properties()).unwrap();
+        h.add_with_id(ENCRYPTION_ALGORITHM2_PROPERTIES_ID, default_aes_properties()).unwrap();
+        PmanDatabaseFile{password_hash, header: h, names_file: NamesFile::new(processor1, processor2)}
     }
 
     fn open(data: Vec<u8>, password_hash: Vec<u8>, password2_hash: Vec<u8>) -> Result<PmanDatabaseFile, Error> {
@@ -70,16 +73,14 @@ impl PmanDatabaseFile {
         let encryption_key = build_encryption_key(&h, &password_hash)?;
         let l2 = validate_data_hmac(&encryption_key, &data, 0, l)?;
         decrypt_data(alg1, &encryption_key, &data, offset, l2);
-        let names_files_locations = h.get(NAMES_FILES_LOCATIONS_ID)?;
-        let names_file = NamesFile::load(names_files_locations,
-                                         alg2, encryption_key,
+        let (names_file, passwords_file) = NamesFile::load(alg2, encryption_key,
                                          password2_hash, data, offset, l2)?;
-        let db = PmanDatabaseFile{password_hash, header: h, names_file};
+        let db = PmanDatabaseFile{password_hash, header: h, names_file, passwords_file};
         Ok(db)
     }
 
     fn save(&mut self, output: &mut Vec<u8>) -> Result<(), Error> {
-        modify_hash_algorithm_properties(&self.header);
+        modify_algorithm_properties(&self.header);
         let encryption_key = build_encryption_key(&self.header, &self.password_hash)?;
         self.header.save(output);
         let offset = output.len();
@@ -92,19 +93,19 @@ impl PmanDatabaseFile {
     }
 }
 
-pub fn modify_hash_algorithm_properties(header: &IdValueMap<Vec<u8>>) {
+pub fn modify_algorithm_properties(header: &IdValueMap<Vec<u8>>) {
     todo!()
 }
 
-fn encrypt_data(algorithm_id: u8, encryption_key: &[u8; 32], data: &mut Vec<u8>, offset: usize, length: usize) {
+fn encrypt_data(algorithm_parameters: Vec<u8>, encryption_key: &[u8; 32], data: &mut Vec<u8>, offset: usize, length: usize) {
     todo!()
 }
 
-pub fn decrypt_data(algorithm_id: u8, encryption_key: &[u8; 32], data: &Vec<u8>, offset: usize, length: usize) {
+pub fn decrypt_data(algorithm_parameters: Vec<u8>, encryption_key: &[u8; 32], data: &Vec<u8>, offset: usize, length: usize) {
     todo!()
 }
 
-pub fn get_encryption_algorithms(header: &IdValueMap<Vec<u8>>) -> Result<(u8, u8), Error> {
+pub fn get_encryption_algorithms(header: &IdValueMap<Vec<u8>>) -> Result<(Vec<u8>, Vec<u8>), Error> {
     todo!()
 }
 
@@ -133,8 +134,14 @@ pub fn validate_data_hash(data: &Vec<u8>, offset: usize, length: usize) -> Resul
     todo!()
 }
 
-fn default_aes_chacha_properties() -> Vec<u8> {
-    vec![ENCRYPTION_ALGORITHM_CHACHA20, ENCRYPTION_ALGORITHM_AES]
+fn default_aes_properties() -> Vec<u8> {
+    vec![ENCRYPTION_ALGORITHM_AES]
+}
+
+fn default_chacha_properties() -> Vec<u8> {
+    let mut result = vec![ENCRYPTION_ALGORITHM_CHACHA20];
+    result.extend_from_slice(&build_chacha_salt());
+    result
 }
 
 fn default_argon2_properties() -> Vec<u8> {
@@ -153,9 +160,18 @@ fn build_argon2_properties(iterations: u8, parallelism: u8, memory: u16, salt: [
 fn set_argon2_salt(input: &mut Vec<u8>, salt: [u8; 16]) {
     input[5..21].copy_from_slice(&salt);
 }
+fn set_chacha_salt(input: &mut Vec<u8>, salt: [u8; 12]) {
+    input[1..13].copy_from_slice(&salt);
+}
 
 fn build_argon2_salt() -> [u8; 16] {
     let mut result = [0u8; 16];
+    OsRng.fill_bytes(&mut result);
+    result
+}
+
+fn build_chacha_salt() -> [u8; 12] {
+    let mut result = [0u8; 12];
     OsRng.fill_bytes(&mut result);
     result
 }
