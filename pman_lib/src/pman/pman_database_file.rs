@@ -6,28 +6,30 @@ database file structure
 |--|-header -> id_value_map
 |  |     database version
 |  |     names_file_hash_algorithm properties (supported: argon2)
-|  |     names_file_encryption1_algorithm properties (supported: chacha20)
+|  |     names_file_info_encryption1_algorithm properties (supported: chacha20)
 |  |     names_file_encryption2_algorithm properties (supported: aes)
 |* |-names_files_info -> id_value_map (encrypted with password1_hash, names_file_hash_algorithm properties, names_file_encryption2_algorithm)
 |* |     names files locations
 |* |     passwords_file_hash_algorithm properties (supported: argon2)
-|* |     passwords_file_encryption1_algorithm properties (supported: chacha20)
+|* |     passwords_file_info_encryption1_algorithm properties (supported: chacha20)
 |* |     passwords_file_encryption2_algorithm properties (supported: aes)
 |*&|-passwords_files_info -> id_value_map (encrypted with password2_hash,passwords_file_hash_algorithm properties, passwords_file_encryption2_algorithm)
 |*&|     passwords files locations
 |  |-hmacsha256 for file data (using password1_hash, names_file_hash_algorithm properties)
 |----sha256 for file data
 
-* - encrypted using password1_hash, names_file_encryption1_algorithm
-& - encrypted using password2_hash, passwords_file_encryption1_algorithm
+* - encrypted using password1_hash, names_file_info_encryption1_algorithm
+& - encrypted using password2_hash, passwords_file_info_encryption1_algorithm
 
 names file structure
+|* | encryption_algorithm_properties (iv)
 |* | entities -> id_value_map (encrypted with password1_hash,names_file_hash_algorithm properties, names_file_encryption2_algorithm)
 |* | names -> id_value_map (encrypted with password1_hash,names_file_hash_algorithm properties, names_file_encryption2_algorithm)
 |  |-hmacsha256 for file data (using password1_hash, names_file_hash_algorithm properties)
 |----sha256 for file data
 
 passwords file structure
+|& | encryption_algorithm_properties (iv)
 |& | passswords -> id_value_map (encrypted with password2_hash,passsords_file_hash_algorithm properties, passwords_file_encryption2_algorithm)
 |  |-hmacsha256 for file data (using password2_hash, passwords_file_hash_algorithm properties
 |----sha256 for file data
@@ -58,9 +60,11 @@ pub const FILE_LOCATION_LOCAL: u8 = 1;
 struct PmanDatabaseFile {
     password_hash: Vec<u8>,
     password2_hash: Vec<u8>,
-    processor11: Option<Arc<dyn CryptoProcessor>>,
+    encryption_key: [u8; 32],
+    encryption2_key: [u8; 32],
+    alg1: u8,
+    alg2: u8,
     processor12: Option<Arc<dyn CryptoProcessor>>,
-    processor21: Option<Arc<dyn CryptoProcessor>>,
     processor22: Option<Arc<dyn CryptoProcessor>>,
     header: IdValueMap<Vec<u8>>,
     names_file: Option<NamesFile>,
@@ -81,12 +85,19 @@ impl PmanDatabaseFile {
         let processor12 = build_encryption_processor(alg2, encryption_key)?;
         let names_file = NamesFile::new(processor12);
 
+        let (alg21, alg22) = get_encryption_algorithms(&h)?;
+        let encryption2_key = build_encryption_key(&h, &password2_hash)?;
+        let processor22 = build_encryption_processor(alg22, encryption_key)?;
+        let passwords_file = PasswordsFile::new(processor22);
+
         Ok(PmanDatabaseFile{
             password_hash,
             password2_hash,
-            processor11: None,
+            encryption_key,
+            encryption2_key,
+            alg1: alg1[0],
+            alg2: alg21[0],
             processor12: None,
-            processor21: None,
             processor22: None,
             header: h,
             names_file: Some(names_file),
@@ -129,9 +140,11 @@ impl PmanDatabaseFile {
         let db = PmanDatabaseFile{
             password_hash,
             password2_hash,
-            processor11: Some(processor11),
+            encryption_key,
+            encryption2_key,
+            alg1: alg1[0],
+            alg2: alg21[0],
             processor12: Some(processor12),
-            processor21: Some(processor21),
             processor22: Some(processor22),
             header: h,
             names_file: None,
@@ -142,15 +155,17 @@ impl PmanDatabaseFile {
     }
 
     fn open(&mut self, mut download_result: Vec<Vec<u8>>) -> Result<(), Error> {
+        if self.processor12.is_none() || self.processor22.is_none() || self.names_file.is_some() ||
+            self.passwords_file.is_some() {
+            return Err(Error::new(ErrorKind::InvalidInput, "database must be in pre-open state"));
+        }
         if download_result.len() != 2 {
             return Err(Error::new(ErrorKind::InvalidInput, "download_result length should be 2"));
         }
         let result2 = download_result.remove(1);
         let result1 = download_result.remove(0);
-        self.names_file = Some(NamesFile::load(self.processor11.unwrap(),
-                                               self.processor12.unwrap(), result1)?);
-        self.passwords_file = Some(PasswordsFile::load(self.processor21.unwrap()
-                                                       self.processor22.unwrap(), result2)?);
+        self.names_file = Some(NamesFile::load(self.encryption_key, self.alg1, self.processor12.unwrap(), result1)?);
+        self.passwords_file = Some(PasswordsFile::load(self.encryption2_key, self.alg2, self.processor22.unwrap(), result2)?);
         Ok(())
     }
 
