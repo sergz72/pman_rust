@@ -34,7 +34,7 @@ passwords file structure
 
 */
 
-use std::io::Error;
+use std::io::{Error, ErrorKind};
 use std::sync::Arc;
 use rand::RngCore;
 use rand::rngs::OsRng;
@@ -44,7 +44,7 @@ use crate::pman::ids::{DATABASE_VERSION_ID, ENCRYPTION_ALGORITHM1_PROPERTIES_ID,
                        ENCRYPTION_ALGORITHM2_PROPERTIES_ID, HASH_ALGORITHM_PROPERTIES_ID};
 use crate::pman::names_file::NamesFile;
 use crate::pman::passwords_file::PasswordsFile;
-use crate::structs_interfaces::DownloadAction;
+use crate::structs_interfaces::{DownloadAction, UploadAction};
 
 const DATABASE_VERSION: u16 = 0x100; // 1.0
 pub const HASH_ALGORITHM_ARGON2: u8 = 1;
@@ -58,25 +58,41 @@ pub const FILE_LOCATION_LOCAL: u8 = 1;
 struct PmanDatabaseFile {
     password_hash: Vec<u8>,
     password2_hash: Vec<u8>,
-    encryption_key: [u8; 32],
-    encryption2_key: [u8; 32],
-    processor11: Arc<dyn CryptoProcessor>,
-    processor12: Arc<dyn CryptoProcessor>,
-    processor21: Arc<dyn CryptoProcessor>,
-    processor22: Arc<dyn CryptoProcessor>,
+    processor11: Option<Arc<dyn CryptoProcessor>>,
+    processor12: Option<Arc<dyn CryptoProcessor>>,
+    processor21: Option<Arc<dyn CryptoProcessor>>,
+    processor22: Option<Arc<dyn CryptoProcessor>>,
     header: IdValueMap<Vec<u8>>,
     names_file: Option<NamesFile>,
-    passwords_file: Option<PasswordsFile>
+    passwords_file: Option<PasswordsFile>,
+    pre_save_result: Option<Vec<u8>>
 }
 
 impl PmanDatabaseFile {
-    fn new(password_hash: Vec<u8>, password2_hash: Vec<u8>) -> PmanDatabaseFile {
+    fn new(password_hash: Vec<u8>, password2_hash: Vec<u8>) -> Result<PmanDatabaseFile, Error> {
         let mut h = IdValueMap::new(NoEncryptionProcessor::new());
         h.add_with_id(DATABASE_VERSION_ID, DATABASE_VERSION.to_le_bytes().to_vec()).unwrap();
         h.add_with_id(HASH_ALGORITHM_PROPERTIES_ID, default_argon2_properties()).unwrap();
         h.add_with_id(ENCRYPTION_ALGORITHM1_PROPERTIES_ID, default_chacha_properties()).unwrap();
         h.add_with_id(ENCRYPTION_ALGORITHM2_PROPERTIES_ID, default_aes_properties()).unwrap();
-        PmanDatabaseFile{password_hash, header: h, names_file: NamesFile::new(processor1, processor2)}
+
+        let (alg1, alg2) = get_encryption_algorithms(&h)?;
+        let encryption_key = build_encryption_key(&h, &password_hash)?;
+        let processor12 = build_encryption_processor(alg2, encryption_key)?;
+        let names_file = NamesFile::new(processor12);
+
+        Ok(PmanDatabaseFile{
+            password_hash,
+            password2_hash,
+            processor11: None,
+            processor12: None,
+            processor21: None,
+            processor22: None,
+            header: h,
+            names_file: Some(names_file),
+            passwords_file: Some(passwords_file),
+            pre_save_result: None
+        })
     }
 
     fn pre_open(data: Vec<u8>, password_hash: Vec<u8>, password2_hash: Vec<u8>) -> Result<(PmanDatabaseFile, Vec<DownloadAction>), Error> {
@@ -113,33 +129,47 @@ impl PmanDatabaseFile {
         let db = PmanDatabaseFile{
             password_hash,
             password2_hash,
-            encryption_key,
-            encryption2_key,
-            processor11,
-            processor12,
-            processor21,
-            processor22,
+            processor11: Some(processor11),
+            processor12: Some(processor12),
+            processor21: Some(processor21),
+            processor22: Some(processor22),
             header: h,
             names_file: None,
             passwords_file: None,
+            pre_save_result: None
         };
         Ok((db, commands))
     }
 
-    fn open(&mut self, download_result: Vec<Vec<u8>>) -> Result<(), Error> {
+    fn open(&mut self, mut download_result: Vec<Vec<u8>>) -> Result<(), Error> {
+        if download_result.len() != 2 {
+            return Err(Error::new(ErrorKind::InvalidInput, "download_result length should be 2"));
+        }
+        let result2 = download_result.remove(1);
+        let result1 = download_result.remove(0);
+        self.names_file = Some(NamesFile::load(self.processor11.unwrap(),
+                                               self.processor12.unwrap(), result1)?);
+        self.passwords_file = Some(PasswordsFile::load(self.processor21.unwrap()
+                                                       self.processor22.unwrap(), result2)?);
         Ok(())
     }
 
-    fn save(&mut self, output: &mut Vec<u8>) -> Result<(), Error> {
+    fn pre_save(&mut self) -> Result<Vec<UploadAction>, Error> {
+        let mut output = Vec::new();
         modify_algorithm_properties(&self.header);
-        let encryption_key = build_encryption_key(&self.header, &self.password_hash)?;
-        self.header.save(output);
+        self.header.save(&mut output);
         let offset = output.len();
-        self.names_file.save(output, &encryption_key);
+        let encryption_key = build_encryption_key(&self.header, &self.password_hash)?;
+        self.names_file.save(&mut output, &encryption_key);
         let (alg1, alg2) = get_encryption_algorithms(&self.header)?;
         encrypt_data(alg1, &encryption_key, output, offset, output.len());
-        add_data_hash_and_hmac(output, encryption_key);
+        add_data_hash_and_hmac(&mut output, encryption_key);
+        self.pre_save_result = Some(output);
         Ok(())
+    }
+
+    fn save(&mut self) -> Result<Vec<u8>, Error> {
+        Ok(self.pre_save_result.unwrap())
     }
 }
 
