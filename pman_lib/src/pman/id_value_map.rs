@@ -44,19 +44,19 @@ impl<T: ByteValue> IdValueMap<T> {
         IdValueMap{next_id: 1, map: HashMap::new(), processor, phantom: Default::default()}
     }
 
-    pub fn add(&mut self, value: T) -> u32 {
-        let v = self.processor.encode(value.to_bytes());
+    pub fn add(&mut self, value: T) -> Result<u32, Error> {
+        let v = self.processor.encode(value.to_bytes())?;
         let id = self.next_id;
         self.map.insert(id, v);
         self.next_id += 1;
-        id
+        Ok(id)
     }
 
     pub fn add_with_id(&mut self, id: u32, value: T) -> Result<(), Error> {
         if self.map.contains_key(&id) {
             return Err(Error::new(ErrorKind::InvalidInput, "record already exists"));
         }
-        let v = self.processor.encode(value.to_bytes());
+        let v = self.processor.encode(value.to_bytes())?;
         self.map.insert(id, v);
         if id >= self.next_id {
             self.next_id = id + 1;
@@ -66,7 +66,7 @@ impl<T: ByteValue> IdValueMap<T> {
 
     pub fn set(&mut self, id: u32, value: T) -> Result<(), Error> {
         self.exists(id)?;
-        let v = self.processor.encode(value.to_bytes());
+        let v = self.processor.encode(value.to_bytes())?;
         self.map.insert(id, v);
         Ok(())
     }
@@ -159,13 +159,13 @@ mod tests {
         let mut key = [0u8;32];
         OsRng.fill_bytes(&mut key);
         let mut map: IdValueMap<String> = IdValueMap::new(AesProcessor::new(key));
-        let idx = map.add("test".to_string());
+        let idx = map.add("test".to_string())?;
         map.set(idx, "test2".to_string())?;
         map.remove(idx)?;
         let s2 = "test2".to_string();
         let s3 = "test3dmbfjsdhfgjsdgdfjsdgfjdsagfjsdgfjsguweyrtq  uieydhz`kjvbadfkulghewiurthkghfvkzjxviugrthiertfbdert".to_string();
-        let idx2 = map.add(s2.clone());
-        let idx3 = map.add(s3.clone());
+        let idx2 = map.add(s2.clone())?;
+        let idx3 = map.add(s3.clone())?;
         let mut v = Vec::new();
         map.save(&mut v);
         let mut map2: IdValueMap<String> = IdValueMap::new(AesProcessor::new(key));

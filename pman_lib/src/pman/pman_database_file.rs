@@ -36,18 +36,23 @@ passwords file structure
 
 */
 
-use std::io::Error;
+use std::io::{Error, ErrorKind};
 use std::sync::Arc;
+use hmac::digest::KeyInit;
+use hmac::{Hmac, Mac};
 use rand::RngCore;
 use rand::rngs::OsRng;
-use crate::crypto::{build_corrupted_data_error, CryptoProcessor, NoEncryptionProcessor};
+use sha2::{Sha256, Digest};
+use crate::crypto::{AesProcessor, build_corrupted_data_error, ChachaProcessor, CryptoProcessor, NoEncryptionProcessor};
 use crate::pman::id_value_map::IdValueMap;
 use crate::pman::ids::{DATABASE_VERSION_ID, ENCRYPTION_ALGORITHM1_PROPERTIES_ID,
                        ENCRYPTION_ALGORITHM2_PROPERTIES_ID, HASH_ALGORITHM_PROPERTIES_ID};
 use crate::pman::names_file::NamesFile;
 use crate::pman::passwords_file::PasswordsFile;
 
-const DATABASE_VERSION: u16 = 0x100; // 1.0
+const DATABASE_VERSION_MIN: u16 = 0x100; // 1.0
+const DATABASE_VERSION_MAX: u16 = 0x100; // 1.0
+const DATABASE_VERSION_1: u16 = 0x100; // 1.0
 pub const HASH_ALGORITHM_ARGON2: u8 = 1;
 pub const DEFAULT_ARGON2_ITERATIONS: u8 = 10;
 pub const DEFAULT_ARGON2_MEMORY: u16 = 128;
@@ -66,10 +71,12 @@ struct PmanDatabaseFile {
     passwords_file: PasswordsFile,
 }
 
+type HmacSha256 = Hmac<Sha256>;
+
 impl PmanDatabaseFile {
     fn new(password_hash: Vec<u8>, password2_hash: Vec<u8>) -> Result<PmanDatabaseFile, Error> {
         let mut h = IdValueMap::new(NoEncryptionProcessor::new());
-        h.add_with_id(DATABASE_VERSION_ID, DATABASE_VERSION.to_le_bytes().to_vec()).unwrap();
+        h.add_with_id(DATABASE_VERSION_ID, DATABASE_VERSION_1.to_le_bytes().to_vec()).unwrap();
         h.add_with_id(HASH_ALGORITHM_PROPERTIES_ID, default_argon2_properties()).unwrap();
         h.add_with_id(ENCRYPTION_ALGORITHM1_PROPERTIES_ID, default_chacha_properties()).unwrap();
         h.add_with_id(ENCRYPTION_ALGORITHM2_PROPERTIES_ID, default_aes_properties()).unwrap();
@@ -95,7 +102,7 @@ impl PmanDatabaseFile {
         })
     }
 
-    fn open(data: Vec<u8>, password_hash: Vec<u8>, password2_hash: Vec<u8>) -> Result<PmanDatabaseFile, Error> {
+    fn open(mut data: Vec<u8>, password_hash: Vec<u8>, password2_hash: Vec<u8>) -> Result<PmanDatabaseFile, Error> {
         let l = validate_data_hash(&data)?;
         let mut h: IdValueMap<Vec<u8>> = IdValueMap::new(NoEncryptionProcessor::new());
         let offset = h.load(&data, 0)?;
@@ -105,7 +112,7 @@ impl PmanDatabaseFile {
         let encryption_key = build_encryption_key(&h, &password_hash)?;
         let l2 = validate_data_hmac(&encryption_key, &data, l)?;
         let processor11 = build_encryption_processor(alg1, encryption_key)?;
-        decrypt_data(processor11.clone(), &data, offset, l2);
+        decrypt_data(processor11.clone(), &mut data, offset, l2)?;
 
         let processor12 = build_encryption_processor(alg2, encryption_key)?;
         let mut names_files_info: IdValueMap<Vec<u8>> = IdValueMap::new(processor12.clone());
@@ -115,7 +122,7 @@ impl PmanDatabaseFile {
         let a2 = alg21[0];
         let encryption2_key = build_encryption_key(&names_files_info, &password2_hash)?;
         let processor21 = build_encryption_processor(alg21, encryption2_key)?;
-        decrypt_data(processor21.clone(), &data, offset2, l2);
+        decrypt_data(processor21.clone(), &mut data, offset2, l2)?;
         let processor22 = build_encryption_processor(alg22, encryption2_key)?;
         let mut passwords_files_info: IdValueMap<Vec<u8>> = IdValueMap::new(processor22.clone());
         let offset3 = passwords_files_info.load(&data, offset2)?;
@@ -148,33 +155,54 @@ impl PmanDatabaseFile {
         //self.names_file.save(&mut output, &encryption_key);
         let (alg1, alg2) = get_encryption_algorithms(&self.header)?;
         //encrypt_data(alg1, &encryption_key, output, offset, output.len());
-        add_data_hash_and_hmac(&mut output, encryption_key);
+        add_data_hash_and_hmac(&mut output, encryption_key)?;
         Ok(output)
     }
 }
 
 fn build_encryption_processor(algorithm_parameters: Vec<u8>, encryption_key: [u8; 32]) -> Result<Arc<dyn CryptoProcessor>, Error> {
-    todo!()
+    if algorithm_parameters.len() == 0 {
+        return Err(build_corrupted_data_error())
+    }
+    match algorithm_parameters[0] {
+        ENCRYPTION_ALGORITHM_AES => build_aes_processor(algorithm_parameters, encryption_key),
+        ENCRYPTION_ALGORITHM_CHACHA20 => build_chacha_processor(algorithm_parameters, encryption_key),
+        _ => Err(Error::new(ErrorKind::Unsupported, "unsupported encryption algorithm"))
+    }
+}
+
+fn build_aes_processor(parameters: Vec<u8>, key: [u8; 32]) -> Result<Arc<dyn CryptoProcessor>, Error> {
+    if parameters.len() != 1 {
+        return Err(build_corrupted_data_error());
+    }
+    Ok(AesProcessor::new(key))
+}
+
+fn build_chacha_processor(parameters: Vec<u8>, key: [u8; 32]) -> Result<Arc<dyn CryptoProcessor>, Error> {
+    if parameters.len() != 13 {
+        return Err(build_corrupted_data_error());
+    }
+    let mut iv = [0u8; 12];
+    iv.copy_from_slice(&parameters[1..13]);
+    Ok(ChachaProcessor::new(key, iv))
 }
 
 pub fn modify_algorithm_properties(header: &IdValueMap<Vec<u8>>) {
     todo!()
 }
 
-fn encrypt_data(processor: Arc<dyn CryptoProcessor>, data: &mut Vec<u8>, offset: usize, length: usize) {
-    todo!()
+fn encrypt_data(processor: Arc<dyn CryptoProcessor>, data: &mut Vec<u8>, offset: usize, length: usize) -> Result<(), Error> {
+    processor.encode_bytes(&mut data[offset..offset+length])
 }
 
-pub fn decrypt_data(processor: Arc<dyn CryptoProcessor>, data: &Vec<u8>, offset: usize, length: usize) {
-    todo!()
+pub fn decrypt_data(processor: Arc<dyn CryptoProcessor>, data: &mut Vec<u8>, offset: usize, length: usize) -> Result<(), Error> {
+    processor.decode_bytes(&mut data[offset..offset+length])
 }
 
 pub fn get_encryption_algorithms(header: &IdValueMap<Vec<u8>>) -> Result<(Vec<u8>, Vec<u8>), Error> {
-    todo!()
-}
-
-pub fn validate_data_hmac(encryption_key: &[u8; 32], data: &Vec<u8>, length: usize) -> Result<usize, Error> {
-    todo!()
+    let alg1 = header.get(ENCRYPTION_ALGORITHM1_PROPERTIES_ID)?;
+    let alg2 = header.get(ENCRYPTION_ALGORITHM2_PROPERTIES_ID)?;
+    return Ok((alg1, alg2))
 }
 
 pub fn build_encryption_key(header: &IdValueMap<Vec<u8>>, password_hash: &Vec<u8>) -> Result<[u8;32], Error> {
@@ -182,16 +210,68 @@ pub fn build_encryption_key(header: &IdValueMap<Vec<u8>>, password_hash: &Vec<u8
 }
 
 fn validate_database_version(header: &IdValueMap<Vec<u8>>) -> Result<usize, Error> {
-    todo!()
+    let version_bytes = header.get(DATABASE_VERSION_ID)?;
+    if version_bytes.len() != 2 {
+        return Err(build_corrupted_data_error())
+    }
+    let mut bytes = [0u8; 2];
+    bytes.copy_from_slice(&version_bytes);
+    let version = u16::from_le_bytes(bytes);
+    if version < DATABASE_VERSION_MIN || version > DATABASE_VERSION_MAX {
+        return Err(Error::new(ErrorKind::Unsupported, "unsupported database version"))
+    }
+    Ok(version as usize)
 }
 
 // validate data using sha512
-fn add_data_hash_and_hmac(data: &mut Vec<u8>, encryption_key: [u8; 32]) {
-    todo!()
+fn add_data_hash_and_hmac(data: &mut Vec<u8>, encryption_key: [u8; 32]) -> Result<(), Error> {
+    let mut mac: HmacSha256 = KeyInit::new_from_slice(&encryption_key)
+        .map_err(|e|Error::new(ErrorKind::InvalidData, e.to_string()))?;
+    mac.update(data);
+    let hash1 = mac.finalize();
+    let bytes1 = hash1.into_bytes();
+    data.extend_from_slice(&bytes1[..]);
+
+    let mut hasher = Sha256::new();
+    hasher.update(&data);
+    let hash = hasher.finalize();
+    let hash_bytes = hash.as_slice();
+    data.extend_from_slice(hash_bytes);
+
+    Ok(())
+}
+
+pub fn validate_data_hmac(encryption_key: &[u8; 32], data: &Vec<u8>, length: usize) -> Result<usize, Error> {
+    let mut l = length;
+    if l < 32 {
+        return Err(build_corrupted_data_error())
+    }
+    l -= 32;
+    let mut mac: HmacSha256 = KeyInit::new_from_slice(encryption_key)
+        .map_err(|e|Error::new(ErrorKind::InvalidData, e.to_string()))?;
+    mac.update(&data[0..l]);
+    let hash = mac.finalize();
+    let hash_bytes = hash.into_bytes();
+    if *hash_bytes != data[l..l+32] {
+        return Err(Error::new(ErrorKind::Unsupported, "file hash does not match"))
+    }
+    Ok(l)
 }
 
 pub fn validate_data_hash(data: &Vec<u8>) -> Result<usize, Error> {
-    todo!()
+    let mut l = data.len();
+    if l < 32 {
+        return Err(build_corrupted_data_error())
+    }
+    l -= 32;
+    let mut hasher = Sha256::new();
+    hasher.update(&data[0..l]);
+    let hash = hasher.finalize();
+    let hash_bytes = hash.as_slice();
+    if *hash_bytes != data[l..l+32] {
+        return Err(Error::new(ErrorKind::Unsupported, "file hash does not match"))
+    }
+    Ok(l)
 }
 
 fn default_aes_properties() -> Vec<u8> {
@@ -234,4 +314,27 @@ fn build_chacha_salt() -> [u8; 12] {
     let mut result = [0u8; 12];
     OsRng.fill_bytes(&mut result);
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::Error;
+    use rand::RngCore;
+    use rand::rngs::OsRng;
+    use crate::pman::pman_database_file::{add_data_hash_and_hmac, validate_data_hash, validate_data_hmac};
+
+    #[test]
+    fn test_hash_hmac() -> Result<(), Error> {
+        const L: usize = 100;
+        let mut data_bytes = [0u8; L];
+        OsRng.fill_bytes(&mut data_bytes);
+        let mut data = Vec::from(data_bytes);
+        let mut key = [0u8; 32];
+        OsRng.fill_bytes(&mut key);
+        add_data_hash_and_hmac(&mut data, key.clone())?;
+        let l1 = validate_data_hash(&data)?;
+        let l2 = validate_data_hmac(&key, &data, l1)?;
+        assert_eq!(l2, L);
+        Ok(())
+    }
 }

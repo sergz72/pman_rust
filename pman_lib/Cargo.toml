@@ -11,6 +11,9 @@ uniffi = { version = "0.24.3", features = [ "cli" ] }
 thiserror = "1.0"
 rand = "0.8.5"
 aes = "0.8.3"
+sha2 = "0.10.8"
+hmac = "0.12.1"
+chacha20 = "0.9.1"
 #minreq = { version = "2.10", features = [ "https" ] }
 
 [build-dependencies]

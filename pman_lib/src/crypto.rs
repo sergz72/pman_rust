@@ -4,12 +4,16 @@ use std::sync::Arc;
 use aes::Aes256;
 use aes::cipher::{BlockDecrypt, BlockEncrypt, KeyInit};
 use aes::cipher::generic_array::GenericArray;
+use chacha20::ChaCha20;
+use chacha20::cipher::{KeyIvInit, StreamCipher};
 use rand::RngCore;
 use rand::rngs::OsRng;
 
 pub trait CryptoProcessor {
-    fn encode(&self, data: Vec<u8>) -> Vec<u8>;
+    fn encode(&self, data: Vec<u8>) -> Result<Vec<u8>, Error>;
     fn decode(&self, data: &Vec<u8>) -> Result<Vec<u8>, Error>;
+    fn encode_bytes(&self, data: &mut [u8]) -> Result<(), Error>;
+    fn decode_bytes(&self, data: &mut [u8]) -> Result<(), Error>;
 }
 
 pub fn build_corrupted_data_error() -> Error {
@@ -21,7 +25,7 @@ pub struct AesProcessor {
 }
 
 impl CryptoProcessor for AesProcessor {
-    fn encode(&self, data: Vec<u8>) -> Vec<u8> {
+    fn encode(&self, data: Vec<u8>) -> Result<Vec<u8>, Error> {
         let mut out_data = Vec::new();
         let mut l = data.len();
         let mut idx = 0;
@@ -45,7 +49,7 @@ impl CryptoProcessor for AesProcessor {
             self.cipher.encrypt_block(&mut block);
             out_data.extend_from_slice(block.as_slice())
         }
-        out_data
+        Ok(out_data)
     }
 
     fn decode(&self, data: &Vec<u8>) -> Result<Vec<u8>, Error> {
@@ -79,6 +83,18 @@ impl CryptoProcessor for AesProcessor {
         }
         Ok(out_data)
     }
+
+    fn encode_bytes(&self, data: &mut [u8]) -> Result<(), Error> {
+        Err(build_unsupported_error())
+    }
+
+    fn decode_bytes(&self, data: &mut [u8]) -> Result<(), Error> {
+        Err(build_unsupported_error())
+    }
+}
+
+pub fn build_unsupported_error() -> Error {
+    Error::new(ErrorKind::Unsupported, "unsupported")
 }
 
 impl AesProcessor {
@@ -92,12 +108,20 @@ pub struct NoEncryptionProcessor {
 }
 
 impl CryptoProcessor for NoEncryptionProcessor {
-    fn encode(&self, data: Vec<u8>) -> Vec<u8> {
-        data
+    fn encode(&self, data: Vec<u8>) -> Result<Vec<u8>, Error> {
+        Ok(data)
     }
 
     fn decode(&self, data: &Vec<u8>) -> Result<Vec<u8>, Error> {
         Ok(data.clone())
+    }
+
+    fn encode_bytes(&self, data: &mut [u8]) -> Result<(), Error> {
+        Ok(())
+    }
+
+    fn decode_bytes(&self, data: &mut [u8]) -> Result<(), Error> {
+        Ok(())
     }
 }
 
@@ -106,35 +130,87 @@ impl NoEncryptionProcessor {
         Arc::new(NoEncryptionProcessor{})
     }
 }
+
+pub struct ChachaProcessor {
+    key: [u8; 32],
+    iv: [u8; 12]
+}
+
+impl CryptoProcessor for ChachaProcessor {
+    fn encode(&self, data: Vec<u8>) -> Result<Vec<u8>, Error> {
+        Err(build_unsupported_error())
+    }
+
+    fn decode(&self, data: &Vec<u8>) -> Result<Vec<u8>, Error> {
+        Err(build_unsupported_error())
+    }
+
+    fn encode_bytes(&self, data: &mut [u8]) -> Result<(), Error> {
+        let mut cipher = ChaCha20::new((&self.key).into(), (&self.iv).into());
+        cipher.apply_keystream(data);
+        Ok(())
+    }
+
+    fn decode_bytes(&self, data: &mut [u8]) -> Result<(), Error> {
+        let mut cipher = ChaCha20::new((&self.key).into(), (&self.iv).into());
+        cipher.apply_keystream(data);
+        Ok(())
+    }
+}
+
+impl ChachaProcessor {
+    pub fn new(key: [u8; 32], iv: [u8; 12]) -> Arc<dyn CryptoProcessor> {
+        Arc::new(ChachaProcessor{key, iv})
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::io::Error;
     use std::sync::Arc;
     use rand::RngCore;
     use rand::rngs::OsRng;
-    use crate::crypto::{AesProcessor, CryptoProcessor};
+    use crate::crypto::{AesProcessor, ChachaProcessor, CryptoProcessor};
 
     #[test]
     fn test_crypto_processors() -> Result<(), Error> {
         let mut key = [0u8;32];
         OsRng.fill_bytes(&mut key);
-        let mut iv = [0u8;16];
+        let mut iv = [0u8;12];
         OsRng.fill_bytes(&mut iv);
-        test_crypto_processor(AesProcessor::new(key))
+        test_crypto_processor(AesProcessor::new(key.clone()))?;
+        test_crypto_processor2(ChachaProcessor::new(key, iv))
     }
 
     fn test_crypto_processor(processor: Arc<dyn CryptoProcessor>) -> Result<(), Error> {
         let mut data = [0u8;64];
         OsRng.fill_bytes(&mut data);
-        let encoded = processor.encode(data.to_vec());
+        let encoded = processor.encode(data.to_vec())?;
         let decoded = processor.decode(&encoded)?;
         assert_eq!(decoded, data.to_vec());
 
         let mut data2 = [0u8;5];
         OsRng.fill_bytes(&mut data2);
-        let encoded2 = processor.encode(data2.to_vec());
+        let encoded2 = processor.encode(data2.to_vec())?;
         let decoded2 = processor.decode(&encoded2)?;
         assert_eq!(decoded2, data2.to_vec());
+        Ok(())
+    }
+
+    fn test_crypto_processor2(processor: Arc<dyn CryptoProcessor>) -> Result<(), Error> {
+        let mut data = [0u8;64];
+        OsRng.fill_bytes(&mut data);
+        let copy = data.clone();
+        processor.encode_bytes(&mut data)?;
+        processor.decode_bytes(&mut data)?;
+        assert_eq!(copy, data);
+
+        let mut data2 = [0u8;5];
+        OsRng.fill_bytes(&mut data2);
+        let copy2 = data2.clone();
+        processor.encode_bytes(&mut data2)?;
+        processor.decode_bytes(&mut data2)?;
+        assert_eq!(copy2, data2);
         Ok(())
     }
 }

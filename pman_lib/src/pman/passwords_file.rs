@@ -17,12 +17,12 @@ impl PasswordsFile {
     pub fn load(encryption_key: [u8; 32], alg1: u8, processor2: Arc<dyn CryptoProcessor>,
                 file_info: IdValueMap<Vec<u8>>) -> Result<PasswordsFile, Error> {
 
-        let data = load_file(file_info)?;
+        let mut data = load_file(file_info)?;
 
         let l = validate_data_hash(&data)?;
         let l2 = validate_data_hmac(&encryption_key, &data, l)?;
         let (processor1, offset) = load_encryption_processor(alg1, encryption_key, &data)?;
-        decrypt_data(processor1, &data, offset, l2);
+        decrypt_data(processor1, &mut data, offset, l2)?;
         let mut passwords: IdValueMap<String> = IdValueMap::new(processor2);
         let offset2 = passwords.load(&data, offset)?;
         if offset2 != l2 {
