@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		632394EC2AD3E0C6003FAF96 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 632394EB2AD3E0C6003FAF96 /* CoreFoundation.framework */; };
+		632394EE2AD3E0E2003FAF96 /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 632394ED2AD3E0E2003FAF96 /* SystemConfiguration.framework */; };
 		632556C02AB3554500F350AC /* utils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632556BF2AB3554500F350AC /* utils.swift */; };
 		632556C32AB355B100F350AC /* Database.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632556C22AB355B100F350AC /* Database.swift */; };
 		632958872AB3702100516811 /* Common.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632958862AB3702100516811 /* Common.swift */; };
@@ -44,6 +46,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		632394EB2AD3E0C6003FAF96 /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS17.0.sdk/System/Library/Frameworks/CoreFoundation.framework; sourceTree = DEVELOPER_DIR; };
+		632394ED2AD3E0E2003FAF96 /* SystemConfiguration.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SystemConfiguration.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS17.0.sdk/System/Library/Frameworks/SystemConfiguration.framework; sourceTree = DEVELOPER_DIR; };
 		632556BF2AB3554500F350AC /* utils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = utils.swift; sourceTree = "<group>"; };
 		632556C22AB355B100F350AC /* Database.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Database.swift; sourceTree = "<group>"; };
 		632958862AB3702100516811 /* Common.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Common.swift; sourceTree = "<group>"; };
@@ -72,6 +76,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				632394EC2AD3E0C6003FAF96 /* CoreFoundation.framework in Frameworks */,
+				632394EE2AD3E0E2003FAF96 /* SystemConfiguration.framework in Frameworks */,
 				63949F592AC09CDE003FD7AF /* pman_lib_framework.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -171,6 +177,8 @@
 		63DBB3CD2AC0324C00B6074B /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				632394ED2AD3E0E2003FAF96 /* SystemConfiguration.framework */,
+				632394EB2AD3E0C6003FAF96 /* CoreFoundation.framework */,
 				63949F552AC09925003FD7AF /* pman_lib_framework.xcframework */,
 			);
 			name = Frameworks;

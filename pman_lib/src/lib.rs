@@ -41,6 +41,13 @@ pub fn lib_init() {
     }
 }
 
+pub fn test_network() -> Result<u64, PmanError> {
+    let resp = minreq::get("https://httpbin.org/ip").send()
+        .map_err(|e| PmanError::message(e.to_string()))?;
+    let text = resp.as_str().map_err(|e| PmanError::message(e.to_string()))?;
+    Ok(text.len() as u64)
+}
+
 pub fn get_database_type(file_name: &String) -> Result<PasswordDatabaseType, Error> {
     let l = file_name.len();
     if l < 6 {

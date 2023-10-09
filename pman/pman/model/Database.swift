@@ -11,7 +11,7 @@ class Database: Hashable, Identifiable, Equatable {
     let id: String
     let name: String
     let errorMessage: String?
-    let dbId: uint64?
+    let dbId: UInt64?
     var isOpened: Bool
     
     init(dbURL: URL) {
@@ -50,6 +50,12 @@ class Databases: ObservableObject {
     
     init() {
         libInit();
+        var size: UInt64 = 0;
+        do {
+            size = try testNetwork();
+        } catch {
+            print("Unexpected error: \(error).")
+        }
         let dbs = UserDefaults.standard.array(forKey: "databases") as? [String] ?? []
         databases = dbs.map{ Database(dbURL: URL(string: $0)!) }
     }

@@ -112,6 +112,7 @@ impl PmanDatabaseFile {
         let offset = h.load(&data, 0)?;
         let _v = validate_database_version(&h)?;
         let (alg1, alg2) = get_encryption_algorithms(&h)?;
+        let a1 = alg1[0];
         let encryption_key = build_encryption_key(&h, &password_hash)?;
         let l2 = validate_data_hmac(&encryption_key, &data, l)?;
         let processor11 = build_encryption_processor(alg1, encryption_key)?;
@@ -122,6 +123,7 @@ impl PmanDatabaseFile {
         let offset2 = names_files_info.load(&data, offset)?;
 
         let (alg21, alg22) = get_encryption_algorithms(&names_files_info)?;
+        let a2 = alg21[0];
         let encryption2_key = build_encryption_key(&names_files_info, &password2_hash)?;
         let processor21 = build_encryption_processor(alg21, encryption2_key)?;
         decrypt_data(processor21.clone(), &data, offset2, l2);
@@ -142,8 +144,8 @@ impl PmanDatabaseFile {
             password2_hash,
             encryption_key,
             encryption2_key,
-            alg1: alg1[0],
-            alg2: alg21[0],
+            alg1: a1,
+            alg2: a2,
             processor12: Some(processor12),
             processor22: Some(processor22),
             header: h,
@@ -164,8 +166,8 @@ impl PmanDatabaseFile {
         }
         let result2 = download_result.remove(1);
         let result1 = download_result.remove(0);
-        self.names_file = Some(NamesFile::load(self.encryption_key, self.alg1, self.processor12.unwrap(), result1)?);
-        self.passwords_file = Some(PasswordsFile::load(self.encryption2_key, self.alg2, self.processor22.unwrap(), result2)?);
+        //self.names_file = Some(NamesFile::load(self.encryption_key, self.alg1, self.processor12.unwrap(), result1)?);
+        //self.passwords_file = Some(PasswordsFile::load(self.encryption2_key, self.alg2, self.processor22.unwrap(), result2)?);
         Ok(())
     }
 
@@ -175,16 +177,16 @@ impl PmanDatabaseFile {
         self.header.save(&mut output);
         let offset = output.len();
         let encryption_key = build_encryption_key(&self.header, &self.password_hash)?;
-        self.names_file.save(&mut output, &encryption_key);
+        //self.names_file.save(&mut output, &encryption_key);
         let (alg1, alg2) = get_encryption_algorithms(&self.header)?;
-        encrypt_data(alg1, &encryption_key, output, offset, output.len());
+        //encrypt_data(alg1, &encryption_key, output, offset, output.len());
         add_data_hash_and_hmac(&mut output, encryption_key);
         self.pre_save_result = Some(output);
-        Ok(())
+        Ok(Vec::new())
     }
 
     fn save(&mut self) -> Result<Vec<u8>, Error> {
-        Ok(self.pre_save_result.unwrap())
+        Ok(self.pre_save_result.take().unwrap())
     }
 }
 
