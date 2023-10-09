@@ -4,7 +4,7 @@ use std::sync::{Arc, RwLock};
 use thiserror::Error;
 use crate::keepass::keepass_database::KeePassDatabase;
 use crate::pman::pman_database::PmanDatabase;
-use crate::structs_interfaces::{DownloadAction, PasswordDatabase, PasswordDatabaseType};
+use crate::structs_interfaces::{PasswordDatabase, PasswordDatabaseType};
 use crate::structs_interfaces::CryptoEngine;
 use crate::structs_interfaces::HashAlgorithm;
 
@@ -39,13 +39,6 @@ pub fn lib_init() {
     unsafe {
         DATABASES = Some(HashMap::new())
     }
-}
-
-pub fn test_network() -> Result<u64, PmanError> {
-    let resp = minreq::get("https://httpbin.org/ip").send()
-        .map_err(|e| PmanError::message(e.to_string()))?;
-    let text = resp.as_str().map_err(|e| PmanError::message(e.to_string()))?;
-    Ok(text.len() as u64)
 }
 
 pub fn get_database_type(file_name: &String) -> Result<PasswordDatabaseType, Error> {
@@ -109,9 +102,13 @@ pub fn create(database_type: PasswordDatabaseType, password: String, password2: 
 
 fn get_database(database_id: u64) -> Result<Arc<RwLock<dyn PasswordDatabase>>, PmanError> {
     match unsafe{DATABASES.as_ref()}.unwrap().get(&database_id) {
-        None => Err(PmanError::message("database not found")),
+        None => Err(build_database_not_found_error()),
         Some(db) => Ok(db.database.clone())
     }
+}
+
+fn build_database_not_found_error() -> PmanError {
+    PmanError::message("database not found")
 }
 
 pub fn is_read_only(database_id: u64) -> Result<bool, PmanError> {
@@ -120,11 +117,17 @@ pub fn is_read_only(database_id: u64) -> Result<bool, PmanError> {
     Ok(result)
 }
 
-pub fn pre_open(database_id: u64, password: String, password2: Option<String>, key_file_contents: Option<Vec<u8>>)
-                   -> Result<Vec<Arc<DownloadAction>>, PmanError> {
+pub fn open(database_id: u64, password: String, password2: Option<String>, key_file_contents: Option<Vec<u8>>)
+                   -> Result<(), PmanError> {
     let db = get_database(database_id)?;
-    let result = db.write().unwrap().pre_open(password, password2, key_file_contents)
-        .map(|v|v.into_iter().map(|a|Arc::new(a)).collect())
-        .map_err(|e|PmanError::message(e.to_string()));
-    result
+    let mut write_lock = db.write().unwrap();
+    write_lock.open(password, password2, key_file_contents)
+        .map_err(|e|PmanError::message(e.to_string()))
+}
+
+pub fn close(database_id: u64) -> Result<(), PmanError> {
+    if unsafe{DATABASES.as_mut()}.unwrap().remove(&database_id).is_none() {
+        return Err(build_database_not_found_error());
+    }
+    Ok(())
 }

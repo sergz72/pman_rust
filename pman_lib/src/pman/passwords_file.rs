@@ -2,7 +2,7 @@ use std::io::Error;
 use std::sync::Arc;
 use crate::crypto::{build_corrupted_data_error, CryptoProcessor};
 use crate::pman::id_value_map::IdValueMap;
-use crate::pman::names_file::load_encryption_processor;
+use crate::pman::names_file::{load_encryption_processor, load_file};
 use crate::pman::pman_database_file::{decrypt_data, validate_data_hash, validate_data_hmac};
 
 pub struct PasswordsFile {
@@ -15,7 +15,9 @@ impl PasswordsFile {
     }
 
     pub fn load(encryption_key: [u8; 32], alg1: u8, processor2: Arc<dyn CryptoProcessor>,
-                data: Vec<u8>) -> Result<PasswordsFile, Error> {
+                file_info: IdValueMap<Vec<u8>>) -> Result<PasswordsFile, Error> {
+
+        let data = load_file(file_info)?;
 
         let l = validate_data_hash(&data)?;
         let l2 = validate_data_hmac(&encryption_key, &data, l)?;

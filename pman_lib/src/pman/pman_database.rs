@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 use std::sync::{Arc, RwLock};
-use crate::structs_interfaces::{DatabaseSearchResult, DownloadAction, PasswordDatabase, SaveAction};
+use crate::structs_interfaces::{DatabaseSearchResult, PasswordDatabase};
 
 pub struct PmanDatabase {
 
@@ -21,12 +21,9 @@ impl PasswordDatabase for PmanDatabase {
         todo!()
     }
 
-    fn pre_open(&mut self, password: String, password2: Option<String>,
-                key_file_contents: Option<Vec<u8>>) -> Result<Vec<DownloadAction>, Error> {
-        todo!()
-    }
 
-    fn open(&mut self, download_result: Vec<&Vec<u8>>) -> Result<(), Error> {
+    fn open(&mut self, password: String, password2: Option<String>, key_file_contents: Option<Vec<u8>>)
+            -> Result<(), Error> {
         todo!()
     }
 
@@ -63,7 +60,7 @@ impl PasswordDatabase for PmanDatabase {
         todo!()
     }
 
-    fn save(&mut self) -> Result<SaveAction, Error> {
+    fn save(&mut self) -> Result<Vec<u8>, Error> {
         todo!()
     }
 }
@@ -78,5 +75,10 @@ impl PmanDatabase {
     pub fn new(password: String, password2: Option<String>,
                key_file_contents: Option<Vec<u8>>) -> Result<Arc<RwLock<dyn PasswordDatabase>>, Error> {
         Err(Error::new(ErrorKind::Unsupported, "not implemented"))
+    }
+
+    fn open(&mut self, password: String, password2: Option<String>,
+                key_file_contents: Option<Vec<u8>>) -> Result<PmanDatabase, Error> {
+        todo!()
     }
 }

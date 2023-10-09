@@ -24,34 +24,6 @@ pub struct DatabaseSearchResult {
     pub entities: Vec<Box<dyn DatabaseEntity>>
 }
 
-pub struct DownloadAction {
-    url: String,
-    headers: Vec<String>
-}
-
-impl DownloadAction {
-    pub fn get_url(&self) -> String {
-        return self.url.clone()
-    }
-
-    pub fn get_headers(&self) -> Vec<String> {
-        return self.headers.clone()
-    }
-}
-
-pub struct UploadAction {
-    url: String,
-    method: String,
-    headers: Vec<String>,
-    body: Option<Vec<u8>>,
-    expected_http_code: usize
-}
-
-pub struct SaveAction {
-    file_actions: Vec<UploadAction>,
-    local_file_contents: Vec<u8>
-}
-
 pub trait PasswordDatabase {
     fn create(&mut self, password: String, password2: Option<String>,
               key_file_contents: Option<Vec<u8>>) -> Result<(), Error>;
@@ -59,10 +31,9 @@ pub trait PasswordDatabase {
     // prepare - validates local file contents.
     fn prepare(&mut self, contents: &Vec<u8>) -> Result<(), Error>;
     // pre_open - tries to decrypt local file and returns download file actions.
-    fn pre_open(&mut self, password: String, password2: Option<String>, key_file_contents: Option<Vec<u8>>)
-                -> Result<Vec<DownloadAction>, Error>;
+    fn open(&mut self, password: String, password2: Option<String>, key_file_contents: Option<Vec<u8>>)
+                -> Result<(), Error>;
     // open - opens database using download results.
-    fn open(&mut self, download_result: Vec<&Vec<u8>>) -> Result<(), Error>;
     fn get_users(&self) -> Result<HashMap<usize, String>, Error>;
     fn add_user(&mut self, name: String) -> Result<usize, Error>;
     fn remove_user(&mut self, id: usize) -> Result<(), Error>;
@@ -72,7 +43,7 @@ pub trait PasswordDatabase {
     fn delete_entity(&mut self, group: String, name: String) -> Result<(), Error>;
     fn add_entity(&mut self, group: String, name: String, user_id: usize, password: String,
                   url: Option<String>, properties: HashMap<String, String>) -> Result<(), Error>;
-    fn save(&mut self) -> Result<SaveAction, Error>;
+    fn save(&mut self) -> Result<Vec<u8>, Error>;
 }
 
 pub enum HashAlgorithm {
@@ -80,7 +51,8 @@ pub enum HashAlgorithm {
 }
 
 pub enum CryptoEngine {
-    AES
+    AES,
+    Chacha20
 }
 
 #[derive(PartialEq)]

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 use std::sync::{Arc, RwLock};
-use crate::structs_interfaces::{DatabaseSearchResult, DownloadAction, PasswordDatabase, SaveAction};
+use crate::structs_interfaces::{DatabaseSearchResult, PasswordDatabase};
 
 pub struct KeePassDatabase {
 
@@ -25,12 +25,8 @@ impl PasswordDatabase for KeePassDatabase {
         todo!()
     }
 
-    fn pre_open(&mut self, password: String, password2: Option<String>,
-                key_file_contents: Option<Vec<u8>>) -> Result<Vec<DownloadAction>, Error> {
-        todo!()
-    }
-
-    fn open(&mut self, download_result: Vec<&Vec<u8>>) -> Result<(), Error> {
+    fn open(&mut self, password: String, password2: Option<String>, key_file_contents: Option<Vec<u8>>)
+            -> Result<(), Error> {
         todo!()
     }
 
@@ -67,7 +63,7 @@ impl PasswordDatabase for KeePassDatabase {
         Err(build_read_only_db_error())
     }
 
-    fn save(&mut self) -> Result<SaveAction, Error> {
+    fn save(&mut self) -> Result<Vec<u8>, Error> {
         Err(build_read_only_db_error())
     }
 }
@@ -82,5 +78,10 @@ impl KeePassDatabase {
     pub fn new(password: String, password2: Option<String>,
                key_file_contents: Option<Vec<u8>>) -> Result<Arc<RwLock<dyn PasswordDatabase>>, Error> {
         Err(Error::new(ErrorKind::Unsupported, "not implemented"))
+    }
+
+    fn open(&mut self, password: String, password2: Option<String>,
+            key_file_contents: Option<Vec<u8>>) -> Result<KeePassDatabase, Error> {
+        todo!()
     }
 }

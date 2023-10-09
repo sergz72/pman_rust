@@ -17,7 +17,9 @@ impl NamesFile {
     }
 
     pub fn load(encryption_key: [u8; 32], alg1: u8, processor2: Arc<dyn CryptoProcessor>,
-                data: Vec<u8>) -> Result<NamesFile, Error> {
+                file_info: IdValueMap<Vec<u8>>) -> Result<NamesFile, Error> {
+
+        let data = load_file(file_info)?;
 
         let l = validate_data_hash(&data)?;
         let l2 = validate_data_hmac(&encryption_key, &data, l)?;
@@ -39,6 +41,10 @@ impl NamesFile {
     pub fn save() {
 
     }
+}
+
+pub fn load_file(file_info: IdValueMap<Vec<u8>>) -> Result<Vec<u8> , Error> {
+    todo!()
 }
 
 pub fn load_encryption_processor(alg1: u8, encryption_key: [u8; 32], data: &Vec<u8>) -> Result<(Arc<dyn CryptoProcessor>, usize), Error> {
