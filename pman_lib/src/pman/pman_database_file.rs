@@ -38,6 +38,7 @@ passwords file structure
 
 use std::io::{Error, ErrorKind};
 use std::sync::Arc;
+use argon2::{Algorithm, Argon2, Params, PasswordHasher, Version};
 use hmac::digest::KeyInit;
 use hmac::{Hmac, Mac};
 use rand::RngCore;
@@ -60,6 +61,8 @@ pub const DEFAULT_ARGON2_PARALLELISM: u8 = 6;
 pub const ENCRYPTION_ALGORITHM_AES: u8 = 1;
 pub const ENCRYPTION_ALGORITHM_CHACHA20: u8 = 2;
 pub const FILE_LOCATION_LOCAL: u8 = 1;
+pub const FILE_LOCATION_S3: u8 = 2;
+pub const FILE_LOCATION_REDIS: u8 = 3;
 
 struct PmanDatabaseFile {
     password_hash: Vec<u8>,
@@ -149,7 +152,7 @@ impl PmanDatabaseFile {
     fn save(&mut self) -> Result<Vec<u8>, Error> {
         let mut output = Vec::new();
         modify_algorithm_properties(&self.header);
-        self.header.save(&mut output);
+        self.header.save(&mut output)?;
         let offset = output.len();
         let encryption_key = build_encryption_key(&self.header, &self.password_hash)?;
         //self.names_file.save(&mut output, &encryption_key);
@@ -206,7 +209,14 @@ pub fn get_encryption_algorithms(header: &IdValueMap<Vec<u8>>) -> Result<(Vec<u8
 }
 
 pub fn build_encryption_key(header: &IdValueMap<Vec<u8>>, password_hash: &Vec<u8>) -> Result<[u8;32], Error> {
-    todo!()
+    let alg = header.get(HASH_ALGORITHM_PROPERTIES_ID)?;
+    if alg.len() == 0 {
+        return Err(build_corrupted_data_error())
+    }
+    match alg[0] {
+        HASH_ALGORITHM_ARGON2 => build_argon2_key(alg, password_hash),
+        _ => Err(Error::new(ErrorKind::Unsupported, "unsupported hash algorithm"))
+    }
 }
 
 fn validate_database_version(header: &IdValueMap<Vec<u8>>) -> Result<usize, Error> {
@@ -284,13 +294,32 @@ fn default_chacha_properties() -> Vec<u8> {
     result
 }
 
+pub fn build_argon2_key(algorithm_properties: Vec<u8>, password_hash: &Vec<u8>) -> Result<[u8; 32], Error> {
+    if algorithm_properties.len() != 21 {
+        return Err(build_corrupted_data_error())
+    }
+    let iterations = algorithm_properties[1];
+    let parallelism = algorithm_properties[2];
+    let mut bytes = [0u8; 2];
+    bytes.copy_from_slice(&algorithm_properties[3..5]);
+    let memory = (u16::from_le_bytes(bytes) as u32) * 1024; // in kb
+    let salt = &algorithm_properties[5..21];
+    let params = Params::new(memory as u32, iterations as u32, parallelism as u32, None)
+        .map_err(|e|Error::new(ErrorKind::Other, e.to_string()))?;
+    let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
+    let mut hash = [0u8; 32];
+    argon2.hash_password_into(password_hash.as_slice(), salt, &mut hash)
+        .map_err(|e|Error::new(ErrorKind::Other, e.to_string()))?;
+    Ok(hash)
+}
+
 fn default_argon2_properties() -> Vec<u8> {
     build_argon2_properties(DEFAULT_ARGON2_ITERATIONS,
                             DEFAULT_ARGON2_PARALLELISM, DEFAULT_ARGON2_MEMORY,
                         build_argon2_salt())
 }
 
-fn build_argon2_properties(iterations: u8, parallelism: u8, memory: u16, salt: [u8; 16]) -> Vec<u8> {
+pub fn build_argon2_properties(iterations: u8, parallelism: u8, memory: u16, salt: [u8; 16]) -> Vec<u8> {
     let mut result = vec![HASH_ALGORITHM_ARGON2, iterations, parallelism];
     result.extend_from_slice(&memory.to_le_bytes());
     result.extend_from_slice(&salt);

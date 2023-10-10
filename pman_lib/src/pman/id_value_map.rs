@@ -92,13 +92,16 @@ impl<T: ByteValue> IdValueMap<T> {
         Ok(*value)
     }
 
-    pub fn save(&self, output: &mut Vec<u8>) {
+    pub fn save(&self, output: &mut Vec<u8>) -> Result<(), Error> {
         output.put_u32_le(self.map.len() as u32);
         for (key, value) in &self.map {
             output.put_u32_le(*key);
-            output.put_u32_le(value.len() as u32);
-            output.put_slice(value);
+            let decoded = self.processor.decode(value)?;
+            let encoded = self.processor.encode(decoded)?;
+            output.put_u32_le(encoded.len() as u32);
+            output.put_slice(&encoded);
         }
+        Ok(())
     }
 
     pub fn load(&mut self, source: &Vec<u8>, offset: usize) -> Result<usize, Error> {
@@ -167,7 +170,7 @@ mod tests {
         let idx2 = map.add(s2.clone())?;
         let idx3 = map.add(s3.clone())?;
         let mut v = Vec::new();
-        map.save(&mut v);
+        map.save(&mut v)?;
         let mut map2: IdValueMap<String> = IdValueMap::new(AesProcessor::new(key));
         let end = map2.load(&v, 0)?;
         assert_eq!(end, v.len());

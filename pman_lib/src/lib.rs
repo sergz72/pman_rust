@@ -4,6 +4,7 @@ use std::sync::{Arc, RwLock};
 use thiserror::Error;
 use crate::keepass::keepass_database::KeePassDatabase;
 use crate::pman::pman_database::PmanDatabase;
+use crate::pman::pman_database_file::{build_argon2_key, build_argon2_properties};
 use crate::structs_interfaces::{PasswordDatabase, PasswordDatabaseType};
 use crate::structs_interfaces::CryptoEngine;
 use crate::structs_interfaces::HashAlgorithm;
@@ -130,4 +131,9 @@ pub fn close(database_id: u64) -> Result<(), PmanError> {
         return Err(build_database_not_found_error());
     }
     Ok(())
+}
+
+pub fn build_argon2_hash(password: Vec<u8>, iterations: isize, parallelism: isize, memory: isize, salt: [u8; 16]) -> Result<[u8; 32], Error> {
+    let properties = build_argon2_properties(iterations as u8, parallelism as u8, memory as u16, salt);
+    build_argon2_key(properties, &password)
 }
