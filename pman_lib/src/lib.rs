@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::io::{Error, ErrorKind, Read};
+use std::io::{Error, ErrorKind};
 use std::sync::{Arc, RwLock};
 use thiserror::Error;
 use crate::keepass::keepass_database::KeePassDatabase;

@@ -92,15 +92,20 @@ impl<T: ByteValue> IdValueMap<T> {
         Ok(*value)
     }
 
-    pub fn save(&self, output: &mut Vec<u8>) -> Result<(), Error> {
+    pub fn save(&mut self, output: &mut Vec<u8>, new_processor: Option<Arc<dyn CryptoProcessor>>) -> Result<(), Error> {
+        let encode_processor = new_processor.unwrap_or(self.processor.clone());
         output.put_u32_le(self.map.len() as u32);
+        let mut new_map = HashMap::new();
         for (key, value) in &self.map {
             output.put_u32_le(*key);
             let decoded = self.processor.decode(value)?;
-            let encoded = self.processor.encode(decoded)?;
+            let encoded = encode_processor.encode(decoded)?;
             output.put_u32_le(encoded.len() as u32);
             output.put_slice(&encoded);
+            new_map.insert(*key, encoded);
         }
+        self.map = new_map;
+        self.processor = encode_processor;
         Ok(())
     }
 
@@ -170,7 +175,8 @@ mod tests {
         let idx2 = map.add(s2.clone())?;
         let idx3 = map.add(s3.clone())?;
         let mut v = Vec::new();
-        map.save(&mut v)?;
+        map.save(&mut v, None)?;
+
         let mut map2: IdValueMap<String> = IdValueMap::new(AesProcessor::new(key));
         let end = map2.load(&v, 0)?;
         assert_eq!(end, v.len());
@@ -180,6 +186,22 @@ mod tests {
         assert_eq!(v2, s2);
         let v3 = map2.get(idx3)?;
         assert_eq!(v3, s3);
+
+        let mut key2 = [0u8;32];
+        OsRng.fill_bytes(&mut key2);
+        let mut v2 = Vec::new();
+        map.save(&mut v2, Some(AesProcessor::new(key2)))?;
+
+        let mut map3: IdValueMap<String> = IdValueMap::new(AesProcessor::new(key2));
+        let end2 = map3.load(&v2, 0)?;
+        assert_eq!(end2, v2.len());
+        assert_eq!(map3.map.len(), map.map.len());
+        assert_eq!(map3.next_id, map.next_id);
+        let v22 = map3.get(idx2)?;
+        assert_eq!(v22, s2);
+        let v23 = map3.get(idx3)?;
+        assert_eq!(v23, s3);
+
         Ok(())
     }
 }

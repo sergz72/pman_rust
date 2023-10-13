@@ -11,9 +11,12 @@ impl FileAction {
     pub fn get_file_name(&self) -> String {
         return self.file_name.clone()
     }
-
     pub fn get_data(&self) -> Vec<u8> {
         return self.data.clone()
+    }
+
+    pub fn new(file_name: String, data: Vec<u8>) -> FileAction {
+        FileAction{ file_name, data }
     }
 }
 

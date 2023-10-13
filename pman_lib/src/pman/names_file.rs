@@ -3,7 +3,9 @@ use std::sync::Arc;
 use crate::crypto::{build_corrupted_data_error, CryptoProcessor};
 use crate::pman::header_entity::HeaderEntity;
 use crate::pman::id_value_map::IdValueMap;
-use crate::pman::pman_database_file::{decrypt_data, validate_data_hash, validate_data_hmac};
+use crate::pman::ids::{ENCRYPTION_ALGORITHM1_PROPERTIES_ID, ENCRYPTION_ALGORITHM2_PROPERTIES_ID, FILES_LOCATIONS_ID, HASH_ALGORITHM_PROPERTIES_ID};
+use crate::pman::pman_database_file::{decrypt_data, default_aes_properties, default_argon2_properties, default_chacha_properties, FILE_LOCATION_LOCAL, validate_data_hash, validate_data_hmac};
+use crate::structs_interfaces::FileAction;
 
 pub struct NamesFile {
     entities: IdValueMap<HeaderEntity>,
@@ -17,7 +19,7 @@ impl NamesFile {
     }
 
     pub fn load(encryption_key: [u8; 32], alg1: u8, processor2: Arc<dyn CryptoProcessor>,
-                file_info: IdValueMap<Vec<u8>>) -> Result<NamesFile, Error> {
+                file_info: &IdValueMap<Vec<u8>>) -> Result<NamesFile, Error> {
 
         let mut data = load_file(file_info)?;
 
@@ -38,12 +40,33 @@ impl NamesFile {
         })
     }
 
-    pub fn save() {
+    pub fn save(&self, encryption_key: [u8; 32], alg1: u8, processor2: Arc<dyn CryptoProcessor>, file_info: &IdValueMap<Vec<u8>>) -> Result<Option<FileAction>, Error> {
+        todo!()
+    }
 
+    pub fn save_remote(&self, file_info: &IdValueMap<Vec<u8>>) -> Result<Option<FileAction>, Error> {
+        todo!()
+    }
+
+    pub fn build_file_info(main_file_name: String, processor2: Arc<dyn CryptoProcessor>) -> IdValueMap<Vec<u8>> {
+        let mut h = IdValueMap::new(processor2);
+        h.add_with_id(HASH_ALGORITHM_PROPERTIES_ID, default_argon2_properties()).unwrap();
+        h.add_with_id(ENCRYPTION_ALGORITHM1_PROPERTIES_ID, default_chacha_properties()).unwrap();
+        h.add_with_id(ENCRYPTION_ALGORITHM2_PROPERTIES_ID, default_aes_properties()).unwrap();
+        h.add_with_id(FILES_LOCATIONS_ID, vec![FILES_LOCATIONS_ID as u8 + 1]).unwrap();
+        h.add_with_id(FILES_LOCATIONS_ID+1, build_local_file_location(main_file_name + ".names")).unwrap();
+        h
     }
 }
 
-pub fn load_file(file_info: IdValueMap<Vec<u8>>) -> Result<Vec<u8> , Error> {
+pub fn build_local_file_location(file_name: String) -> Vec<u8> {
+    let mut v = Vec::new();
+    v.push(FILE_LOCATION_LOCAL);
+    v.extend_from_slice(file_name.as_bytes());
+    v
+}
+
+pub fn load_file(file_info: &IdValueMap<Vec<u8>>) -> Result<Vec<u8> , Error> {
     todo!()
 }
 

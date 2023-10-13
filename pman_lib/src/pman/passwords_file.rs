@@ -2,8 +2,10 @@ use std::io::Error;
 use std::sync::Arc;
 use crate::crypto::{build_corrupted_data_error, CryptoProcessor};
 use crate::pman::id_value_map::IdValueMap;
-use crate::pman::names_file::{load_encryption_processor, load_file};
+use crate::pman::ids::FILES_LOCATIONS_ID;
+use crate::pman::names_file::{build_local_file_location, load_encryption_processor, load_file};
 use crate::pman::pman_database_file::{decrypt_data, validate_data_hash, validate_data_hmac};
+use crate::structs_interfaces::FileAction;
 
 pub struct PasswordsFile {
     passwords: IdValueMap<String>
@@ -15,7 +17,7 @@ impl PasswordsFile {
     }
 
     pub fn load(encryption_key: [u8; 32], alg1: u8, processor2: Arc<dyn CryptoProcessor>,
-                file_info: IdValueMap<Vec<u8>>) -> Result<PasswordsFile, Error> {
+                file_info: &IdValueMap<Vec<u8>>) -> Result<PasswordsFile, Error> {
 
         let mut data = load_file(file_info)?;
 
@@ -31,7 +33,18 @@ impl PasswordsFile {
         Ok(PasswordsFile{passwords})
     }
 
-    pub fn save() {
+    pub fn save(&self, encryption_key: [u8; 32], alg1: u8, processor2: Arc<dyn CryptoProcessor>, file_info: &IdValueMap<Vec<u8>>) -> Result<Option<FileAction>, Error> {
+        todo!()
+    }
 
+    pub fn save_remote(&self, file_info: &IdValueMap<Vec<u8>>) -> Result<Option<FileAction>, Error> {
+        todo!()
+    }
+
+    pub fn build_file_info(main_file_name: String, processor2: Arc<dyn CryptoProcessor>) -> IdValueMap<Vec<u8>> {
+        let mut h = IdValueMap::new(processor2);
+        h.add_with_id(FILES_LOCATIONS_ID, vec![FILES_LOCATIONS_ID as u8 + 1]).unwrap();
+        h.add_with_id(FILES_LOCATIONS_ID+1, build_local_file_location(main_file_name + ".passwords")).unwrap();
+        h
     }
 }
