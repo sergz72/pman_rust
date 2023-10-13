@@ -63,6 +63,13 @@ struct DBView: View {
             onCompletion: { result in
                 switch result {
                 case .success(let file):
+                    var size: UInt64 = 0;
+                    do {
+                        let name = file.relativePath;
+                        size = try testFile(fileName: name);
+                    } catch {
+                        print("Unexpected error: \(error).")
+                    }
                     databases.add(databaseURL: file.absoluteURL)
                 case .failure:
                     break

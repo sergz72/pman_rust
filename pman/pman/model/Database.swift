@@ -50,12 +50,6 @@ class Databases: ObservableObject {
     
     init() {
         libInit();
-        var size: UInt64 = 0;
-        do {
-            size = try testNetwork();
-        } catch {
-            print("Unexpected error: \(error).")
-        }
         let dbs = UserDefaults.standard.array(forKey: "databases") as? [String] ?? []
         databases = dbs.map{ Database(dbURL: URL(string: $0)!) }
     }

@@ -85,12 +85,16 @@ impl PmanDatabaseFile {
         h.add_with_id(ENCRYPTION_ALGORITHM2_PROPERTIES_ID, default_aes_properties()).unwrap();
 
         let (alg1, alg2) = get_encryption_algorithms(&h)?;
-        let encryption_key = build_encryption_key(&h, &password_hash)?;
+        // initially generating random key - it will be overwritten on save
+        let mut encryption_key = [0u8; 32];
+        OsRng.fill_bytes(&mut encryption_key);
         let processor12 = build_encryption_processor(alg2, encryption_key)?;
         let names_file = NamesFile::new(processor12);
 
         let (alg21, alg22) = get_encryption_algorithms(&h)?;
-        let encryption2_key = build_encryption_key(&h, &password2_hash)?;
+        // initially generating random key - it will be overwritten on save
+        let mut encryption2_key = [0u8; 32];
+        OsRng.fill_bytes(&mut encryption2_key);
         let processor22 = build_encryption_processor(alg22, encryption_key)?;
         let passwords_file = PasswordsFile::new(processor22);
 

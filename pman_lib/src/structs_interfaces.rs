@@ -2,6 +2,21 @@ use std::collections::HashMap;
 use std::io::Error;
 use crate::structs_interfaces::PasswordDatabaseType::Pman;
 
+pub struct FileAction {
+    file_name: String,
+    data: Vec<u8>
+}
+
+impl FileAction {
+    pub fn get_file_name(&self) -> String {
+        return self.file_name.clone()
+    }
+
+    pub fn get_data(&self) -> Vec<u8> {
+        return self.data.clone()
+    }
+}
+
 pub trait DatabaseEntity {
     fn get_name(&self) -> String;
     fn get_user_id(&self) -> usize;

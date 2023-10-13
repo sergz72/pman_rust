@@ -1,11 +1,11 @@
 use std::collections::HashMap;
-use std::io::{Error, ErrorKind};
+use std::io::{Error, ErrorKind, Read};
 use std::sync::{Arc, RwLock};
 use thiserror::Error;
 use crate::keepass::keepass_database::KeePassDatabase;
 use crate::pman::pman_database::PmanDatabase;
 use crate::pman::pman_database_file::{build_argon2_key, build_argon2_properties};
-use crate::structs_interfaces::{PasswordDatabase, PasswordDatabaseType};
+use crate::structs_interfaces::{FileAction, PasswordDatabase, PasswordDatabaseType};
 use crate::structs_interfaces::CryptoEngine;
 use crate::structs_interfaces::HashAlgorithm;
 
@@ -118,12 +118,17 @@ pub fn is_read_only(database_id: u64) -> Result<bool, PmanError> {
     Ok(result)
 }
 
-pub fn open(database_id: u64, password: String, password2: Option<String>, key_file_contents: Option<Vec<u8>>)
-                   -> Result<(), PmanError> {
+pub fn pre_open(database_id: u64, password: String, password2: Option<String>, key_file_contents: Option<Vec<u8>>)
+                   -> Result<Vec<Arc<FileAction>>, PmanError> {
     let db = get_database(database_id)?;
     let mut write_lock = db.write().unwrap();
     write_lock.open(password, password2, key_file_contents)
-        .map_err(|e|PmanError::message(e.to_string()))
+        .map_err(|e|PmanError::message(e.to_string()))?;
+    Ok(Vec::new())
+}
+
+pub fn open(database_id: u64, data: Vec<Vec<u8>>) -> Result<(), PmanError> {
+    todo!()
 }
 
 pub fn close(database_id: u64) -> Result<(), PmanError> {
@@ -131,6 +136,10 @@ pub fn close(database_id: u64) -> Result<(), PmanError> {
         return Err(build_database_not_found_error());
     }
     Ok(())
+}
+
+pub fn save(database_id: u64) -> Result<Vec<Arc<FileAction>>, PmanError> {
+    todo!()
 }
 
 pub fn build_argon2_hash(password: Vec<u8>, iterations: isize, parallelism: isize, memory: isize, salt: [u8; 16]) -> Result<[u8; 32], Error> {
