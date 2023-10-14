@@ -43,12 +43,13 @@ impl NamesFile {
     pub fn save(&self, file_name: String, encryption_key: [u8; 32], alg1: u8,
                 processor2: Arc<dyn CryptoProcessor>,
                 file_info: &IdValueMap<Vec<u8>>) -> Result<Option<FileAction>, Error> {
-        todo!()
+        self.save_remote(file_name, file_info)
     }
 
     pub fn save_remote(&self, file_name: String,
                        file_info: &IdValueMap<Vec<u8>>) -> Result<Option<FileAction>, Error> {
-        todo!()
+        let mut data = Vec::new();
+        save_to_destinations(file_info, file_name, data)
     }
 
     pub fn build_file_info(processor2: Arc<dyn CryptoProcessor>) -> IdValueMap<Vec<u8>> {
@@ -60,6 +61,10 @@ impl NamesFile {
         h.add_with_id(FILES_LOCATIONS_ID+1, build_local_file_location()).unwrap();
         h
     }
+}
+
+fn save_to_destinations(header: &IdValueMap<Vec<u8>>, file_name: String, data: Vec<u8>) -> Result<Option<FileAction>, Error> {
+    todo!()
 }
 
 pub fn build_local_file_location() -> Vec<u8> {

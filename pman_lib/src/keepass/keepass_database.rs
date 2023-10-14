@@ -12,6 +12,10 @@ pub fn build_read_only_db_error() -> Error {
 }
 
 impl PasswordDatabase for KeePassDatabase {
+    fn set_argon2(&mut self, hash_id: usize, iterations: u8, parallelism: u8, memory: u16) -> Result<(), Error> {
+        todo!()
+    }
+
     fn is_read_only(&self) -> bool {
         true
     }

@@ -145,6 +145,10 @@ pub fn save(database_id: u64) -> Result<Vec<Arc<FileAction>>, PmanError> {
     todo!()
 }
 
+pub fn set_argon2(database_id: u64, hash_id: u64, iterations: u64, parallelism: u64, memory: u64) -> Result<(), PmanError> {
+    todo!()
+}
+
 pub fn build_argon2_hash(password: Vec<u8>, iterations: isize, parallelism: isize, memory: isize, salt: [u8; 16]) -> Result<[u8; 32], Error> {
     let properties = build_argon2_properties(iterations as u8, parallelism as u8, memory as u16, salt);
     build_argon2_key(properties, &password)

@@ -43,6 +43,7 @@ pub struct DatabaseSearchResult {
 }
 
 pub trait PasswordDatabase {
+    fn set_argon2(&mut self, hash_id: usize, iterations: u8, parallelism: u8, memory: u16) -> Result<(), Error>;
     fn is_read_only(&self) -> bool;
     // pre_open - tries to decrypt local file and returns download file actions.
     fn pre_open(&mut self, password: String, password2: Option<String>, key_file_contents: Option<Vec<u8>>)

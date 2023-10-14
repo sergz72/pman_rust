@@ -56,11 +56,11 @@ const DATABASE_VERSION_MIN: u16 = 0x100; // 1.0
 const DATABASE_VERSION_MAX: u16 = 0x100; // 1.0
 const DATABASE_VERSION_1: u16 = 0x100; // 1.0
 pub const HASH_ALGORITHM_ARGON2: u8 = 1;
-pub const DEFAULT_ARGON2_ITERATIONS: u8 = 10;
-pub const DEFAULT_ARGON2_MEMORY: u16 = 128;
+pub const DEFAULT_ARGON2_ITERATIONS: u8 = 2;
+pub const DEFAULT_ARGON2_MEMORY: u16 = 64;
 pub const DEFAULT_ARGON2_PARALLELISM: u8 = 6;
-pub const ENCRYPTION_ALGORITHM_AES: u8 = 1;
-pub const ENCRYPTION_ALGORITHM_CHACHA20: u8 = 2;
+pub const ENCRYPTION_ALGORITHM_AES: u8 = 2;
+pub const ENCRYPTION_ALGORITHM_CHACHA20: u8 = 3;
 pub const FILE_LOCATION_LOCAL: u8 = 1;
 pub const FILE_LOCATION_S3: u8 = 2;
 pub const FILE_LOCATION_REDIS: u8 = 3;
@@ -179,17 +179,17 @@ impl PmanDatabaseProperties {
     fn save(&mut self, file_name: String) -> Result<Vec<FileAction>, Error> {
         if self.is_updated {
             let mut output = Vec::new();
-            modify_algorithm_properties(&self.header);
+            modify_header_algorithm_properties(&mut self.header)?;
             self.header.save(&mut output, None)?;
             let offset = output.len();
             let encryption_key = build_encryption_key(&self.header, &self.password_hash)?;
             let (alg1, alg2) = get_encryption_algorithms(&self.header)?;
             let a1 = alg1[0];
             let processor12 = build_encryption_processor(alg2, encryption_key)?;
-            modify_algorithm_properties(&self.names_files_info);
+            modify_header_algorithm_properties(&mut self.names_files_info)?;
             self.names_files_info.save(&mut output, Some(processor12.clone()))?;
             let offset2 = output.len();
-            let encryption2_key = build_encryption_key(&self.header, &self.password_hash)?;
+            let encryption2_key = build_encryption_key(&self.names_files_info, &self.password2_hash)?;
             let (alg21, alg22) = get_encryption_algorithms(&self.names_files_info)?;
             let a2 = alg21[0];
             let processor22 = build_encryption_processor(alg22, encryption2_key)?;
@@ -271,6 +271,10 @@ impl PmanDatabaseFile {
         }
         self.properties.as_mut().unwrap().save(file_name)
     }
+
+    fn set_argon2(&mut self, hash_id: usize, iterations: u8, parallelism: u8, memory: u16) -> Result<(), Error> {
+        todo!()
+    }
 }
 
 fn build_encryption_processor(algorithm_parameters: Vec<u8>, encryption_key: [u8; 32]) -> Result<Arc<dyn CryptoProcessor>, Error> {
@@ -300,8 +304,31 @@ fn build_chacha_processor(parameters: Vec<u8>, key: [u8; 32]) -> Result<Arc<dyn 
     Ok(ChachaProcessor::new(key, iv))
 }
 
-pub fn modify_algorithm_properties(header: &IdValueMap<Vec<u8>>) {
-    todo!()
+pub fn modify_header_algorithm_properties(header: &mut IdValueMap<Vec<u8>>) -> Result<(), Error> {
+    let hash_props = header.get(HASH_ALGORITHM_PROPERTIES_ID)?;
+    header.set(HASH_ALGORITHM_PROPERTIES_ID, modify_algorithm_properties(hash_props)?)?;
+    let alg1_props = header.get(ENCRYPTION_ALGORITHM1_PROPERTIES_ID)?;
+    header.set(ENCRYPTION_ALGORITHM1_PROPERTIES_ID, modify_algorithm_properties(alg1_props)?)?;
+    let alg2_props = header.get(ENCRYPTION_ALGORITHM2_PROPERTIES_ID)?;
+    header.set(ENCRYPTION_ALGORITHM2_PROPERTIES_ID, modify_algorithm_properties(alg2_props)?)
+}
+
+fn modify_algorithm_properties(mut properties: Vec<u8>) -> Result<Vec<u8>, Error> {
+    if properties.len() == 0 {
+        return Err(build_corrupted_data_error());
+    }
+    match properties[0] {
+        HASH_ALGORITHM_ARGON2 => {
+            set_argon2_salt(&mut properties, build_argon2_salt())?;
+            Ok(properties)
+        },
+        ENCRYPTION_ALGORITHM_AES => Ok(properties),
+        ENCRYPTION_ALGORITHM_CHACHA20 => {
+            set_chacha_salt(&mut properties, build_chacha_salt())?;
+            Ok(properties)
+        },
+        _ => Err(Error::new(ErrorKind::Unsupported, "unsupported algorithm"))
+    }
 }
 
 fn encrypt_data(processor: Arc<dyn CryptoProcessor>, data: &mut Vec<u8>, offset: usize, length: usize) -> Result<(), Error> {
@@ -436,11 +463,21 @@ pub fn build_argon2_properties(iterations: u8, parallelism: u8, memory: u16, sal
     result
 }
 
-fn set_argon2_salt(input: &mut Vec<u8>, salt: [u8; 16]) {
-    input[5..21].copy_from_slice(&salt);
+fn set_argon2_salt(input: &mut Vec<u8>, salt: [u8; 16]) -> Result<(), Error> {
+    if input.len() != 21 {
+        Err(build_corrupted_data_error())
+    } else {
+        input[5..21].copy_from_slice(&salt);
+        Ok(())
+    }
 }
-fn set_chacha_salt(input: &mut Vec<u8>, salt: [u8; 12]) {
-    input[1..13].copy_from_slice(&salt);
+fn set_chacha_salt(input: &mut Vec<u8>, salt: [u8; 12]) -> Result<(), Error> {
+    if input.len() != 13 {
+        Err(build_corrupted_data_error())
+    } else {
+        input[1..13].copy_from_slice(&salt);
+        Ok(())
+    }
 }
 
 fn build_argon2_salt() -> [u8; 16] {

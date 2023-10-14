@@ -14,6 +14,8 @@ namespace pman_lib {
   sequence<FileAction> save(u64 database_id);
   [Throws=PmanError]
   void close(u64 database_id);
+  [Throws=PmanError]
+  void set_argon2(u64 database_id, u64 hash_id, u64 iterations, u64 parallelism, u64 memory);
 };
 
 [Error]
