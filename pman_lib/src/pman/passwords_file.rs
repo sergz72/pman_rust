@@ -33,18 +33,21 @@ impl PasswordsFile {
         Ok(PasswordsFile{passwords})
     }
 
-    pub fn save(&self, encryption_key: [u8; 32], alg1: u8, processor2: Arc<dyn CryptoProcessor>, file_info: &IdValueMap<Vec<u8>>) -> Result<Option<FileAction>, Error> {
+    pub fn save(&self, file_name: String, encryption_key: [u8; 32], alg1: u8,
+                processor2: Arc<dyn CryptoProcessor>,
+                file_info: &IdValueMap<Vec<u8>>) -> Result<Option<FileAction>, Error> {
         todo!()
     }
 
-    pub fn save_remote(&self, file_info: &IdValueMap<Vec<u8>>) -> Result<Option<FileAction>, Error> {
+    pub fn save_remote(&self, file_name: String,
+                       file_info: &IdValueMap<Vec<u8>>) -> Result<Option<FileAction>, Error> {
         todo!()
     }
 
-    pub fn build_file_info(main_file_name: String, processor2: Arc<dyn CryptoProcessor>) -> IdValueMap<Vec<u8>> {
+    pub fn build_file_info(processor2: Arc<dyn CryptoProcessor>) -> IdValueMap<Vec<u8>> {
         let mut h = IdValueMap::new(processor2);
         h.add_with_id(FILES_LOCATIONS_ID, vec![FILES_LOCATIONS_ID as u8 + 1]).unwrap();
-        h.add_with_id(FILES_LOCATIONS_ID+1, build_local_file_location(main_file_name + ".passwords")).unwrap();
+        h.add_with_id(FILES_LOCATIONS_ID+1, build_local_file_location()).unwrap();
         h
     }
 }

@@ -84,11 +84,11 @@ impl CryptoProcessor for AesProcessor {
         Ok(out_data)
     }
 
-    fn encode_bytes(&self, data: &mut [u8]) -> Result<(), Error> {
+    fn encode_bytes(&self, _data: &mut [u8]) -> Result<(), Error> {
         Err(build_unsupported_error())
     }
 
-    fn decode_bytes(&self, data: &mut [u8]) -> Result<(), Error> {
+    fn decode_bytes(&self, _data: &mut [u8]) -> Result<(), Error> {
         Err(build_unsupported_error())
     }
 }
@@ -116,11 +116,11 @@ impl CryptoProcessor for NoEncryptionProcessor {
         Ok(data.clone())
     }
 
-    fn encode_bytes(&self, data: &mut [u8]) -> Result<(), Error> {
+    fn encode_bytes(&self, _data: &mut [u8]) -> Result<(), Error> {
         Ok(())
     }
 
-    fn decode_bytes(&self, data: &mut [u8]) -> Result<(), Error> {
+    fn decode_bytes(&self, _data: &mut [u8]) -> Result<(), Error> {
         Ok(())
     }
 }
@@ -137,11 +137,11 @@ pub struct ChachaProcessor {
 }
 
 impl CryptoProcessor for ChachaProcessor {
-    fn encode(&self, data: Vec<u8>) -> Result<Vec<u8>, Error> {
+    fn encode(&self, _data: Vec<u8>) -> Result<Vec<u8>, Error> {
         Err(build_unsupported_error())
     }
 
-    fn decode(&self, data: &Vec<u8>) -> Result<Vec<u8>, Error> {
+    fn decode(&self, _data: &Vec<u8>) -> Result<Vec<u8>, Error> {
         Err(build_unsupported_error())
     }
 

@@ -1,29 +1,24 @@
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 use std::sync::{Arc, RwLock};
-use crate::structs_interfaces::{DatabaseSearchResult, PasswordDatabase};
+use crate::pman::pman_database_file::PmanDatabaseFile;
+use crate::structs_interfaces::{DatabaseSearchResult, FileAction, PasswordDatabase};
 
 pub struct PmanDatabase {
-
+    file: PmanDatabaseFile
 }
 
 impl PasswordDatabase for PmanDatabase {
-    fn create(&mut self, password: String, password2: Option<String>,
-              key_file_contents: Option<Vec<u8>>) -> Result<(), Error> {
-        todo!()
-    }
-
     fn is_read_only(&self) -> bool {
         false
     }
 
-    fn prepare(&mut self, contents: &Vec<u8>) -> Result<(), Error> {
+    fn pre_open(&mut self, password: String, password2: Option<String>, key_file_contents: Option<Vec<u8>>)
+            -> Result<Vec<FileAction>, Error> {
         todo!()
     }
 
-
-    fn open(&mut self, password: String, password2: Option<String>, key_file_contents: Option<Vec<u8>>)
-            -> Result<(), Error> {
+    fn open(&mut self, data: Vec<Vec<u8>>) -> Result<(), Error> {
         todo!()
     }
 
@@ -66,10 +61,9 @@ impl PasswordDatabase for PmanDatabase {
 }
 
 impl PmanDatabase {
-    pub fn new_from_file(contents: &Vec<u8>) -> Result<Arc<RwLock<dyn PasswordDatabase>>, Error> {
-        let mut database = PmanDatabase {};
-        database.prepare(contents)?;
-        Ok(Arc::new(RwLock::new(database)))
+    pub fn new_from_file(contents: Vec<u8>) -> Result<Arc<RwLock<dyn PasswordDatabase>>, Error> {
+        let file = PmanDatabaseFile::prepare(contents)?;
+        Ok(Arc::new(RwLock::new(PmanDatabase{file})))
     }
 
     pub fn new(password: String, password2: Option<String>,

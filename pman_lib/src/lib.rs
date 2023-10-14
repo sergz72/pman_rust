@@ -55,7 +55,7 @@ pub fn get_database_type(file_name: &String) -> Result<PasswordDatabaseType, Err
     }
 }
 
-pub fn prepare(data: &Vec<u8>, file_name: String) -> Result<u64, PmanError> {
+pub fn prepare(data: Vec<u8>, file_name: String) -> Result<u64, PmanError> {
     let database_type = get_database_type(&file_name)
         .map_err(|e|PmanError::message(e.to_string()))?;
     let f_name = Some(file_name.clone());
@@ -122,13 +122,16 @@ pub fn pre_open(database_id: u64, password: String, password2: Option<String>, k
                    -> Result<Vec<Arc<FileAction>>, PmanError> {
     let db = get_database(database_id)?;
     let mut write_lock = db.write().unwrap();
-    write_lock.open(password, password2, key_file_contents)
+    let actions = write_lock.pre_open(password, password2, key_file_contents)
         .map_err(|e|PmanError::message(e.to_string()))?;
-    Ok(Vec::new())
+    Ok(actions.into_iter().map(|a|Arc::new(a)).collect())
 }
 
 pub fn open(database_id: u64, data: Vec<Vec<u8>>) -> Result<(), PmanError> {
-    todo!()
+    let db = get_database(database_id)?;
+    let mut write_lock = db.write().unwrap();
+    write_lock.open(data)
+        .map_err(|e|PmanError::message(e.to_string()))
 }
 
 pub fn close(database_id: u64) -> Result<(), PmanError> {
