@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::io::Error;
-use crate::pman::id_value_map::ByteValue;
+use crate::pman::id_value_map::id_value_map::ByteValue;
 
 pub struct HeaderEntity {
     // map property name id (in names file) -> property value id (in passwords file)

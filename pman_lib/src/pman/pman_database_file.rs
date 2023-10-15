@@ -45,10 +45,11 @@ use rand::RngCore;
 use rand::rngs::OsRng;
 use sha2::{Sha256, Digest};
 use crate::crypto::{AesProcessor, build_corrupted_data_error, ChachaProcessor, CryptoProcessor, NoEncryptionProcessor};
-use crate::pman::id_value_map::{IdValueMap, IdValueMapLocalDataHandler};
+use crate::pman::id_value_map::id_value_map::IdValueMap;
 use crate::pman::ids::{DATABASE_VERSION_ID, ENCRYPTION_ALGORITHM1_PROPERTIES_ID,
                        ENCRYPTION_ALGORITHM2_PROPERTIES_ID, HASH_ALGORITHM_PROPERTIES_ID};
 use crate::pman::data_file::DataFile;
+use crate::pman::id_value_map::id_value_map_local_data_handler::IdValueMapLocalDataHandler;
 use crate::structs_interfaces::FileAction;
 
 const DATABASE_VERSION_MIN: u16 = 0x100; // 1.0
@@ -93,15 +94,15 @@ impl PmanDatabaseProperties {
         h.add_with_id(ENCRYPTION_ALGORITHM1_PROPERTIES_ID, default_chacha_properties()).unwrap();
         h.add_with_id(ENCRYPTION_ALGORITHM2_PROPERTIES_ID, default_aes_properties()).unwrap();
 
-        let (_alg1, alg2) = get_encryption_algorithms(&h)?;
+        let (_alg1, alg2) = get_encryption_algorithms(&mut h)?;
         // initially generating random key - it will be overwritten on save
         let mut encryption_key = [0u8; 32];
         OsRng.fill_bytes(&mut encryption_key);
         let processor12 = build_encryption_processor(alg2, encryption_key)?;
-        let names_files_info = DataFile::build_file_info(processor12.clone())?;
+        let mut names_files_info = DataFile::build_file_info(processor12.clone())?;
         let names_file = DataFile::new(processor12, &names_files_info)?;
 
-        let (_alg21, alg22) = get_encryption_algorithms(&names_files_info)?;
+        let (_alg21, alg22) = get_encryption_algorithms(&mut names_files_info)?;
         // initially generating random key - it will be overwritten on save
         let mut encryption2_key = [0u8; 32];
         OsRng.fill_bytes(&mut encryption2_key);
@@ -126,22 +127,22 @@ impl PmanDatabaseProperties {
     fn pre_open(data: &mut Vec<u8>, data_length: usize, password_hash: Vec<u8>,
                 password2_hash: Vec<u8>) -> Result<(PmanDatabaseProperties, Vec<String>), Error> {
         let (handler, offset) = IdValueMapLocalDataHandler::load(data, 0)?;
-        let h = IdValueMap::new(NoEncryptionProcessor::new(), Box::new(handler))?;
-        let _v = validate_database_version(&h)?;
-        let (alg1, alg2) = get_encryption_algorithms(&h)?;
+        let mut h = IdValueMap::new(NoEncryptionProcessor::new(), Box::new(handler))?;
+        let _v = validate_database_version(&mut h)?;
+        let (alg1, alg2) = get_encryption_algorithms(&mut h)?;
         let a1 = alg1[0];
-        let encryption_key = build_encryption_key(&h, &password_hash)?;
+        let encryption_key = build_encryption_key(&mut h, &password_hash)?;
         let l2 = validate_data_hmac(&encryption_key, data, data_length)?;
         let processor11 = build_encryption_processor(alg1, encryption_key)?;
         decrypt_data(processor11.clone(), data, offset, l2)?;
 
         let processor12 = build_encryption_processor(alg2, encryption_key)?;
         let (handler2, offset2) = IdValueMapLocalDataHandler::load(data, offset)?;
-        let names_files_info = IdValueMap::new(processor12.clone(), Box::new(handler2))?;
+        let mut names_files_info = IdValueMap::new(processor12.clone(), Box::new(handler2))?;
 
-        let (alg21, alg22) = get_encryption_algorithms(&names_files_info)?;
+        let (alg21, alg22) = get_encryption_algorithms(&mut names_files_info)?;
         let a2 = alg21[0];
-        let encryption2_key = build_encryption_key(&names_files_info, &password2_hash)?;
+        let encryption2_key = build_encryption_key(&mut names_files_info, &password2_hash)?;
         let processor21 = build_encryption_processor(alg21, encryption2_key)?;
         decrypt_data(processor21.clone(), data, offset2, l2)?;
         let processor22 = build_encryption_processor(alg22, encryption2_key)?;
@@ -182,16 +183,16 @@ impl PmanDatabaseProperties {
             let mut data = self.header.save(None)?.unwrap();
             output.append(&mut data);
             let offset = output.len();
-            let encryption_key = build_encryption_key(&self.header, &self.password_hash)?;
-            let (alg1, alg2) = get_encryption_algorithms(&self.header)?;
+            let encryption_key = build_encryption_key(&mut self.header, &self.password_hash)?;
+            let (alg1, alg2) = get_encryption_algorithms(&mut self.header)?;
             let a1 = alg1[0];
             let processor12 = build_encryption_processor(alg2, encryption_key)?;
             modify_header_algorithm_properties(&mut self.names_files_info)?;
             let mut data2 = self.names_files_info.save(Some(processor12.clone()))?.unwrap();
             output.append(&mut data2);
             let offset2 = output.len();
-            let encryption2_key = build_encryption_key(&self.names_files_info, &self.password2_hash)?;
-            let (alg21, alg22) = get_encryption_algorithms(&self.names_files_info)?;
+            let encryption2_key = build_encryption_key(&mut self.names_files_info, &self.password2_hash)?;
+            let (alg21, alg22) = get_encryption_algorithms(&mut self.names_files_info)?;
             let a2 = alg21[0];
             let processor22 = build_encryption_processor(alg22, encryption2_key)?;
             let mut data3 = self.passwords_files_info.save(Some(processor22.clone()))?.unwrap();
@@ -341,13 +342,13 @@ pub fn decrypt_data(processor: Arc<dyn CryptoProcessor>, data: &mut Vec<u8>, off
     processor.decode_bytes(&mut data[offset..offset+length])
 }
 
-pub fn get_encryption_algorithms(header: &IdValueMap) -> Result<(Vec<u8>, Vec<u8>), Error> {
+pub fn get_encryption_algorithms(header: &mut IdValueMap) -> Result<(Vec<u8>, Vec<u8>), Error> {
     let alg1 = header.get(ENCRYPTION_ALGORITHM1_PROPERTIES_ID)?;
     let alg2 = header.get(ENCRYPTION_ALGORITHM2_PROPERTIES_ID)?;
     return Ok((alg1, alg2))
 }
 
-pub fn build_encryption_key(header: &IdValueMap, password_hash: &Vec<u8>) -> Result<[u8;32], Error> {
+pub fn build_encryption_key(header: &mut IdValueMap, password_hash: &Vec<u8>) -> Result<[u8;32], Error> {
     let alg: Vec<u8> = header.get(HASH_ALGORITHM_PROPERTIES_ID)?;
     if alg.len() == 0 {
         return Err(build_corrupted_data_error())
@@ -358,7 +359,7 @@ pub fn build_encryption_key(header: &IdValueMap, password_hash: &Vec<u8>) -> Res
     }
 }
 
-fn validate_database_version(header: &IdValueMap) -> Result<usize, Error> {
+fn validate_database_version(header: &mut IdValueMap) -> Result<usize, Error> {
     let version_bytes: Vec<u8> = header.get(DATABASE_VERSION_ID)?;
     if version_bytes.len() != 2 {
         return Err(build_corrupted_data_error())
