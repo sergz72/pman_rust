@@ -197,7 +197,7 @@ impl IdValueMap {
     }
 
     pub fn save(&mut self, new_processor: Option<Arc<dyn CryptoProcessor>>) -> Result<Option<Vec<u8>>, Error> {
-        self.handler.save(&mut self, new_processor)
+        self.handler.save(self, new_processor)
     }
 }
 
@@ -225,7 +225,7 @@ mod tests {
 
         let (handler, end) = IdValueMapLocalDataHandler::load(&v, 0)?;
         assert_eq!(end, v.len());
-        let mut map2 = IdValueMap::new(AesProcessor::new(key), Box::new(handler))?;
+        let map2 = IdValueMap::new(AesProcessor::new(key), Box::new(handler))?;
         assert_eq!(map2.map.len(), map.map.len());
         assert_eq!(map2.next_id, map.next_id);
         let v2: String = map2.get(idx2)?;
@@ -239,7 +239,7 @@ mod tests {
 
         let (handler2, end2) = IdValueMapLocalDataHandler::load(&v2, 0)?;
         assert_eq!(end2, v2.len());
-        let mut map3 = IdValueMap::new(AesProcessor::new(key2), Box::new(handler2))?;
+        let map3 = IdValueMap::new(AesProcessor::new(key2), Box::new(handler2))?;
         assert_eq!(map3.map.len(), map.map.len());
         assert_eq!(map3.next_id, map.next_id);
         let v22: String = map3.get(idx2)?;

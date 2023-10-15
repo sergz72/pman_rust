@@ -48,7 +48,7 @@ use crate::crypto::{AesProcessor, build_corrupted_data_error, ChachaProcessor, C
 use crate::pman::id_value_map::{IdValueMap, IdValueMapLocalDataHandler};
 use crate::pman::ids::{DATABASE_VERSION_ID, ENCRYPTION_ALGORITHM1_PROPERTIES_ID,
                        ENCRYPTION_ALGORITHM2_PROPERTIES_ID, HASH_ALGORITHM_PROPERTIES_ID};
-use crate::pman::names_file::DataFile;
+use crate::pman::data_file::DataFile;
 use crate::structs_interfaces::FileAction;
 
 const DATABASE_VERSION_MIN: u16 = 0x100; // 1.0
@@ -126,7 +126,7 @@ impl PmanDatabaseProperties {
     fn pre_open(data: &mut Vec<u8>, data_length: usize, password_hash: Vec<u8>,
                 password2_hash: Vec<u8>) -> Result<(PmanDatabaseProperties, Vec<String>), Error> {
         let (handler, offset) = IdValueMapLocalDataHandler::load(data, 0)?;
-        let mut h = IdValueMap::new(NoEncryptionProcessor::new(), Box::new(handler))?;
+        let h = IdValueMap::new(NoEncryptionProcessor::new(), Box::new(handler))?;
         let _v = validate_database_version(&h)?;
         let (alg1, alg2) = get_encryption_algorithms(&h)?;
         let a1 = alg1[0];
@@ -137,7 +137,7 @@ impl PmanDatabaseProperties {
 
         let processor12 = build_encryption_processor(alg2, encryption_key)?;
         let (handler2, offset2) = IdValueMapLocalDataHandler::load(data, offset)?;
-        let mut names_files_info = IdValueMap::new(processor12.clone(), Box::new(handler2))?;
+        let names_files_info = IdValueMap::new(processor12.clone(), Box::new(handler2))?;
 
         let (alg21, alg22) = get_encryption_algorithms(&names_files_info)?;
         let a2 = alg21[0];
@@ -146,14 +146,14 @@ impl PmanDatabaseProperties {
         decrypt_data(processor21.clone(), data, offset2, l2)?;
         let processor22 = build_encryption_processor(alg22, encryption2_key)?;
         let (handler3, offset3) = IdValueMapLocalDataHandler::load(data, offset2)?;
-        let mut passwords_files_info = IdValueMap::new(processor22.clone(), Box::new(handler3))?;
+        let passwords_files_info = IdValueMap::new(processor22.clone(), Box::new(handler3))?;
 
         if offset3 != l2 {
             return Err(build_corrupted_data_error());
         }
 
         let names_file = DataFile::load(encryption_key, a1, processor12, &names_files_info)?;
-        let passwords_file = PasswordsFile::load(encryption2_key, a2, processor22, &passwords_files_info)?;
+        let passwords_file = DataFile::load(encryption2_key, a2, processor22, &passwords_files_info)?;
 
         let properties = PmanDatabaseProperties{
             password_hash,
