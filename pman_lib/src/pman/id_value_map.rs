@@ -3,7 +3,6 @@ use std::io::{Error, ErrorKind};
 use std::sync::Arc;
 use uniffi::deps::bytes::BufMut;
 use crate::crypto::{build_corrupted_data_error, build_unsupported_error, CryptoProcessor};
-use crate::structs_interfaces::FileAction;
 
 pub trait ByteValue {
     fn from_bytes(source: Vec<u8>) -> Result<Box<Self>, Error>;
@@ -37,7 +36,7 @@ pub trait IdValueMapDataHandler {
     fn get_map(&self) -> Result<HashMap<u32, Vec<u8>>, Error>;
     fn get(&self, id: u32) -> Result<Vec<u8>, Error>;
     fn exists(&self, id: u32) -> Result<bool, Error>;
-    fn save(&self, map: HashMap<u32, Vec<u8>>, next_id: u32) -> Result<Option<Vec<u8>>, Error>;
+    fn save(&self, map: &mut IdValueMap, new_processor: Option<Arc<dyn CryptoProcessor>>) -> Result<Option<Vec<u8>>, Error>;
 }
 
 pub struct IdValueMapLocalDataHandler {
@@ -62,30 +61,31 @@ impl IdValueMapDataHandler for IdValueMapLocalDataHandler {
         Ok(false)
     }
 
-    fn save(&self, map: HashMap<u32, Vec<u8>>, next_id: u32) -> Result<(), Error> {
-        let encode_processor = new_processor.unwrap_or(self.processor.clone());
-        output.put_u32_le(self.map.len() as u32);
+    fn save(&self, map: &mut IdValueMap, new_processor: Option<Arc<dyn CryptoProcessor>>) -> Result<Option<Vec<u8>>, Error> {
+        let encode_processor = new_processor.unwrap_or(map.processor.clone());
+        let mut output = Vec::new();
+        output.put_u32_le(map.map.len() as u32);
         let mut new_map = HashMap::new();
-        for (key, value) in &self.map {
+        for (key, value) in &map.map {
             output.put_u32_le(*key);
-            let decoded = self.processor.decode(&value.data)?;
+            let decoded = map.processor.decode(&value.data)?;
             let encoded = encode_processor.encode(decoded)?;
             output.put_u32_le(encoded.len() as u32);
             output.put_slice(&encoded);
             new_map.insert(*key, IdValueMapValue{updated: false, data: encoded});
         }
-        self.map = new_map;
-        self.processor = encode_processor;
-        Ok(())
+        map.map = new_map;
+        map.processor = encode_processor;
+        Ok(Some(output))
     }
 }
 
 impl IdValueMapLocalDataHandler {
-    fn new() -> IdValueMapLocalDataHandler {
+    pub fn new() -> IdValueMapLocalDataHandler {
         IdValueMapLocalDataHandler{ next_id: 1, map: Some(HashMap::new()) }
     }
 
-    fn load(source: Vec<u8>, offset: usize) -> Result<(IdValueMapLocalDataHandler, usize), Error> {
+    pub fn load(source: &Vec<u8>, offset: usize) -> Result<(IdValueMapLocalDataHandler, usize), Error> {
         let sl = source.len();
         if offset + 4 > sl {
             return Err(build_corrupted_data_error());
@@ -196,21 +196,8 @@ impl IdValueMap {
         Ok(*value)
     }
 
-    pub fn save(&mut self, output: &mut Vec<u8>, new_processor: Option<Arc<dyn CryptoProcessor>>) -> Result<(), Error> {
-        let encode_processor = new_processor.unwrap_or(self.processor.clone());
-        output.put_u32_le(self.map.len() as u32);
-        let mut new_map = HashMap::new();
-        for (key, value) in &self.map {
-            output.put_u32_le(*key);
-            let decoded = self.processor.decode(&value.data)?;
-            let encoded = encode_processor.encode(decoded)?;
-            output.put_u32_le(encoded.len() as u32);
-            output.put_slice(&encoded);
-            new_map.insert(*key, IdValueMapValue{updated: false, data: encoded});
-        }
-        self.map = new_map;
-        self.processor = encode_processor;
-        Ok(())
+    pub fn save(&mut self, new_processor: Option<Arc<dyn CryptoProcessor>>) -> Result<Option<Vec<u8>>, Error> {
+        self.handler.save(&mut self, new_processor)
     }
 }
 
@@ -220,13 +207,13 @@ mod tests {
     use rand::RngCore;
     use rand::rngs::OsRng;
     use crate::crypto::AesProcessor;
-    use crate::pman::id_value_map::IdValueMap;
+    use crate::pman::id_value_map::{IdValueMap, IdValueMapLocalDataHandler};
 
     #[test]
     fn test_id_name_map() -> Result<(), Error> {
         let mut key = [0u8;32];
         OsRng.fill_bytes(&mut key);
-        let mut map = IdValueMap::new(AesProcessor::new(key));
+        let mut map = IdValueMap::new(AesProcessor::new(key), Box::new(IdValueMapLocalDataHandler::new()))?;
         let idx = map.add("test".to_string())?;
         map.set(idx, "test2".to_string())?;
         map.remove(idx)?;
@@ -234,12 +221,11 @@ mod tests {
         let s3 = "test3dmbfjsdhfgjsdgdfjsdgfjdsagfjsdgfjsguweyrtq  uieydhz`kjvbadfkulghewiurthkghfvkzjxviugrthiertfbdert".to_string();
         let idx2 = map.add(s2.clone())?;
         let idx3 = map.add(s3.clone())?;
-        let mut v = Vec::new();
-        map.save(&mut v, None)?;
+        let v = map.save(None)?.unwrap();
 
-        let mut map2 = IdValueMap::new(AesProcessor::new(key));
-        let end = map2.load(&v, 0)?;
+        let (handler, end) = IdValueMapLocalDataHandler::load(&v, 0)?;
         assert_eq!(end, v.len());
+        let mut map2 = IdValueMap::new(AesProcessor::new(key), Box::new(handler))?;
         assert_eq!(map2.map.len(), map.map.len());
         assert_eq!(map2.next_id, map.next_id);
         let v2: String = map2.get(idx2)?;
@@ -249,12 +235,11 @@ mod tests {
 
         let mut key2 = [0u8;32];
         OsRng.fill_bytes(&mut key2);
-        let mut v2 = Vec::new();
-        map.save(&mut v2, Some(AesProcessor::new(key2)))?;
+        let v2 = map.save(Some(AesProcessor::new(key2)))?.unwrap();
 
-        let mut map3 = IdValueMap::new(AesProcessor::new(key2));
-        let end2 = map3.load(&v2, 0)?;
+        let (handler2, end2) = IdValueMapLocalDataHandler::load(&v2, 0)?;
         assert_eq!(end2, v2.len());
+        let mut map3 = IdValueMap::new(AesProcessor::new(key2), Box::new(handler2))?;
         assert_eq!(map3.map.len(), map.map.len());
         assert_eq!(map3.next_id, map.next_id);
         let v22: String = map3.get(idx2)?;
