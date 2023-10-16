@@ -12,15 +12,17 @@ pub struct DataFile {
 }
 
 impl DataFile {
-    pub fn new(processor2: Arc<dyn CryptoProcessor>, file_info: &IdValueMap) -> Result<DataFile, Error> {
-        let handler = build_data_file_handler(file_info)?;
+    pub fn new(file_info: &IdValueMap, encryption_key: [u8; 32], alg1: u8, processor2: Arc<dyn CryptoProcessor>) -> Result<DataFile, Error> {
+        let handler = build_data_file_handler(file_info, None, encryption_key, alg1)?;
         Ok(DataFile {data: IdValueMap::new(processor2, handler)?})
     }
 
-    pub fn load(encryption_key: [u8; 32], alg1: u8, processor2: Arc<dyn CryptoProcessor>,
-                file_info: &IdValueMap) -> Result<DataFile, Error> {
+    pub fn pre_load(main_file_name: &String, file_info: &IdValueMap) -> Result<Option<String>, Error> {
+        build_local_file_name(main_file_name, file_info)
+    }
 
-        let handler = build_data_file_handler(file_info)?;
+    pub fn load(local_file_data: Option<Vec<u8>>, file_info: &IdValueMap, encryption_key: [u8; 32], alg1: u8, processor2: Arc<dyn CryptoProcessor>) -> Result<DataFile, Error> {
+        let handler = build_data_file_handler(file_info, local_file_data, encryption_key, alg1)?;
         Ok(DataFile {data: IdValueMap::new(processor2, handler)?})
 /*        let l = validate_data_hash(&data)?;
         let l2 = validate_data_hmac(&encryption_key, &data, l)?;
@@ -42,27 +44,29 @@ impl DataFile {
     pub fn save(&self, file_name: String, encryption_key: [u8; 32], alg1: u8,
                 processor2: Arc<dyn CryptoProcessor>,
                 file_info: &IdValueMap) -> Result<Option<FileAction>, Error> {
-        self.save_remote(file_name, file_info)
-    }
-
-    pub fn save_remote(&self, file_name: String,
-                       file_info: &IdValueMap) -> Result<Option<FileAction>, Error> {
         let mut data = Vec::new();
         save_to_destinations(file_info, file_name, data)
     }
 
-    pub fn build_file_info(processor2: Arc<dyn CryptoProcessor>) -> Result<IdValueMap, Error> {
+    pub fn build_file_info(processor2: Arc<dyn CryptoProcessor>, only_locations: bool) -> Result<IdValueMap, Error> {
         let mut h = IdValueMap::new(processor2, Box::new(IdValueMapLocalDataHandler::new()))?;
-        h.add_with_id(HASH_ALGORITHM_PROPERTIES_ID, default_argon2_properties()).unwrap();
-        h.add_with_id(ENCRYPTION_ALGORITHM1_PROPERTIES_ID, default_chacha_properties()).unwrap();
-        h.add_with_id(ENCRYPTION_ALGORITHM2_PROPERTIES_ID, default_aes_properties()).unwrap();
+        if !only_locations {
+            h.add_with_id(HASH_ALGORITHM_PROPERTIES_ID, default_argon2_properties()).unwrap();
+            h.add_with_id(ENCRYPTION_ALGORITHM1_PROPERTIES_ID, default_chacha_properties()).unwrap();
+            h.add_with_id(ENCRYPTION_ALGORITHM2_PROPERTIES_ID, default_aes_properties()).unwrap();
+        }
         h.add_with_id(FILES_LOCATIONS_ID, vec![FILES_LOCATIONS_ID as u8 + 1]).unwrap();
         h.add_with_id(FILES_LOCATIONS_ID+1, build_local_file_location()).unwrap();
         Ok(h)
     }
 }
 
-fn build_data_file_handler(file_info: &IdValueMap) -> Result<Box<dyn IdValueMapDataHandler>, Error> {
+fn build_local_file_name(main_file_name: &String, file_info: &IdValueMap) -> Result<Option<String>, Error> {
+    todo!()
+}
+
+fn build_data_file_handler(file_info: &IdValueMap, local_file_data: Option<Vec<u8>>,
+                           encryption_key: [u8; 32], alg1: u8) -> Result<Box<dyn IdValueMapDataHandler>, Error> {
     todo!()
 }
 

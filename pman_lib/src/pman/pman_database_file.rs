@@ -73,9 +73,14 @@ pub struct PmanDatabaseProperties {
     header: IdValueMap,
     names_files_info: IdValueMap,
     passwords_files_info: IdValueMap,
-    names_file: DataFile,
-    passwords_file: DataFile,
-    is_updated: bool
+    names_file: Option<DataFile>,
+    passwords_file: Option<DataFile>,
+    local_names_file: bool,
+    is_updated: bool,
+    alg1: u8,
+    alg21: u8,
+    processor12: Arc<dyn CryptoProcessor>,
+    processor22: Arc<dyn CryptoProcessor>
 }
 
 pub struct PmanDatabaseFile {
@@ -94,21 +99,23 @@ impl PmanDatabaseProperties {
         h.add_with_id(ENCRYPTION_ALGORITHM1_PROPERTIES_ID, default_chacha_properties()).unwrap();
         h.add_with_id(ENCRYPTION_ALGORITHM2_PROPERTIES_ID, default_aes_properties()).unwrap();
 
-        let (_alg1, alg2) = get_encryption_algorithms(&mut h)?;
+        let (alg1, alg2) = get_encryption_algorithms(&mut h)?;
+        let a1 = alg1[0];
         // initially generating random key - it will be overwritten on save
         let mut encryption_key = [0u8; 32];
         OsRng.fill_bytes(&mut encryption_key);
         let processor12 = build_encryption_processor(alg2, encryption_key)?;
-        let mut names_files_info = DataFile::build_file_info(processor12.clone())?;
-        let names_file = DataFile::new(processor12, &names_files_info)?;
+        let mut names_files_info = DataFile::build_file_info(processor12.clone(), false)?;
+        let names_file = DataFile::new(&names_files_info, encryption_key, a1, processor12.clone())?;
 
-        let (_alg21, alg22) = get_encryption_algorithms(&mut names_files_info)?;
+        let (alg21, alg22) = get_encryption_algorithms(&mut names_files_info)?;
+        let a2 = alg21[0];
         // initially generating random key - it will be overwritten on save
         let mut encryption2_key = [0u8; 32];
         OsRng.fill_bytes(&mut encryption2_key);
         let processor22 = build_encryption_processor(alg22, encryption_key)?;
-        let passwords_files_info = DataFile::build_file_info(processor22.clone())?;
-        let passwords_file = DataFile::new(processor22, &passwords_files_info)?;
+        let passwords_files_info = DataFile::build_file_info(processor22.clone(), true)?;
+        let passwords_file = DataFile::new(&passwords_files_info, encryption2_key, a2, processor22.clone())?;
 
         Ok(PmanDatabaseProperties{
             password_hash,
@@ -118,13 +125,18 @@ impl PmanDatabaseProperties {
             header: h,
             names_files_info,
             passwords_files_info,
-            names_file,
-            passwords_file,
-            is_updated: true
+            names_file: Some(names_file),
+            passwords_file: Some(passwords_file),
+            local_names_file: true,
+            is_updated: true,
+            alg1: a1,
+            alg21: a2,
+            processor12,
+            processor22
         })
     }
 
-    fn pre_open(data: &mut Vec<u8>, data_length: usize, password_hash: Vec<u8>,
+    fn pre_open(main_file_name: &String, data: &mut Vec<u8>, data_length: usize, password_hash: Vec<u8>,
                 password2_hash: Vec<u8>) -> Result<(PmanDatabaseProperties, Vec<String>), Error> {
         let (handler, offset) = IdValueMapLocalDataHandler::load(data, 0)?;
         let mut h = IdValueMap::new(NoEncryptionProcessor::new(), Box::new(handler))?;
@@ -153,8 +165,16 @@ impl PmanDatabaseProperties {
             return Err(build_corrupted_data_error());
         }
 
-        let names_file = DataFile::load(encryption_key, a1, processor12, &names_files_info)?;
-        let passwords_file = DataFile::load(encryption2_key, a2, processor22, &passwords_files_info)?;
+        let mut files_to_load = Vec::new();
+        let names_file = DataFile::pre_load(main_file_name, &names_files_info)?;
+        let local_names_file = names_file.is_some();
+        if local_names_file {
+            files_to_load.push(names_file.unwrap());
+        }
+        let passwords_file = DataFile::pre_load(main_file_name, &passwords_files_info)?;
+        if let Some(name) = passwords_file {
+            files_to_load.push(name);
+        }
 
         let properties = PmanDatabaseProperties{
             password_hash,
@@ -164,37 +184,65 @@ impl PmanDatabaseProperties {
             header: h,
             names_files_info,
             passwords_files_info,
-            names_file,
-            passwords_file,
-            is_updated: false
+            names_file: None,
+            passwords_file: None,
+            local_names_file,
+            is_updated: false,
+            alg1: a1,
+            alg21: a2,
+            processor12,
+            processor22
         };
 
-        Ok((properties, Vec::new()))
+        Ok((properties, files_to_load))
     }
 
-    fn open(&mut self, data: Vec<Vec<u8>>) -> Result<(), Error> {
-        todo!()
+    fn open(&mut self, mut data: Vec<Vec<u8>>) -> Result<(), Error> {
+        if self.names_file.is_some() || self.passwords_file.is_some() {
+            return Err(Error::new(ErrorKind::AlreadyExists, "names and passwords file must be None"));
+        }
+        let l = data.len();
+        let (names_file_data, passwords_file_data) = match l {
+            0 => (None, None),
+            1 => if self.local_names_file { (Some(data.remove(0)), None) } else { (None, Some(data.remove(0))) },
+            _ => {
+                let data1 = data.remove(1);
+                let data0 = data.remove(0);
+                (Some(data0), Some(data1))
+            }
+        };
+
+        self.names_file = Some(DataFile::load(names_file_data,
+                                              &self.names_files_info, self.encryption_key,
+                                              self.alg1, self.processor12.clone())?);
+        self.passwords_file = Some(DataFile::load(passwords_file_data,
+                                                  &self.passwords_files_info,
+                                                  self.encryption2_key, self.alg21,
+                                                  self.processor22.clone())?);
+
+        Ok(())
     }
 
     fn save(&mut self, file_name: String) -> Result<Vec<FileAction>, Error> {
+        let (alg1, alg2) = get_encryption_algorithms(&mut self.header)?;
+        let a1 = alg1[0];
+        let encryption_key = build_encryption_key(&mut self.header, &self.password_hash)?;
+        let processor12 = build_encryption_processor(alg2, encryption_key)?;
+        let (alg21, alg22) = get_encryption_algorithms(&mut self.names_files_info)?;
+        let a2 = alg21[0];
+        let encryption2_key = build_encryption_key(&mut self.names_files_info, &self.password2_hash)?;
+        let processor22 = build_encryption_processor(alg22, encryption2_key)?;
+        let mut v = Vec::new();
         if self.is_updated {
             let mut output = Vec::new();
             modify_header_algorithm_properties(&mut self.header)?;
             let mut data = self.header.save(None)?.unwrap();
             output.append(&mut data);
             let offset = output.len();
-            let encryption_key = build_encryption_key(&mut self.header, &self.password_hash)?;
-            let (alg1, alg2) = get_encryption_algorithms(&mut self.header)?;
-            let a1 = alg1[0];
-            let processor12 = build_encryption_processor(alg2, encryption_key)?;
             modify_header_algorithm_properties(&mut self.names_files_info)?;
             let mut data2 = self.names_files_info.save(Some(processor12.clone()))?.unwrap();
             output.append(&mut data2);
             let offset2 = output.len();
-            let encryption2_key = build_encryption_key(&mut self.names_files_info, &self.password2_hash)?;
-            let (alg21, alg22) = get_encryption_algorithms(&mut self.names_files_info)?;
-            let a2 = alg21[0];
-            let processor22 = build_encryption_processor(alg22, encryption2_key)?;
             let mut data3 = self.passwords_files_info.save(Some(processor22.clone()))?.unwrap();
             output.append(&mut data3);
             let ol = output.len();
@@ -203,28 +251,17 @@ impl PmanDatabaseProperties {
             let processor11 = build_encryption_processor(alg1, encryption_key)?;
             encrypt_data(processor11, &mut output, offset, ol - offset)?;
             add_data_hash_and_hmac(&mut output, encryption_key)?;
-            let action1 = self.names_file.save(file_name.clone(), encryption_key, a1, processor12, &self.names_files_info)?;
-            let action2 = self.passwords_file.save(file_name.clone(), encryption2_key, a2, processor22, &self.passwords_files_info)?;
-            let mut v = vec![FileAction::new(file_name, output)];
-            if let Some(a) = action1 {
-                v.push(a)
-            }
-            if let Some(a) = action2 {
-                v.push(a)
-            }
-            Ok(v)
-        } else {
-            let action1 = self.names_file.save_remote(file_name.clone(), &self.names_files_info)?;
-            let action2 = self.passwords_file.save_remote(file_name, &self.passwords_files_info)?;
-            let mut v = Vec::new();
-            if let Some(a) = action1 {
-                v.push(a)
-            }
-            if let Some(a) = action2 {
-                v.push(a)
-            }
-            Ok(v)
+            v.push(FileAction::new(file_name.clone(), output));
         }
+        let action1 = self.names_file.as_ref().unwrap().save(file_name.clone(), encryption_key, a1, processor12, &self.names_files_info)?;
+        let action2 = self.passwords_file.as_ref().unwrap().save(file_name, encryption2_key, a2, processor22, &self.passwords_files_info)?;
+        if let Some(a) = action1 {
+            v.push(a)
+        }
+        if let Some(a) = action2 {
+            v.push(a)
+        }
+        Ok(v)
     }
 }
 
@@ -248,7 +285,7 @@ impl PmanDatabaseFile {
         })
     }
 
-    fn pre_open(&mut self, password_hash: Vec<u8>, password2_hash: Vec<u8>) -> Result<Vec<String>, Error> {
+    fn pre_open(&mut self, main_file_name: &String, password_hash: Vec<u8>, password2_hash: Vec<u8>) -> Result<Vec<String>, Error> {
         if self.properties.is_some() {
             return Err(Error::new(ErrorKind::AlreadyExists, "database properties already initialised"))
         }
@@ -256,7 +293,8 @@ impl PmanDatabaseFile {
             return Err(Error::new(ErrorKind::NotFound, "data is not initialised"))
         }
         let (properties, actions) =
-            PmanDatabaseProperties::pre_open(self.data.as_mut().unwrap(), self.data_length, password_hash, password2_hash)?;
+            PmanDatabaseProperties::pre_open(main_file_name, self.data.as_mut().unwrap(),
+                                             self.data_length, password_hash, password2_hash)?;
         self.properties = Some(properties);
         Ok(actions)
     }
@@ -527,10 +565,10 @@ mod tests {
         let hash2_vec = Vec::from(hash2);
         let mut db = PmanDatabaseFile::new(hash1_vec.clone(), hash2_vec.clone())?;
         let file_name = "test_file.pdbf".to_string();
-        let actions = db.save(file_name)?;
+        let actions = db.save(file_name.clone())?;
         assert_eq!(actions.len(), 3);
         let mut db2 = PmanDatabaseFile::prepare(actions[0].get_data())?;
-        let file_names = db2.pre_open(hash1_vec, hash2_vec)?;
+        let file_names = db2.pre_open(&file_name, hash1_vec, hash2_vec)?;
         assert_eq!(actions.len(), 2);
         db2.open(vec![actions[1].get_data(), actions[2].get_data()])
     }
