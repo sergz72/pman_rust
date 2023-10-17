@@ -41,11 +41,11 @@ impl DataFile {
         })*/
     }
 
-    pub fn save(&self, file_name: String, encryption_key: [u8; 32], alg1: u8,
+    pub fn save(&mut self, file_name: String, encryption_key: [u8; 32], alg1: u8,
                 processor2: Arc<dyn CryptoProcessor>,
-                file_info: &IdValueMap) -> Result<Option<FileAction>, Error> {
-        let mut data = Vec::new();
-        save_to_destinations(file_info, file_name, data)
+                file_info: &IdValueMap) -> Result<Option<Vec<u8>>, Error> {
+        let output = self.data.save(Some(processor2))?;
+        Ok(output)
     }
 
     pub fn build_file_info(processor2: Arc<dyn CryptoProcessor>, only_locations: bool) -> Result<IdValueMap, Error> {
@@ -67,10 +67,6 @@ fn build_local_file_name(main_file_name: &String, file_info: &IdValueMap) -> Res
 
 fn build_data_file_handlers(file_info: &IdValueMap, local_file_data: Option<Vec<u8>>,
                            encryption_key: [u8; 32], alg1: u8) -> Result<Vec<Box<dyn IdValueMapDataHandler>>, Error> {
-    todo!()
-}
-
-fn save_to_destinations(header: &IdValueMap, file_name: String, data: Vec<u8>) -> Result<Option<FileAction>, Error> {
     todo!()
 }
 

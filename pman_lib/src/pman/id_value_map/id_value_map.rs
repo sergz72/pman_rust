@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::{Error, ErrorKind};
 use std::sync::Arc;
 use uniffi::deps::bytes::BufMut;
@@ -14,6 +14,7 @@ pub trait IdValueMapDataHandler {
     fn get_next_id(&self) -> u32;
     fn get_map(&mut self) -> Result<HashMap<u32, Vec<u8>>, Error>;
     fn get(&self, id: u32) -> Result<Vec<u8>, Error>;
+    fn mget(&self, ids: Vec<u32>) -> Result<HashMap<u32, Vec<u8>>, Error>;
     fn save(&self, next_id: u32, map: &HashMap<u32, Option<IdValueMapValue>>, processor: Arc<dyn CryptoProcessor>,
             new_processor: Arc<dyn CryptoProcessor>) -> Result<(HashMap<u32, Option<IdValueMapValue>>, Option<Vec<u8>>), Error>;
 }
@@ -86,14 +87,46 @@ impl IdValueMap {
         Ok(*value)
     }
 
+    pub fn mget<T: ByteValue>(&mut self, ids: HashSet<u32>) -> Result<HashMap<u32, T>, Error> {
+        let mut result = HashMap::new();
+        let mut missing_locally = Vec::new();
+        for id in ids {
+            if let Some(vv) = self.map.get(&id) {
+                if let Some(v) = vv {
+                    let decoded = self.processor.decode(&v.data)?;
+                    let value = T::from_bytes(decoded)?;
+                    result.insert(id, *value);
+                } else {
+                    return Err(Error::new(ErrorKind::NotFound, "deleted"))
+                }
+            } else {
+                missing_locally.push(id);
+            }
+        }
+        if !missing_locally.is_empty() {
+            let data = self.selected_handler.mget(missing_locally)?;
+            for (id, v) in data {
+                let decoded = self.processor.decode(&v)?;
+                self.map.insert(id, Some(IdValueMapValue { updated: false, data: v }));
+                let value = T::from_bytes(decoded)?;
+                result.insert(id, *value);
+            }
+        }
+        Ok(result)
+    }
+
     pub fn save(&mut self, new_processor: Option<Arc<dyn CryptoProcessor>>) -> Result<Option<Vec<u8>>, Error> {
         let encode_processor = new_processor.unwrap_or(self.processor.clone());
-        let (map, output) =
+        let (map, mut output) =
             self.selected_handler.save(self.next_id, &self.map, self.processor.clone(),
                                        encode_processor.clone())?;
         for handler in &self.other_handlers {
-            handler.save(self.next_id, &self.map, self.processor.clone(),
-                         encode_processor.clone())?;
+            let (_map, output2) = handler.save(self.next_id, &self.map,
+                                               self.processor.clone(),
+                                               encode_processor.clone())?;
+            if output.is_none() && output2.is_some() {
+                output = output2;
+            }
         }
         self.map = map;
         self.processor = encode_processor;
@@ -119,6 +152,7 @@ fn select_handler(handlers: &mut Vec<Box<dyn IdValueMapDataHandler>>) -> Result<
 
 #[cfg(test)]
 mod tests {
+    use std::collections::{HashMap, HashSet};
     use std::io::Error;
     use rand::RngCore;
     use rand::rngs::OsRng;
@@ -149,6 +183,15 @@ mod tests {
         assert_eq!(v2, s2);
         let v3: String = map2.get(idx3)?;
         assert_eq!(v3, s3);
+
+        let vv: HashMap<u32, String> = map2.mget(HashSet::from([idx2, idx3]))?;
+        assert_eq!(vv.len(), 2);
+        let v22 = vv.get(&idx2);
+        assert!(v22.is_some());
+        assert_eq!(v22.unwrap().clone(), s2);
+        let v23 = vv.get(&idx3);
+        assert!(v23.is_some());
+        assert_eq!(v23.unwrap().clone(), s3);
 
         let mut key2 = [0u8;32];
         OsRng.fill_bytes(&mut key2);

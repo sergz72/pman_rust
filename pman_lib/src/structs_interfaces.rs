@@ -3,8 +3,8 @@ use std::io::Error;
 use crate::structs_interfaces::PasswordDatabaseType::Pman;
 
 pub struct FileAction {
-    file_name: String,
-    data: Vec<u8>
+    pub file_name: String,
+    pub data: Vec<u8>
 }
 
 impl FileAction {

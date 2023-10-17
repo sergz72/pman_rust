@@ -253,13 +253,13 @@ impl PmanDatabaseProperties {
             add_data_hash_and_hmac(&mut output, encryption_key)?;
             v.push(FileAction::new(file_name.clone(), output));
         }
-        let action1 = self.names_file.as_ref().unwrap().save(file_name.clone(), encryption_key, a1, processor12, &self.names_files_info)?;
-        let action2 = self.passwords_file.as_ref().unwrap().save(file_name, encryption2_key, a2, processor22, &self.passwords_files_info)?;
+        let action1 = self.names_file.as_mut().unwrap().save(file_name.clone(), encryption_key, a1, processor12, &self.names_files_info)?;
+        let action2 = self.passwords_file.as_mut().unwrap().save(file_name.clone(), encryption2_key, a2, processor22, &self.passwords_files_info)?;
         if let Some(a) = action1 {
-            v.push(a)
+            v.push(FileAction{ file_name: file_name.clone() +  ".names", data: a })
         }
         if let Some(a) = action2 {
-            v.push(a)
+            v.push(FileAction{ file_name: file_name +  ".names", data: a })
         }
         Ok(v)
     }

@@ -26,6 +26,10 @@ impl IdValueMapDataHandler for IdValueMapLocalDataHandler {
         Err(build_unsupported_error())
     }
 
+    fn mget(&self, ids: Vec<u32>) -> Result<HashMap<u32, Vec<u8>>, Error> {
+        Err(build_unsupported_error())
+    }
+
     fn save(&self, next_id: u32, map: &HashMap<u32, Option<IdValueMapValue>>, processor: Arc<dyn CryptoProcessor>,
             new_processor: Arc<dyn CryptoProcessor>) -> Result<(HashMap<u32, Option<IdValueMapValue>>, Option<Vec<u8>>), Error> {
         let mut output = Vec::new();
