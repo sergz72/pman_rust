@@ -10,6 +10,7 @@ pub trait ByteValue {
 }
 
 pub trait IdValueMapDataHandler {
+    fn is_full(&self) -> bool;
     fn get_next_id(&self) -> u32;
     fn get_map(&mut self) -> Result<HashMap<u32, Vec<u8>>, Error>;
     fn get(&self, id: u32) -> Result<Vec<u8>, Error>;
@@ -26,14 +27,16 @@ pub struct IdValueMap {
     next_id: u32,
     map: HashMap<u32, Option<IdValueMapValue>>,
     processor: Arc<dyn CryptoProcessor>,
-    handler: Box<dyn IdValueMapDataHandler>
+    other_handlers: Vec<Box<dyn IdValueMapDataHandler>>,
+    selected_handler: Box<dyn IdValueMapDataHandler>
 }
 
 impl IdValueMap {
-    pub fn new(processor: Arc<dyn CryptoProcessor>, mut handler: Box<dyn IdValueMapDataHandler>) -> Result<IdValueMap, Error> {
-        let map = handler.get_map()?.into_iter()
+    pub fn new(processor: Arc<dyn CryptoProcessor>, mut handlers: Vec<Box<dyn IdValueMapDataHandler>>) -> Result<IdValueMap, Error> {
+        let mut selected_handler = select_handler(&mut handlers)?;
+        let map = selected_handler.get_map()?.into_iter()
             .map(|(k, v)|(k, Some(IdValueMapValue{ updated: false, data: v }))).collect();
-        Ok(IdValueMap{next_id: handler.get_next_id(), map, processor, handler})
+        Ok(IdValueMap{next_id: selected_handler.get_next_id(), map, processor, other_handlers: handlers, selected_handler})
     }
 
     pub fn add<T: ByteValue>(&mut self, value: T) -> Result<u32, Error> {
@@ -76,7 +79,7 @@ impl IdValueMap {
                 return Err(Error::new(ErrorKind::NotFound, "deleted"))
             }
         }
-        let data = self.handler.get(id)?;
+        let data = self.selected_handler.get(id)?;
         let decoded = self.processor.decode(&data)?;
         self.map.insert(id, Some(IdValueMapValue{ updated: false, data }));
         let value = T::from_bytes(decoded)?;
@@ -86,10 +89,31 @@ impl IdValueMap {
     pub fn save(&mut self, new_processor: Option<Arc<dyn CryptoProcessor>>) -> Result<Option<Vec<u8>>, Error> {
         let encode_processor = new_processor.unwrap_or(self.processor.clone());
         let (map, output) =
-            self.handler.save(self.next_id, &self.map, self.processor.clone(), encode_processor.clone())?;
+            self.selected_handler.save(self.next_id, &self.map, self.processor.clone(),
+                                       encode_processor.clone())?;
+        for handler in &self.other_handlers {
+            handler.save(self.next_id, &self.map, self.processor.clone(),
+                         encode_processor.clone())?;
+        }
         self.map = map;
         self.processor = encode_processor;
         Ok(output)
+    }
+}
+
+fn select_handler(handlers: &mut Vec<Box<dyn IdValueMapDataHandler>>) -> Result<Box<dyn IdValueMapDataHandler>, Error> {
+    match handlers.len() {
+        0 => Err(Error::new(ErrorKind::InvalidData, "empty handlers list")),
+        1 => Ok(handlers.remove(0)),
+        _ => {
+            for i in 0..handlers.len() {
+                let h = &handlers[i];
+                if h.is_full() {
+                    return Ok(handlers.remove(i));
+                }
+            }
+            Ok(handlers.remove(0))
+        }
     }
 }
 
@@ -106,7 +130,7 @@ mod tests {
     fn test_id_name_map() -> Result<(), Error> {
         let mut key = [0u8;32];
         OsRng.fill_bytes(&mut key);
-        let mut map = IdValueMap::new(AesProcessor::new(key), Box::new(IdValueMapLocalDataHandler::new()))?;
+        let mut map = IdValueMap::new(AesProcessor::new(key), vec![Box::new(IdValueMapLocalDataHandler::new())])?;
         let idx = map.add("test".to_string())?;
         map.set(idx, "test2".to_string())?;
         map.remove(idx);
@@ -118,7 +142,7 @@ mod tests {
 
         let (handler, end) = IdValueMapLocalDataHandler::load(&v, 0)?;
         assert_eq!(end, v.len());
-        let mut map2 = IdValueMap::new(AesProcessor::new(key), Box::new(handler))?;
+        let mut map2 = IdValueMap::new(AesProcessor::new(key), vec![Box::new(handler)])?;
         assert_eq!(map2.map.len(), map.map.len());
         assert_eq!(map2.next_id, map.next_id);
         let v2: String = map2.get(idx2)?;
@@ -132,7 +156,7 @@ mod tests {
 
         let (handler2, end2) = IdValueMapLocalDataHandler::load(&v2, 0)?;
         assert_eq!(end2, v2.len());
-        let mut map3 = IdValueMap::new(AesProcessor::new(key2), Box::new(handler2))?;
+        let mut map3 = IdValueMap::new(AesProcessor::new(key2), vec![Box::new(handler2)])?;
         assert_eq!(map3.map.len(), map.map.len());
         assert_eq!(map3.next_id, map.next_id);
         let v22: String = map3.get(idx2)?;

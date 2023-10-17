@@ -93,7 +93,7 @@ type HmacSha256 = Hmac<Sha256>;
 
 impl PmanDatabaseProperties {
     fn new(password_hash: Vec<u8>, password2_hash: Vec<u8>) -> Result<PmanDatabaseProperties, Error> {
-        let mut h = IdValueMap::new(NoEncryptionProcessor::new(), Box::new(IdValueMapLocalDataHandler::new()))?;
+        let mut h = IdValueMap::new(NoEncryptionProcessor::new(), vec![Box::new(IdValueMapLocalDataHandler::new())])?;
         h.add_with_id(DATABASE_VERSION_ID, DATABASE_VERSION_1.to_le_bytes().to_vec()).unwrap();
         h.add_with_id(HASH_ALGORITHM_PROPERTIES_ID, default_argon2_properties()).unwrap();
         h.add_with_id(ENCRYPTION_ALGORITHM1_PROPERTIES_ID, default_chacha_properties()).unwrap();
@@ -139,7 +139,7 @@ impl PmanDatabaseProperties {
     fn pre_open(main_file_name: &String, data: &mut Vec<u8>, data_length: usize, password_hash: Vec<u8>,
                 password2_hash: Vec<u8>) -> Result<(PmanDatabaseProperties, Vec<String>), Error> {
         let (handler, offset) = IdValueMapLocalDataHandler::load(data, 0)?;
-        let mut h = IdValueMap::new(NoEncryptionProcessor::new(), Box::new(handler))?;
+        let mut h = IdValueMap::new(NoEncryptionProcessor::new(), vec![Box::new(handler)])?;
         let _v = validate_database_version(&mut h)?;
         let (alg1, alg2) = get_encryption_algorithms(&mut h)?;
         let a1 = alg1[0];
@@ -150,7 +150,7 @@ impl PmanDatabaseProperties {
 
         let processor12 = build_encryption_processor(alg2, encryption_key)?;
         let (handler2, offset2) = IdValueMapLocalDataHandler::load(data, offset)?;
-        let mut names_files_info = IdValueMap::new(processor12.clone(), Box::new(handler2))?;
+        let mut names_files_info = IdValueMap::new(processor12.clone(), vec![Box::new(handler2)])?;
 
         let (alg21, alg22) = get_encryption_algorithms(&mut names_files_info)?;
         let a2 = alg21[0];
@@ -159,7 +159,7 @@ impl PmanDatabaseProperties {
         decrypt_data(processor21.clone(), data, offset2, l2)?;
         let processor22 = build_encryption_processor(alg22, encryption2_key)?;
         let (handler3, offset3) = IdValueMapLocalDataHandler::load(data, offset2)?;
-        let passwords_files_info = IdValueMap::new(processor22.clone(), Box::new(handler3))?;
+        let passwords_files_info = IdValueMap::new(processor22.clone(), vec![Box::new(handler3)])?;
 
         if offset3 != l2 {
             return Err(build_corrupted_data_error());

@@ -11,6 +11,9 @@ pub struct IdValueMapLocalDataHandler {
 }
 
 impl IdValueMapDataHandler for IdValueMapLocalDataHandler {
+    fn is_full(&self) -> bool {
+        true
+    }
     fn get_next_id(&self) -> u32 {
         self.next_id
     }

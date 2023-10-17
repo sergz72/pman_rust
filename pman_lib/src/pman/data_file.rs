@@ -13,8 +13,8 @@ pub struct DataFile {
 
 impl DataFile {
     pub fn new(file_info: &IdValueMap, encryption_key: [u8; 32], alg1: u8, processor2: Arc<dyn CryptoProcessor>) -> Result<DataFile, Error> {
-        let handler = build_data_file_handler(file_info, None, encryption_key, alg1)?;
-        Ok(DataFile {data: IdValueMap::new(processor2, handler)?})
+        let handlers = build_data_file_handlers(file_info, None, encryption_key, alg1)?;
+        Ok(DataFile {data: IdValueMap::new(processor2, handlers)?})
     }
 
     pub fn pre_load(main_file_name: &String, file_info: &IdValueMap) -> Result<Option<String>, Error> {
@@ -22,8 +22,8 @@ impl DataFile {
     }
 
     pub fn load(local_file_data: Option<Vec<u8>>, file_info: &IdValueMap, encryption_key: [u8; 32], alg1: u8, processor2: Arc<dyn CryptoProcessor>) -> Result<DataFile, Error> {
-        let handler = build_data_file_handler(file_info, local_file_data, encryption_key, alg1)?;
-        Ok(DataFile {data: IdValueMap::new(processor2, handler)?})
+        let handlers = build_data_file_handlers(file_info, local_file_data, encryption_key, alg1)?;
+        Ok(DataFile {data: IdValueMap::new(processor2, handlers)?})
 /*        let l = validate_data_hash(&data)?;
         let l2 = validate_data_hmac(&encryption_key, &data, l)?;
         let (processor1, offset) = load_encryption_processor(alg1, encryption_key, &data)?;
@@ -49,7 +49,7 @@ impl DataFile {
     }
 
     pub fn build_file_info(processor2: Arc<dyn CryptoProcessor>, only_locations: bool) -> Result<IdValueMap, Error> {
-        let mut h = IdValueMap::new(processor2, Box::new(IdValueMapLocalDataHandler::new()))?;
+        let mut h = IdValueMap::new(processor2, vec![Box::new(IdValueMapLocalDataHandler::new())])?;
         if !only_locations {
             h.add_with_id(HASH_ALGORITHM_PROPERTIES_ID, default_argon2_properties()).unwrap();
             h.add_with_id(ENCRYPTION_ALGORITHM1_PROPERTIES_ID, default_chacha_properties()).unwrap();
@@ -65,8 +65,8 @@ fn build_local_file_name(main_file_name: &String, file_info: &IdValueMap) -> Res
     todo!()
 }
 
-fn build_data_file_handler(file_info: &IdValueMap, local_file_data: Option<Vec<u8>>,
-                           encryption_key: [u8; 32], alg1: u8) -> Result<Box<dyn IdValueMapDataHandler>, Error> {
+fn build_data_file_handlers(file_info: &IdValueMap, local_file_data: Option<Vec<u8>>,
+                           encryption_key: [u8; 32], alg1: u8) -> Result<Vec<Box<dyn IdValueMapDataHandler>>, Error> {
     todo!()
 }
 
