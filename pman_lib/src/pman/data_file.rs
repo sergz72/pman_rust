@@ -1,11 +1,10 @@
 use std::io::Error;
 use std::sync::Arc;
-use crate::crypto::{build_corrupted_data_error, CryptoProcessor};
+use crate::crypto::CryptoProcessor;
 use crate::pman::id_value_map::id_value_map::{IdValueMap, IdValueMapDataHandler};
 use crate::pman::id_value_map::id_value_map_local_data_handler::IdValueMapLocalDataHandler;
 use crate::pman::ids::{ENCRYPTION_ALGORITHM1_PROPERTIES_ID, ENCRYPTION_ALGORITHM2_PROPERTIES_ID, FILES_LOCATIONS_ID, HASH_ALGORITHM_PROPERTIES_ID};
-use crate::pman::pman_database_file::{decrypt_data, default_aes_properties, default_argon2_properties, default_chacha_properties, FILE_LOCATION_LOCAL, validate_data_hash, validate_data_hmac};
-use crate::structs_interfaces::FileAction;
+use crate::pman::pman_database_file::{default_aes_properties, default_argon2_properties, default_chacha_properties, FILE_LOCATION_LOCAL};
 
 pub struct DataFile {
     data: IdValueMap

@@ -325,8 +325,12 @@ fn build_encryption_processor(algorithm_parameters: Vec<u8>, encryption_key: [u8
     match algorithm_parameters[0] {
         ENCRYPTION_ALGORITHM_AES => build_aes_processor(algorithm_parameters, encryption_key),
         ENCRYPTION_ALGORITHM_CHACHA20 => build_chacha_processor(algorithm_parameters, encryption_key),
-        _ => Err(Error::new(ErrorKind::Unsupported, "unsupported encryption algorithm"))
+        _ => Err(build_unsupported_algorithm_error())
     }
+}
+
+pub fn build_unsupported_algorithm_error() -> Error {
+    Error::new(ErrorKind::Unsupported, "unsupported encryption algorithm")
 }
 
 pub fn build_aes_processor(parameters: Vec<u8>, key: [u8; 32]) -> Result<Arc<dyn CryptoProcessor>, Error> {
@@ -412,7 +416,7 @@ fn validate_database_version(header: &mut IdValueMap) -> Result<usize, Error> {
 }
 
 // validate data using sha512
-fn add_data_hash_and_hmac(data: &mut Vec<u8>, encryption_key: [u8; 32]) -> Result<(), Error> {
+pub fn add_data_hash_and_hmac(data: &mut Vec<u8>, encryption_key: [u8; 32]) -> Result<(), Error> {
     let mut mac: HmacSha256 = KeyInit::new_from_slice(&encryption_key)
         .map_err(|e|Error::new(ErrorKind::InvalidData, e.to_string()))?;
     mac.update(data);
@@ -521,7 +525,7 @@ fn set_chacha_salt(input: &mut Vec<u8>, salt: [u8; 12]) -> Result<(), Error> {
     }
 }
 
-fn build_argon2_salt() -> [u8; 16] {
+pub fn build_argon2_salt() -> [u8; 16] {
     let mut result = [0u8; 16];
     OsRng.fill_bytes(&mut result);
     result

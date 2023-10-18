@@ -1,8 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::io::{Error, ErrorKind};
 use std::sync::Arc;
-use uniffi::deps::bytes::BufMut;
-use crate::crypto::{build_corrupted_data_error, build_unsupported_error, CryptoProcessor};
+use crate::crypto::CryptoProcessor;
 
 pub trait ByteValue {
     fn from_bytes(source: Vec<u8>) -> Result<Box<Self>, Error>;
@@ -163,7 +162,7 @@ mod tests {
     use crate::pman::id_value_map::id_value_map_local_data_handler::IdValueMapLocalDataHandler;
 
     #[test]
-    fn test_id_name_map() -> Result<(), Error> {
+    fn test_id_value_map() -> Result<(), Error> {
         let mut key = [0u8;32];
         OsRng.fill_bytes(&mut key);
         let mut map = IdValueMap::new(AesProcessor::new(key), vec![Box::new(IdValueMapLocalDataHandler::new())])?;
