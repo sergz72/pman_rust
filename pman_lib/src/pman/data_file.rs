@@ -24,27 +24,13 @@ impl DataFile {
     pub fn load(local_file_data: Option<Vec<u8>>, file_info: &IdValueMap, encryption_key: [u8; 32], alg1: u8, processor2: Arc<dyn CryptoProcessor>) -> Result<DataFile, Error> {
         let handlers = build_data_file_handlers(file_info, local_file_data, encryption_key, alg1)?;
         Ok(DataFile {data: IdValueMap::new(processor2, handlers)?})
-/*        let l = validate_data_hash(&data)?;
-        let l2 = validate_data_hmac(&encryption_key, &data, l)?;
-        let (processor1, offset) = load_encryption_processor(alg1, encryption_key, &data)?;
-        decrypt_data(processor1, &mut data, offset, l2)?;
-        let mut entities: IdValueMap = IdValueMap::new(processor2.clone());
-        let offset2 = entities.load(&data, offset)?;
-        let mut names: IdValueMap = IdValueMap::new(processor2);
-        let offset3 = names.load(&data, offset2)?;
-        if offset3 != l2 {
-            return Err(build_corrupted_data_error());
-        }
-        Ok(DataFile {
-            entities,
-            names,
-        })*/
     }
 
     pub fn save(&mut self, file_name: String, encryption_key: [u8; 32], alg1: u8,
                 processor2: Arc<dyn CryptoProcessor>,
                 file_info: &IdValueMap) -> Result<Option<Vec<u8>>, Error> {
-        let output = self.data.save(Some(processor2))?;
+        let output = self.data.save(Some(processor2), Some(alg1),
+                                    Some(encryption_key))?;
         Ok(output)
     }
 
@@ -72,8 +58,4 @@ fn build_data_file_handlers(file_info: &IdValueMap, local_file_data: Option<Vec<
 
 pub fn build_local_file_location() -> Vec<u8> {
     vec![FILE_LOCATION_LOCAL]
-}
-
-pub fn load_encryption_processor(alg1: u8, encryption_key: [u8; 32], data: &Vec<u8>) -> Result<(Arc<dyn CryptoProcessor>, usize), Error> {
-    todo!()
 }

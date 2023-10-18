@@ -31,7 +31,8 @@ impl IdValueMapDataHandler for IdValueMapLocalDataHandler {
     }
 
     fn save(&self, next_id: u32, map: &HashMap<u32, Option<IdValueMapValue>>, processor: Arc<dyn CryptoProcessor>,
-            new_processor: Arc<dyn CryptoProcessor>) -> Result<(HashMap<u32, Option<IdValueMapValue>>, Option<Vec<u8>>), Error> {
+            new_processor: Arc<dyn CryptoProcessor>, _alg1: Option<u8>, _encryption_key: Option<[u8; 32]>)
+        -> Result<(HashMap<u32, Option<IdValueMapValue>>, Option<Vec<u8>>), Error> {
         let mut output = Vec::new();
         output.put_u32_le(map.values().filter(|v|v.is_some()).count() as u32);
         let mut new_map = HashMap::new();

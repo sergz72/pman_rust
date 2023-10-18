@@ -16,7 +16,8 @@ pub trait IdValueMapDataHandler {
     fn get(&self, id: u32) -> Result<Vec<u8>, Error>;
     fn mget(&self, ids: Vec<u32>) -> Result<HashMap<u32, Vec<u8>>, Error>;
     fn save(&self, next_id: u32, map: &HashMap<u32, Option<IdValueMapValue>>, processor: Arc<dyn CryptoProcessor>,
-            new_processor: Arc<dyn CryptoProcessor>) -> Result<(HashMap<u32, Option<IdValueMapValue>>, Option<Vec<u8>>), Error>;
+            new_processor: Arc<dyn CryptoProcessor>, alg1: Option<u8>, encryption_key: Option<[u8; 32]>)
+        -> Result<(HashMap<u32, Option<IdValueMapValue>>, Option<Vec<u8>>), Error>;
 }
 
 pub struct IdValueMapValue {
@@ -115,15 +116,16 @@ impl IdValueMap {
         Ok(result)
     }
 
-    pub fn save(&mut self, new_processor: Option<Arc<dyn CryptoProcessor>>) -> Result<Option<Vec<u8>>, Error> {
+    pub fn save(&mut self, new_processor: Option<Arc<dyn CryptoProcessor>>, alg1: Option<u8>,
+                encryption_key: Option<[u8; 32]>) -> Result<Option<Vec<u8>>, Error> {
         let encode_processor = new_processor.unwrap_or(self.processor.clone());
         let (map, mut output) =
             self.selected_handler.save(self.next_id, &self.map, self.processor.clone(),
-                                       encode_processor.clone())?;
+                                       encode_processor.clone(), alg1, encryption_key)?;
         for handler in &self.other_handlers {
             let (_map, output2) = handler.save(self.next_id, &self.map,
                                                self.processor.clone(),
-                                               encode_processor.clone())?;
+                                               encode_processor.clone(), alg1, encryption_key)?;
             if output.is_none() && output2.is_some() {
                 output = output2;
             }
@@ -172,7 +174,7 @@ mod tests {
         let s3 = "test3dmbfjsdhfgjsdgdfjsdgfjdsagfjsdgfjsguweyrtq  uieydhz`kjvbadfkulghewiurthkghfvkzjxviugrthiertfbdert".to_string();
         let idx2 = map.add(s2.clone())?;
         let idx3 = map.add(s3.clone())?;
-        let v = map.save(None)?.unwrap();
+        let v = map.save(None, None, None)?.unwrap();
 
         let (handler, end) = IdValueMapLocalDataHandler::load(&v, 0)?;
         assert_eq!(end, v.len());
@@ -195,7 +197,7 @@ mod tests {
 
         let mut key2 = [0u8;32];
         OsRng.fill_bytes(&mut key2);
-        let v2 = map.save(Some(AesProcessor::new(key2)))?.unwrap();
+        let v2 = map.save(Some(AesProcessor::new(key2)), None, None)?.unwrap();
 
         let (handler2, end2) = IdValueMapLocalDataHandler::load(&v2, 0)?;
         assert_eq!(end2, v2.len());

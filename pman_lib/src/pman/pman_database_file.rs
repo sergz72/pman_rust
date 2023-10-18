@@ -236,14 +236,14 @@ impl PmanDatabaseProperties {
         if self.is_updated {
             let mut output = Vec::new();
             modify_header_algorithm_properties(&mut self.header)?;
-            let mut data = self.header.save(None)?.unwrap();
+            let mut data = self.header.save(None, None, None)?.unwrap();
             output.append(&mut data);
             let offset = output.len();
             modify_header_algorithm_properties(&mut self.names_files_info)?;
-            let mut data2 = self.names_files_info.save(Some(processor12.clone()))?.unwrap();
+            let mut data2 = self.names_files_info.save(Some(processor12.clone()), None, None)?.unwrap();
             output.append(&mut data2);
             let offset2 = output.len();
-            let mut data3 = self.passwords_files_info.save(Some(processor22.clone()))?.unwrap();
+            let mut data3 = self.passwords_files_info.save(Some(processor22.clone()), None, None)?.unwrap();
             output.append(&mut data3);
             let ol = output.len();
             let processor21 = build_encryption_processor(alg21, encryption2_key)?;
@@ -329,14 +329,14 @@ fn build_encryption_processor(algorithm_parameters: Vec<u8>, encryption_key: [u8
     }
 }
 
-fn build_aes_processor(parameters: Vec<u8>, key: [u8; 32]) -> Result<Arc<dyn CryptoProcessor>, Error> {
+pub fn build_aes_processor(parameters: Vec<u8>, key: [u8; 32]) -> Result<Arc<dyn CryptoProcessor>, Error> {
     if parameters.len() != 1 {
         return Err(build_corrupted_data_error());
     }
     Ok(AesProcessor::new(key))
 }
 
-fn build_chacha_processor(parameters: Vec<u8>, key: [u8; 32]) -> Result<Arc<dyn CryptoProcessor>, Error> {
+pub fn build_chacha_processor(parameters: Vec<u8>, key: [u8; 32]) -> Result<Arc<dyn CryptoProcessor>, Error> {
     if parameters.len() != 13 {
         return Err(build_corrupted_data_error());
     }
@@ -527,7 +527,7 @@ fn build_argon2_salt() -> [u8; 16] {
     result
 }
 
-fn build_chacha_salt() -> [u8; 12] {
+pub fn build_chacha_salt() -> [u8; 12] {
     let mut result = [0u8; 12];
     OsRng.fill_bytes(&mut result);
     result
