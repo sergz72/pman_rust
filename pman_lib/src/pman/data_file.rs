@@ -1,7 +1,8 @@
 use std::io::Error;
 use std::sync::Arc;
-use crate::crypto::CryptoProcessor;
+use crate::crypto::{build_corrupted_data_error, CryptoProcessor};
 use crate::pman::id_value_map::id_value_map::{IdValueMap, IdValueMapDataHandler};
+use crate::pman::id_value_map::id_value_map_data_file_handler::IdValueMapDataFileHandler;
 use crate::pman::id_value_map::id_value_map_local_data_handler::IdValueMapLocalDataHandler;
 use crate::pman::ids::{ENCRYPTION_ALGORITHM1_PROPERTIES_ID, ENCRYPTION_ALGORITHM2_PROPERTIES_ID, FILES_LOCATIONS_ID, HASH_ALGORITHM_PROPERTIES_ID};
 use crate::pman::pman_database_file::{default_aes_properties, default_argon2_properties, default_chacha_properties, FILE_LOCATION_LOCAL};
@@ -11,8 +12,8 @@ pub struct DataFile {
 }
 
 impl DataFile {
-    pub fn new(file_info: &IdValueMap, encryption_key: [u8; 32], alg1: u8, processor2: Arc<dyn CryptoProcessor>) -> Result<DataFile, Error> {
-        let handlers = build_data_file_handlers(file_info, None, encryption_key, alg1)?;
+    pub fn new(file_info: &mut IdValueMap, processor2: Arc<dyn CryptoProcessor>) -> Result<DataFile, Error> {
+        let handlers = new_data_file_handlers(file_info)?;
         Ok(DataFile {data: IdValueMap::new(processor2, handlers)?})
     }
 
@@ -20,7 +21,7 @@ impl DataFile {
         build_local_file_name(main_file_name, file_info)
     }
 
-    pub fn load(local_file_data: Option<Vec<u8>>, file_info: &IdValueMap, encryption_key: [u8; 32], alg1: u8, processor2: Arc<dyn CryptoProcessor>) -> Result<DataFile, Error> {
+    pub fn load(local_file_data: Option<Vec<u8>>, file_info: &mut IdValueMap, encryption_key: [u8; 32], alg1: u8, processor2: Arc<dyn CryptoProcessor>) -> Result<DataFile, Error> {
         let handlers = build_data_file_handlers(file_info, local_file_data, encryption_key, alg1)?;
         Ok(DataFile {data: IdValueMap::new(processor2, handlers)?})
     }
@@ -50,9 +51,44 @@ fn build_local_file_name(main_file_name: &String, file_info: &IdValueMap) -> Res
     todo!()
 }
 
-fn build_data_file_handlers(file_info: &IdValueMap, local_file_data: Option<Vec<u8>>,
-                           encryption_key: [u8; 32], alg1: u8) -> Result<Vec<Box<dyn IdValueMapDataHandler>>, Error> {
-    todo!()
+fn new_data_file_handlers(file_info: &mut IdValueMap) -> Result<Vec<Box<dyn IdValueMapDataHandler>>, Error> {
+    let locations: Vec<u8> = file_info.get(FILES_LOCATIONS_ID)?;
+    let mut result: Vec<Box<dyn IdValueMapDataHandler>> = Vec::new();
+    for location in locations {
+        let location_data: Vec<u8> = file_info.get(location as u32)?;
+        if location_data.is_empty() {
+            return Err(build_corrupted_data_error());
+        }
+        match location_data[0] {
+            FILE_LOCATION_LOCAL => {
+                if location_data.len() != 1 {
+                    return Err(build_corrupted_data_error());
+                }
+                result.push(Box::new(IdValueMapDataFileHandler::new()))
+            },
+            _ => return Err(build_corrupted_data_error())
+        }
+    }
+    Ok(result)
+}
+
+fn build_data_file_handlers(file_info: &mut IdValueMap, local_file_data: Option<Vec<u8>>,
+                            encryption_key: [u8; 32], alg1: u8) -> Result<Vec<Box<dyn IdValueMapDataHandler>>, Error> {
+    let locations: Vec<u8> = file_info.get(FILES_LOCATIONS_ID)?;
+    let mut result: Vec<Box<dyn IdValueMapDataHandler>> = Vec::new();
+    for location in locations {
+        match location {
+            FILE_LOCATION_LOCAL => {
+                if local_file_data.is_none() {
+                    return Err(build_corrupted_data_error());
+                }
+                let handler = IdValueMapDataFileHandler::load(local_file_data.clone().unwrap(), encryption_key, alg1)?;
+                result.push(Box::new(handler));
+            },
+            _ => return Err(build_corrupted_data_error())
+        }
+    }
+    Ok(result)
 }
 
 pub fn build_local_file_location() -> Vec<u8> {

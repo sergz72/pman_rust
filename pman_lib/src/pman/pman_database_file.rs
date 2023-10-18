@@ -106,7 +106,7 @@ impl PmanDatabaseProperties {
         OsRng.fill_bytes(&mut encryption_key);
         let processor12 = build_encryption_processor(alg2, encryption_key)?;
         let mut names_files_info = DataFile::build_file_info(processor12.clone(), false)?;
-        let names_file = DataFile::new(&names_files_info, encryption_key, a1, processor12.clone())?;
+        let names_file = DataFile::new(&mut names_files_info, processor12.clone())?;
 
         let (alg21, alg22) = get_encryption_algorithms(&mut names_files_info)?;
         let a2 = alg21[0];
@@ -114,8 +114,8 @@ impl PmanDatabaseProperties {
         let mut encryption2_key = [0u8; 32];
         OsRng.fill_bytes(&mut encryption2_key);
         let processor22 = build_encryption_processor(alg22, encryption_key)?;
-        let passwords_files_info = DataFile::build_file_info(processor22.clone(), true)?;
-        let passwords_file = DataFile::new(&passwords_files_info, encryption2_key, a2, processor22.clone())?;
+        let mut passwords_files_info = DataFile::build_file_info(processor22.clone(), true)?;
+        let passwords_file = DataFile::new(&mut passwords_files_info, processor22.clone())?;
 
         Ok(PmanDatabaseProperties{
             password_hash,
@@ -213,10 +213,10 @@ impl PmanDatabaseProperties {
         };
 
         self.names_file = Some(DataFile::load(names_file_data,
-                                              &self.names_files_info, self.encryption_key,
+                                              &mut self.names_files_info, self.encryption_key,
                                               self.alg1, self.processor12.clone())?);
         self.passwords_file = Some(DataFile::load(passwords_file_data,
-                                                  &self.passwords_files_info,
+                                                  &mut self.passwords_files_info,
                                                   self.encryption2_key, self.alg21,
                                                   self.processor22.clone())?);
 
@@ -259,7 +259,7 @@ impl PmanDatabaseProperties {
             v.push(FileAction{ file_name: file_name.clone() +  ".names", data: a })
         }
         if let Some(a) = action2 {
-            v.push(FileAction{ file_name: file_name +  ".names", data: a })
+            v.push(FileAction{ file_name: file_name +  ".passwords", data: a })
         }
         Ok(v)
     }
@@ -445,7 +445,7 @@ pub fn validate_data_hmac(encryption_key: &[u8; 32], data: &Vec<u8>, length: usi
     let hash = mac.finalize();
     let hash_bytes = hash.into_bytes();
     if *hash_bytes != data[l..l+32] {
-        return Err(Error::new(ErrorKind::Unsupported, "file hash does not match"))
+        return Err(Error::new(ErrorKind::InvalidData, "file hash does not match"))
     }
     Ok(l)
 }
