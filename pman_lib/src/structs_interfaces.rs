@@ -46,8 +46,9 @@ pub trait PasswordDatabase {
     fn set_argon2(&mut self, hash_id: usize, iterations: u8, parallelism: u8, memory: u16) -> Result<(), Error>;
     fn is_read_only(&self) -> bool;
     // pre_open - tries to decrypt local file and returns download file actions.
-    fn pre_open(&mut self, password: String, password2: Option<String>, key_file_contents: Option<Vec<u8>>)
-                -> Result<Vec<FileAction>, Error>;
+    fn pre_open(&mut self, main_file_name: &String, password_hash: Vec<u8>,
+                password2_hash: Option<Vec<u8>>, key_file_contents: Option<Vec<u8>>)
+                -> Result<Vec<String>, Error>;
     // open - opens database using download results.
     fn open(&mut self, data: Vec<Vec<u8>>) -> Result<(), Error>;
     fn get_users(&self) -> Result<HashMap<usize, String>, Error>;
@@ -59,7 +60,7 @@ pub trait PasswordDatabase {
     fn delete_entity(&mut self, group: String, name: String) -> Result<(), Error>;
     fn add_entity(&mut self, group: String, name: String, user_id: usize, password: String,
                   url: Option<String>, properties: HashMap<String, String>) -> Result<(), Error>;
-    fn save(&mut self) -> Result<Vec<u8>, Error>;
+    fn save(&mut self, file_name: String) -> Result<Vec<FileAction>, Error>;
 }
 
 pub enum HashAlgorithm {

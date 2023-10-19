@@ -302,7 +302,7 @@ impl PmanDatabaseFile {
         })
     }
 
-    fn pre_open(&mut self, main_file_name: &String, password_hash: Vec<u8>, password2_hash: Vec<u8>) -> Result<Vec<String>, Error> {
+    pub fn pre_open(&mut self, main_file_name: &String, password_hash: Vec<u8>, password2_hash: Vec<u8>) -> Result<Vec<String>, Error> {
         if self.properties.is_some() {
             return Err(Error::new(ErrorKind::AlreadyExists, "database properties already initialised"))
         }
@@ -316,21 +316,21 @@ impl PmanDatabaseFile {
         Ok(actions)
     }
 
-    fn open(&mut self, data: Vec<Vec<u8>>) -> Result<(), Error> {
+    pub fn open(&mut self, data: Vec<Vec<u8>>) -> Result<(), Error> {
         if self.properties.is_none() {
             return Err(Error::new(ErrorKind::NotFound, "database properties aren't initialised"))
         }
         self.properties.as_mut().unwrap().open(data)
     }
 
-    fn save(&mut self, file_name: String) -> Result<Vec<FileAction>, Error> {
+    pub fn save(&mut self, file_name: String) -> Result<Vec<FileAction>, Error> {
         if self.properties.is_none() {
             return Err(Error::new(ErrorKind::NotFound, "database properties aren't initialised"))
         }
         self.properties.as_mut().unwrap().save(file_name)
     }
 
-    fn set_argon2(&mut self, hash_id: usize, iterations: u8, parallelism: u8, memory: u16) -> Result<(), Error> {
+    pub fn set_argon2(&mut self, hash_id: usize, iterations: u8, parallelism: u8, memory: u16) -> Result<(), Error> {
         todo!()
     }
 }

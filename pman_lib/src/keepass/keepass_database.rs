@@ -20,8 +20,9 @@ impl PasswordDatabase for KeePassDatabase {
         true
     }
 
-    fn pre_open(&mut self, password: String, password2: Option<String>, key_file_contents: Option<Vec<u8>>)
-            -> Result<Vec<FileAction>, Error> {
+    fn pre_open(&mut self, main_file_name: &String, password_hash: Vec<u8>,
+                password2_hash: Option<Vec<u8>>, key_file_contents: Option<Vec<u8>>)
+            -> Result<Vec<String>, Error> {
         todo!()
     }
 
@@ -62,7 +63,7 @@ impl PasswordDatabase for KeePassDatabase {
         Err(build_read_only_db_error())
     }
 
-    fn save(&mut self) -> Result<Vec<u8>, Error> {
+    fn save(&mut self, file_name: String) -> Result<Vec<FileAction>, Error> {
         Err(build_read_only_db_error())
     }
 }

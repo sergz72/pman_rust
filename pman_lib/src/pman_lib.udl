@@ -7,7 +7,7 @@ namespace pman_lib {
   [Throws=PmanError]
   boolean is_read_only(u64 database_id);
   [Throws=PmanError]
-  sequence<FileAction> pre_open(u64 database_id, string password, string? password2, bytes? key_file_contents);
+  sequence<string> pre_open(u64 database_id, bytes password_hash, bytes? password2_hash, bytes? key_file_contents);
   [Throws=PmanError]
   void open(u64 database_id, sequence<bytes> data);
   [Throws=PmanError]

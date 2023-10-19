@@ -380,13 +380,15 @@ internal interface _UniFFILib : Library {
     ): Long
     fun uniffi_pman_lib_fn_func_is_read_only(`databaseId`: Long,_uniffi_out_err: RustCallStatus, 
     ): Byte
-    fun uniffi_pman_lib_fn_func_pre_open(`databaseId`: Long,`password`: RustBuffer.ByValue,`password2`: RustBuffer.ByValue,`keyFileContents`: RustBuffer.ByValue,_uniffi_out_err: RustCallStatus, 
+    fun uniffi_pman_lib_fn_func_pre_open(`databaseId`: Long,`passwordHash`: RustBuffer.ByValue,`password2Hash`: RustBuffer.ByValue,`keyFileContents`: RustBuffer.ByValue,_uniffi_out_err: RustCallStatus, 
     ): RustBuffer.ByValue
     fun uniffi_pman_lib_fn_func_open(`databaseId`: Long,`data`: RustBuffer.ByValue,_uniffi_out_err: RustCallStatus, 
     ): Unit
     fun uniffi_pman_lib_fn_func_save(`databaseId`: Long,_uniffi_out_err: RustCallStatus, 
     ): RustBuffer.ByValue
     fun uniffi_pman_lib_fn_func_close(`databaseId`: Long,_uniffi_out_err: RustCallStatus, 
+    ): Unit
+    fun uniffi_pman_lib_fn_func_set_argon2(`databaseId`: Long,`hashId`: Long,`iterations`: Long,`parallelism`: Long,`memory`: Long,_uniffi_out_err: RustCallStatus, 
     ): Unit
     fun ffi_pman_lib_rustbuffer_alloc(`size`: Int,_uniffi_out_err: RustCallStatus, 
     ): RustBuffer.ByValue
@@ -411,6 +413,8 @@ internal interface _UniFFILib : Library {
     fun uniffi_pman_lib_checksum_func_save(
     ): Short
     fun uniffi_pman_lib_checksum_func_close(
+    ): Short
+    fun uniffi_pman_lib_checksum_func_set_argon2(
     ): Short
     fun uniffi_pman_lib_checksum_method_fileaction_get_file_name(
     ): Short
@@ -445,7 +449,7 @@ private fun uniffiCheckApiChecksums(lib: _UniFFILib) {
     if (lib.uniffi_pman_lib_checksum_func_is_read_only() != 10576.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_pman_lib_checksum_func_pre_open() != 46145.toShort()) {
+    if (lib.uniffi_pman_lib_checksum_func_pre_open() != 59795.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_pman_lib_checksum_func_open() != 46739.toShort()) {
@@ -455,6 +459,9 @@ private fun uniffiCheckApiChecksums(lib: _UniFFILib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_pman_lib_checksum_func_close() != 11056.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_pman_lib_checksum_func_set_argon2() != 29730.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_pman_lib_checksum_method_fileaction_get_file_name() != 14148.toShort()) {
@@ -992,6 +999,31 @@ public object FfiConverterOptionalByteArray: FfiConverterRustBuffer<ByteArray?> 
 
 
 
+public object FfiConverterSequenceString: FfiConverterRustBuffer<List<String>> {
+    override fun read(buf: ByteBuffer): List<String> {
+        val len = buf.getInt()
+        return List<String>(len) {
+            FfiConverterString.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<String>): Int {
+        val sizeForLength = 4
+        val sizeForItems = value.map { FfiConverterString.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<String>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.forEach {
+            FfiConverterString.write(it, buf)
+        }
+    }
+}
+
+
+
+
 public object FfiConverterSequenceByteArray: FfiConverterRustBuffer<List<ByteArray>> {
     override fun read(buf: ByteBuffer): List<ByteArray> {
         val len = buf.getInt()
@@ -1075,10 +1107,10 @@ fun `isReadOnly`(`databaseId`: ULong): Boolean {
 
 @Throws(PmanException::class)
 
-fun `preOpen`(`databaseId`: ULong, `password`: String, `password2`: String?, `keyFileContents`: ByteArray?): List<FileAction> {
-    return FfiConverterSequenceTypeFileAction.lift(
+fun `preOpen`(`databaseId`: ULong, `passwordHash`: ByteArray, `password2Hash`: ByteArray?, `keyFileContents`: ByteArray?): List<String> {
+    return FfiConverterSequenceString.lift(
     rustCallWithError(PmanException) { _status ->
-    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_pre_open(FfiConverterULong.lower(`databaseId`),FfiConverterString.lower(`password`),FfiConverterOptionalString.lower(`password2`),FfiConverterOptionalByteArray.lower(`keyFileContents`),_status)
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_pre_open(FfiConverterULong.lower(`databaseId`),FfiConverterByteArray.lower(`passwordHash`),FfiConverterOptionalByteArray.lower(`password2Hash`),FfiConverterOptionalByteArray.lower(`keyFileContents`),_status)
 })
 }
 
@@ -1106,6 +1138,15 @@ fun `close`(`databaseId`: ULong) =
     
     rustCallWithError(PmanException) { _status ->
     _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_close(FfiConverterULong.lower(`databaseId`),_status)
+}
+
+
+@Throws(PmanException::class)
+
+fun `setArgon2`(`databaseId`: ULong, `hashId`: ULong, `iterations`: ULong, `parallelism`: ULong, `memory`: ULong) =
+    
+    rustCallWithError(PmanException) { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_set_argon2(FfiConverterULong.lower(`databaseId`),FfiConverterULong.lower(`hashId`),FfiConverterULong.lower(`iterations`),FfiConverterULong.lower(`parallelism`),FfiConverterULong.lower(`memory`),_status)
 }
 
 

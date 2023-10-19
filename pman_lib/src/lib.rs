@@ -101,10 +101,10 @@ pub fn create(database_type: PasswordDatabaseType, password: String, password2: 
     Ok(db_id)
 }
 
-fn get_database(database_id: u64) -> Result<Arc<RwLock<dyn PasswordDatabase>>, PmanError> {
+fn get_database<'a>(database_id: u64) -> Result<&'a DatabaseFile, PmanError> {
     match unsafe{DATABASES.as_ref()}.unwrap().get(&database_id) {
         None => Err(build_database_not_found_error()),
-        Some(db) => Ok(db.database.clone())
+        Some(db) => Ok(&db)
     }
 }
 
@@ -114,22 +114,25 @@ fn build_database_not_found_error() -> PmanError {
 
 pub fn is_read_only(database_id: u64) -> Result<bool, PmanError> {
     let db = get_database(database_id)?;
-    let result = db.read().unwrap().is_read_only();
+    let result = db.database.read().unwrap().is_read_only();
     Ok(result)
 }
 
-pub fn pre_open(database_id: u64, password: String, password2: Option<String>, key_file_contents: Option<Vec<u8>>)
-                   -> Result<Vec<Arc<FileAction>>, PmanError> {
+pub fn pre_open(database_id: u64, password_hash: Vec<u8>, password2_hash: Option<Vec<u8>>, key_file_contents: Option<Vec<u8>>)
+                   -> Result<Vec<String>, PmanError> {
     let db = get_database(database_id)?;
-    let mut write_lock = db.write().unwrap();
-    let actions = write_lock.pre_open(password, password2, key_file_contents)
-        .map_err(|e|PmanError::message(e.to_string()))?;
-    Ok(actions.into_iter().map(|a|Arc::new(a)).collect())
+    if db.file_name.is_none() {
+        return Err(PmanError::message("file name is required"));
+    }
+    let mut write_lock = db.database.write().unwrap();
+    write_lock.pre_open(db.file_name.as_ref().unwrap(),
+                        password_hash, password2_hash, key_file_contents)
+        .map_err(|e|PmanError::message(e.to_string()))
 }
 
 pub fn open(database_id: u64, data: Vec<Vec<u8>>) -> Result<(), PmanError> {
     let db = get_database(database_id)?;
-    let mut write_lock = db.write().unwrap();
+    let mut write_lock = db.database.write().unwrap();
     write_lock.open(data)
         .map_err(|e|PmanError::message(e.to_string()))
 }
@@ -142,11 +145,21 @@ pub fn close(database_id: u64) -> Result<(), PmanError> {
 }
 
 pub fn save(database_id: u64) -> Result<Vec<Arc<FileAction>>, PmanError> {
-    todo!()
+    let db = get_database(database_id)?;
+    let mut write_lock = db.database.write().unwrap();
+    write_lock.save(db.file_name.as_ref().unwrap().clone())
+        .map(|a|a.into_iter().map(|fa|Arc::new(fa)).collect())
+        .map_err(|e|PmanError::message(e.to_string()))
 }
 
 pub fn set_argon2(database_id: u64, hash_id: u64, iterations: u64, parallelism: u64, memory: u64) -> Result<(), PmanError> {
-    todo!()
+    if iterations > 255 || parallelism > 255 || memory > 65535 {
+        return Err(PmanError::message("incorrect argon2 parameters"));
+    }
+    let db = get_database(database_id)?;
+    let mut write_lock = db.database.write().unwrap();
+    write_lock.set_argon2(hash_id as usize, iterations as u8, parallelism as u8, memory as u16)
+        .map_err(|e|PmanError::message(e.to_string()))
 }
 
 pub fn build_argon2_hash(password: Vec<u8>, iterations: isize, parallelism: isize, memory: isize, salt: [u8; 16]) -> Result<[u8; 32], Error> {

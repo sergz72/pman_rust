@@ -10,20 +10,24 @@ pub struct PmanDatabase {
 
 impl PasswordDatabase for PmanDatabase {
     fn set_argon2(&mut self, hash_id: usize, iterations: u8, parallelism: u8, memory: u16) -> Result<(), Error> {
-        todo!()
+        self.file.set_argon2(hash_id, iterations, parallelism, memory)
     }
 
     fn is_read_only(&self) -> bool {
         false
     }
 
-    fn pre_open(&mut self, password: String, password2: Option<String>, key_file_contents: Option<Vec<u8>>)
-            -> Result<Vec<FileAction>, Error> {
-        todo!()
+    fn pre_open(&mut self, main_file_name: &String, password_hash: Vec<u8>,
+                password2_hash: Option<Vec<u8>>, key_file_contents: Option<Vec<u8>>)
+            -> Result<Vec<String>, Error> {
+        if password2_hash.is_none() {
+            return Err(Error::new(ErrorKind::InvalidInput, "password2 hash is required"))
+        }
+        self.file.pre_open(main_file_name, password_hash, password2_hash.unwrap())
     }
 
     fn open(&mut self, data: Vec<Vec<u8>>) -> Result<(), Error> {
-        todo!()
+        self.file.open(data)
     }
 
     fn get_users(&self) -> Result<HashMap<usize, String>, Error> {
@@ -59,8 +63,8 @@ impl PasswordDatabase for PmanDatabase {
         todo!()
     }
 
-    fn save(&mut self) -> Result<Vec<u8>, Error> {
-        todo!()
+    fn save(&mut self, file_name: String) -> Result<Vec<FileAction>, Error> {
+        self.file.save(file_name)
     }
 }
 
