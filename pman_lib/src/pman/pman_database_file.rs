@@ -159,19 +159,19 @@ impl PmanDatabaseProperties {
         decrypt_data(processor21.clone(), data, offset2, l2)?;
         let processor22 = build_encryption_processor(alg22, encryption2_key)?;
         let (handler3, offset3) = IdValueMapLocalDataHandler::load(data, offset2)?;
-        let passwords_files_info = IdValueMap::new(processor22.clone(), vec![Box::new(handler3)])?;
+        let mut passwords_files_info = IdValueMap::new(processor22.clone(), vec![Box::new(handler3)])?;
 
         if offset3 != l2 {
             return Err(build_corrupted_data_error());
         }
 
         let mut files_to_load = Vec::new();
-        let names_file = DataFile::pre_load(main_file_name, &names_files_info)?;
+        let names_file = DataFile::pre_load(main_file_name, ".names",  &mut names_files_info)?;
         let local_names_file = names_file.is_some();
         if local_names_file {
             files_to_load.push(names_file.unwrap());
         }
-        let passwords_file = DataFile::pre_load(main_file_name, &passwords_files_info)?;
+        let passwords_file = DataFile::pre_load(main_file_name, ".passwords", &mut passwords_files_info)?;
         if let Some(name) = passwords_file {
             files_to_load.push(name);
         }
@@ -224,37 +224,54 @@ impl PmanDatabaseProperties {
     }
 
     fn save(&mut self, file_name: String) -> Result<Vec<FileAction>, Error> {
-        let (alg1, alg2) = get_encryption_algorithms(&mut self.header)?;
-        let a1 = alg1[0];
-        let encryption_key = build_encryption_key(&mut self.header, &self.password_hash)?;
-        let processor12 = build_encryption_processor(alg2, encryption_key)?;
-        let (alg21, alg22) = get_encryption_algorithms(&mut self.names_files_info)?;
-        let a2 = alg21[0];
-        let encryption2_key = build_encryption_key(&mut self.names_files_info, &self.password2_hash)?;
-        let processor22 = build_encryption_processor(alg22, encryption2_key)?;
         let mut v = Vec::new();
         if self.is_updated {
             let mut output = Vec::new();
+
+            // main header
             modify_header_algorithm_properties(&mut self.header)?;
-            let mut data = self.header.save(None, None, None)?.unwrap();
+            let mut data = self.header.save( None, None, None)?.unwrap();
             output.append(&mut data);
             let offset = output.len();
+
+            // names info
             modify_header_algorithm_properties(&mut self.names_files_info)?;
-            let mut data2 = self.names_files_info.save(Some(processor12.clone()), None, None)?.unwrap();
+            let (alg1, alg2) = get_encryption_algorithms(&mut self.header)?;
+            self.alg1 = alg1[0];
+            self.encryption_key = build_encryption_key(&mut self.header, &self.password_hash)?;
+            self.processor12 = build_encryption_processor(alg2, self.encryption_key)?;
+            let mut data2 = self.names_files_info.save(Some(self.processor12.clone()), None, None)?.unwrap();
             output.append(&mut data2);
             let offset2 = output.len();
-            let mut data3 = self.passwords_files_info.save(Some(processor22.clone()), None, None)?.unwrap();
+
+            // passwords info
+            let (alg21, alg22) = get_encryption_algorithms(&mut self.names_files_info)?;
+            self.alg21 = alg21[0];
+            self.encryption2_key = build_encryption_key(&mut self.names_files_info, &self.password2_hash)?;
+            self.processor22 = build_encryption_processor(alg22, self.encryption2_key)?;
+            let mut data3 = self.passwords_files_info.save(Some(self.processor22.clone()), None, None)?.unwrap();
             output.append(&mut data3);
             let ol = output.len();
-            let processor21 = build_encryption_processor(alg21, encryption2_key)?;
-            encrypt_data(processor21, &mut output, offset2, ol - offset2)?;
-            let processor11 = build_encryption_processor(alg1, encryption_key)?;
-            encrypt_data(processor11, &mut output, offset, ol - offset)?;
-            add_data_hash_and_hmac(&mut output, encryption_key)?;
+
+            // encrypt passwords info
+            let processor21 = build_encryption_processor(alg21, self.encryption2_key)?;
+            encrypt_data(processor21, &mut output, offset2, ol)?;
+
+            // encrypt names+passwords info
+            let processor11 = build_encryption_processor(alg1, self.encryption_key)?;
+            encrypt_data(processor11, &mut output, offset, ol)?;
+            add_data_hash_and_hmac(&mut output, self.encryption_key)?;
             v.push(FileAction::new(file_name.clone(), output));
         }
-        let action1 = self.names_file.as_mut().unwrap().save(file_name.clone(), encryption_key, a1, processor12, &self.names_files_info)?;
-        let action2 = self.passwords_file.as_mut().unwrap().save(file_name.clone(), encryption2_key, a2, processor22, &self.passwords_files_info)?;
+        let action1 =
+            self.names_file.as_mut().unwrap().save(file_name.clone(), self.encryption_key,
+                                                   self.alg1, self.processor12.clone(),
+                                                   &self.names_files_info)?;
+        let action2 =
+            self.passwords_file.as_mut().unwrap().save(file_name.clone(),
+                                                       self.encryption2_key,
+                                                       self.alg21, self.processor22.clone(),
+                                                       &self.passwords_files_info)?;
         if let Some(a) = action1 {
             v.push(FileAction{ file_name: file_name.clone() +  ".names", data: a })
         }
@@ -377,11 +394,11 @@ fn modify_algorithm_properties(mut properties: Vec<u8>) -> Result<Vec<u8>, Error
 }
 
 fn encrypt_data(processor: Arc<dyn CryptoProcessor>, data: &mut Vec<u8>, offset: usize, length: usize) -> Result<(), Error> {
-    processor.encode_bytes(&mut data[offset..offset+length])
+    processor.encode_bytes(&mut data[offset..length])
 }
 
 pub fn decrypt_data(processor: Arc<dyn CryptoProcessor>, data: &mut Vec<u8>, offset: usize, length: usize) -> Result<(), Error> {
-    processor.decode_bytes(&mut data[offset..offset+length])
+    processor.decode_bytes(&mut data[offset..length])
 }
 
 pub fn get_encryption_algorithms(header: &mut IdValueMap) -> Result<(Vec<u8>, Vec<u8>), Error> {
@@ -573,7 +590,7 @@ mod tests {
         assert_eq!(actions.len(), 3);
         let mut db2 = PmanDatabaseFile::prepare(actions[0].get_data())?;
         let file_names = db2.pre_open(&file_name, hash1_vec, hash2_vec)?;
-        assert_eq!(actions.len(), 2);
+        assert_eq!(file_names.len(), 2);
         db2.open(vec![actions[1].get_data(), actions[2].get_data()])
     }
 }

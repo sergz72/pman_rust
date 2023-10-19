@@ -17,8 +17,8 @@ impl DataFile {
         Ok(DataFile {data: IdValueMap::new(processor2, handlers)?})
     }
 
-    pub fn pre_load(main_file_name: &String, file_info: &IdValueMap) -> Result<Option<String>, Error> {
-        build_local_file_name(main_file_name, file_info)
+    pub fn pre_load(main_file_name: &String, file_extension: &str, file_info: &mut IdValueMap) -> Result<Option<String>, Error> {
+        build_local_file_name(main_file_name, file_extension, file_info)
     }
 
     pub fn load(local_file_data: Option<Vec<u8>>, file_info: &mut IdValueMap, encryption_key: [u8; 32], alg1: u8, processor2: Arc<dyn CryptoProcessor>) -> Result<DataFile, Error> {
@@ -47,8 +47,19 @@ impl DataFile {
     }
 }
 
-fn build_local_file_name(main_file_name: &String, file_info: &IdValueMap) -> Result<Option<String>, Error> {
-    todo!()
+fn build_local_file_name(main_file_name: &String, file_exiension: &str,
+                         file_info: &mut IdValueMap) -> Result<Option<String>, Error> {
+    let locations: Vec<u8> = file_info.get(FILES_LOCATIONS_ID)?;
+    for location in locations {
+        let location_data: Vec<u8> = file_info.get(location as u32)?;
+        if location_data.is_empty() {
+            return Err(build_corrupted_data_error());
+        }
+        if location_data[0] == FILE_LOCATION_LOCAL {
+            return Ok(Some(main_file_name.clone() + file_exiension));
+        }
+    }
+    Ok(None)
 }
 
 fn new_data_file_handlers(file_info: &mut IdValueMap) -> Result<Vec<Box<dyn IdValueMapDataHandler>>, Error> {
@@ -77,7 +88,11 @@ fn build_data_file_handlers(file_info: &mut IdValueMap, local_file_data: Option<
     let locations: Vec<u8> = file_info.get(FILES_LOCATIONS_ID)?;
     let mut result: Vec<Box<dyn IdValueMapDataHandler>> = Vec::new();
     for location in locations {
-        match location {
+        let location_data: Vec<u8> = file_info.get(location as u32)?;
+        if location_data.is_empty() {
+            return Err(build_corrupted_data_error());
+        }
+        match location_data[0] {
             FILE_LOCATION_LOCAL => {
                 if local_file_data.is_none() {
                     return Err(build_corrupted_data_error());
