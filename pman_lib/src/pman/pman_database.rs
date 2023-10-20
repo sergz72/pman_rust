@@ -36,17 +36,22 @@ impl PasswordDatabase for PmanDatabase {
     }
 
     fn get_groups(&mut self) -> Result<Vec<DatabaseGroup>, Error> {
-        let groups: Vec<u8> = match self.file.get_from_names_file(GROUPS_ID) {
+        let groups: HashMap<u32, String> = match self.file.get_indirect_from_names_file(GROUPS_ID) {
             Ok(g) => g,
             Err(e) => {
                 if e.kind() == ErrorKind::NotFound {
-                    Vec::new()
+                    return Ok(Vec::new());
                 } else {
-                    return Err(e)
+                    return Err(e);
                 }
             }
         };
-        Ok(Vec::new())
+        Ok(groups.into_iter().map(|(id, g)|DatabaseGroup{
+            name: g,
+            id: id as usize,
+            //todo
+            entities_count: 0,
+        }).collect())
     }
 
     fn get_users(&mut self) -> Result<HashMap<usize, String>, Error> {

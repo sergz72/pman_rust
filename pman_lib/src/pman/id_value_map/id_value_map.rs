@@ -87,6 +87,23 @@ impl IdValueMap {
         Ok(*value)
     }
 
+    pub fn get_indirect<T: ByteValue>(&mut self, id: u32) -> Result<HashMap<u32, T>, Error> {
+        let items: Vec<u32> = match self.get(id) {
+            Ok(v) => v,
+            Err(e) => {
+                if e.kind() == ErrorKind::NotFound {
+                    return Ok(HashMap::new());
+                } else {
+                    return Err(e);
+                }
+            }
+        };
+        if items.len() == 0 {
+            return Ok(HashMap::new());
+        }
+        self.mget(items.into_iter().collect())
+    }
+
     pub fn mget<T: ByteValue>(&mut self, ids: HashSet<u32>) -> Result<HashMap<u32, T>, Error> {
         let mut result = HashMap::new();
         let mut missing_locally = Vec::new();

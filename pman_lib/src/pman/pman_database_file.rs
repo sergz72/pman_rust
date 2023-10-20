@@ -36,6 +36,7 @@ passwords file structure
 
 */
 
+use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 use std::sync::Arc;
 use argon2::{Algorithm, Argon2, Params, Version};
@@ -288,6 +289,13 @@ impl PmanDatabaseProperties {
         }
         Err(build_names_file_not_initialized_error())
     }
+
+    fn get_indirect_from_names_file<T: ByteValue>(&mut self, id: u32) -> Result<HashMap<u32, T>, Error> {
+        if let Some(p) = &mut self.names_file {
+            return p.get_indirect(id);
+        }
+        Err(build_names_file_not_initialized_error())
+    }
 }
 
 impl PmanDatabaseFile {
@@ -345,6 +353,13 @@ impl PmanDatabaseFile {
     pub fn get_from_names_file<T: ByteValue>(&mut self, id: u32) -> Result<T, Error> {
         if let Some(p) = &mut self.properties {
             return p.get_from_names_file(id);
+        }
+        Err(build_properties_not_initialized_error())
+    }
+
+    pub fn get_indirect_from_names_file<T: ByteValue>(&mut self, id: u32) -> Result<HashMap<u32, T>, Error> {
+        if let Some(p) = &mut self.properties {
+            return p.get_indirect_from_names_file(id);
         }
         Err(build_properties_not_initialized_error())
     }

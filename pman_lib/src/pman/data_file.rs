@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::io::Error;
 use std::sync::Arc;
 use crate::crypto::CryptoProcessor;
@@ -49,6 +50,10 @@ impl DataFile {
 
     pub fn get<T: ByteValue>(&mut self, id: u32) -> Result<T, Error> {
         self.data.get(id)
+    }
+
+    pub fn get_indirect<T: ByteValue>(&mut self, id: u32) -> Result<HashMap<u32, T>, Error> {
+        self.data.get_indirect(id)
     }
 }
 

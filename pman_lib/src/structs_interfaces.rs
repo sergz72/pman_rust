@@ -45,9 +45,9 @@ pub struct DatabaseSearchResult {
 }
 
 pub struct DatabaseGroup {
-    name: String,
-    id: usize,
-    entities_count: usize
+    pub name: String,
+    pub id: usize,
+    pub entities_count: usize
 }
 
 pub trait PasswordDatabase {
