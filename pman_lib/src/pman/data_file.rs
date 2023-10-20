@@ -55,6 +55,10 @@ impl DataFile {
     pub fn get_indirect<T: ByteValue>(&mut self, id: u32) -> Result<HashMap<u32, T>, Error> {
         self.data.get_indirect(id)
     }
+
+    pub fn add<T: ByteValue>(&mut self, value: T) -> Result<u32, Error> {
+        self.data.add(value)
+    }
 }
 
 fn build_local_file_name(main_file_name: &String, file_exiension: &str,

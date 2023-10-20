@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 use std::sync::{Arc, RwLock};
+use crate::pman::database_entity::PmanDatabaseEntity;
 use crate::pman::pman_database_file::PmanDatabaseFile;
 use crate::structs_interfaces::{DatabaseEntity, DatabaseGroup, DatabaseSearchResult, FileAction, PasswordDatabase};
 
@@ -46,11 +47,17 @@ impl PasswordDatabase for PmanDatabase {
                 }
             }
         };
+        let entities = self.get_entities()?;
+        let mut counts = HashMap::new();
+        for (id, entity) in entities {
+            let e = counts.entry(entity.get_group_id()).or_insert(0usize);
+            *e += 1;
+        }
         Ok(groups.into_iter().map(|(id, g)|DatabaseGroup{
             name: g,
             id: id as usize,
             //todo
-            entities_count: 0,
+            entities_count: *counts.get(&id).unwrap_or(&0),
         }).collect())
     }
 
@@ -63,7 +70,7 @@ impl PasswordDatabase for PmanDatabase {
     }
 
     fn add_user(&mut self, name: String) -> Result<usize, Error> {
-        todo!()
+        self.add_to_string_list(USERS_ID, name).map(|v|v as usize)
     }
 
     fn remove_user(&mut self, id: usize) -> Result<(), Error> {
@@ -74,8 +81,8 @@ impl PasswordDatabase for PmanDatabase {
         todo!()
     }
 
-    fn add_group(&mut self, name: String) -> Result<(), Error> {
-        todo!()
+    fn add_group(&mut self, name: String) -> Result<usize, Error> {
+        self.add_to_string_list(GROUPS_ID, name).map(|v|v as usize)
     }
 
     fn rename_group(&mut self, group_id: usize, new_name: String) -> Result<(), Error> {
@@ -112,13 +119,29 @@ impl PmanDatabase {
         Ok(Arc::new(RwLock::new(PmanDatabase{file})))
     }
 
-    pub fn new(password: String, password2: Option<String>,
-               key_file_contents: Option<Vec<u8>>) -> Result<Arc<RwLock<dyn PasswordDatabase>>, Error> {
-        Err(Error::new(ErrorKind::Unsupported, "not implemented"))
+    pub fn new(password_hash: Vec<u8>, password2_hash: Vec<u8>) -> Result<Arc<RwLock<dyn PasswordDatabase>>, Error> {
+        let file = PmanDatabaseFile::new(password_hash, password2_hash)?;
+        Ok(Arc::new(RwLock::new(PmanDatabase{file})))
     }
 
-    fn open(&mut self, password: String, password2: Option<String>,
-                key_file_contents: Option<Vec<u8>>) -> Result<PmanDatabase, Error> {
-        todo!()
+    pub fn pre_open(&mut self, main_file_name: &String, password_hash: Vec<u8>,
+                    password2_hash: Vec<u8>) -> Result<Vec<String>, Error> {
+        self.file.pre_open(main_file_name, password_hash, password2_hash)
+    }
+
+    pub fn open(&mut self, data: Vec<Vec<u8>>) -> Result<(), Error> {
+        self.file.open(data)
+    }
+
+    fn get_entities(&mut self) -> Result<HashMap<u32, PmanDatabaseEntity>, Error> {
+        self.file.get_indirect_from_names_file(ENTITIES_ID)
+    }
+
+    fn add_to_string_list(&mut self, id: u32, value: String) -> Result<u32, Error> {
+        let data: HashMap<u32, String> = self.file.get_indirect_from_names_file(id)?;
+        if data.into_iter().find(|(id, name)|*name == value).is_some() {
+            return Err(Error::new(ErrorKind::AlreadyExists, "item with the same name already exists"));
+        }
+        self.file.add_to_names_file(value)
     }
 }

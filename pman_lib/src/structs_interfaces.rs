@@ -66,7 +66,7 @@ pub trait PasswordDatabase {
     fn add_user(&mut self, name: String) -> Result<usize, Error>;
     fn remove_user(&mut self, id: usize) -> Result<(), Error>;
     fn search(&mut self, search_string: String) -> Result<Vec<DatabaseSearchResult>, Error>;
-    fn add_group(&mut self, name: String) -> Result<(), Error>;
+    fn add_group(&mut self, name: String) -> Result<usize, Error>;
     fn rename_group(&mut self, group_id: usize, new_name: String) -> Result<(), Error>;
     fn delete_group(&mut self, id: usize) -> Result<(), Error>;
     fn delete_entity(&mut self, entity_id: usize) -> Result<(), Error>;

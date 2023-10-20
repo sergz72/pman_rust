@@ -296,6 +296,13 @@ impl PmanDatabaseProperties {
         }
         Err(build_names_file_not_initialized_error())
     }
+
+    fn add_to_names_file<T: ByteValue>(&mut self, value: T) -> Result<u32, Error> {
+        if let Some(p) = &mut self.names_file {
+            return p.add(value);
+        }
+        Err(build_names_file_not_initialized_error())
+    }
 }
 
 impl PmanDatabaseFile {
@@ -360,6 +367,13 @@ impl PmanDatabaseFile {
     pub fn get_indirect_from_names_file<T: ByteValue>(&mut self, id: u32) -> Result<HashMap<u32, T>, Error> {
         if let Some(p) = &mut self.properties {
             return p.get_indirect_from_names_file(id);
+        }
+        Err(build_properties_not_initialized_error())
+    }
+
+    pub fn add_to_names_file<T: ByteValue>(&mut self, value: T) -> Result<u32, Error> {
+        if let Some(p) = &mut self.properties {
+            return p.add_to_names_file(value);
         }
         Err(build_properties_not_initialized_error())
     }

@@ -83,15 +83,20 @@ pub fn prepare(data: Vec<u8>, file_name: String) -> Result<u64, PmanError> {
     }
 }
 
-pub fn create(database_type: PasswordDatabaseType, password: String, password2: Option<String>,
+pub fn create(database_type: PasswordDatabaseType, password_hash: Vec<u8>, password2_hash: Option<Vec<u8>>,
               key_file_contents: Option<Vec<u8>>) -> Result<u64, PmanError> {
     let database = match database_type {
         PasswordDatabaseType::KeePass =>
-            KeePassDatabase::new(password, password2, key_file_contents)
+            KeePassDatabase::new(password_hash, key_file_contents)
                 .map_err(|e| PmanError::message(e.to_string()))?,
-        PasswordDatabaseType::Pman =>
-            PmanDatabase::new(password, password2, key_file_contents)
-                .map_err(|e| PmanError::message(e.to_string()))?,
+        PasswordDatabaseType::Pman => {
+            if let Some(h) = password2_hash {
+                PmanDatabase::new(password_hash, h)
+                    .map_err(|e| PmanError::message(e.to_string()))?
+            } else {
+                return Err(PmanError::message("second password hash is required"));
+            }
+        },
     };
     let db_id = unsafe{NEXT_DB_ID};
     unsafe{

@@ -51,7 +51,7 @@ impl PasswordDatabase for KeePassDatabase {
         todo!()
     }
 
-    fn add_group(&mut self, name: String) -> Result<(), Error> {
+    fn add_group(&mut self, name: String) -> Result<usize, Error> {
         Err(build_read_only_db_error())
     }
 
@@ -88,8 +88,8 @@ impl KeePassDatabase {
         Ok(Arc::new(RwLock::new(KeePassDatabase{})))
     }
 
-    pub fn new(password: String, password2: Option<String>,
-               key_file_contents: Option<Vec<u8>>) -> Result<Arc<RwLock<dyn PasswordDatabase>>, Error> {
+    pub fn new(password_hash: Vec<u8>, key_file_contents: Option<Vec<u8>>)
+        -> Result<Arc<RwLock<dyn PasswordDatabase>>, Error> {
         Err(Error::new(ErrorKind::Unsupported, "not implemented"))
     }
 

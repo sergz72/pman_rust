@@ -1,6 +1,6 @@
 pub mod pman_database;
 pub mod pman_database_file;
-mod header_entity;
+mod database_entity;
 mod data_file;
 mod ids;
 mod id_value_map;

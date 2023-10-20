@@ -1,7 +1,7 @@
 namespace pman_lib {
   void lib_init();
   [Throws=PmanError]
-  u64 create(PasswordDatabaseType database_type, string password, string? password2, bytes? key_file_contents);
+  u64 create(PasswordDatabaseType database_type, bytes password_hash, bytes? password2_hash, bytes? key_file_contents);
   [Throws=PmanError]
   u64 prepare(bytes data, string file_name);
   [Throws=PmanError]
