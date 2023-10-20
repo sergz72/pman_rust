@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 use std::sync::Arc;
-use crate::crypto::{AesProcessor, build_corrupted_data_error, ChachaProcessor, CryptoProcessor};
+use crate::crypto::{AesProcessor, ChachaProcessor, CryptoProcessor};
+use crate::error_builders::build_corrupted_data_error;
 use crate::pman::id_value_map::id_value_map::{IdValueMapDataHandler, IdValueMapValue};
 use crate::pman::id_value_map::id_value_map_local_data_handler::IdValueMapLocalDataHandler;
 use crate::pman::pman_database_file::{add_data_hash_and_hmac, build_aes_processor, build_chacha_processor,

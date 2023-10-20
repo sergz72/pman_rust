@@ -1,5 +1,5 @@
 use std::cmp::min;
-use std::io::{Error, ErrorKind};
+use std::io::Error;
 use std::sync::Arc;
 use aes::Aes256;
 use aes::cipher::{BlockDecrypt, BlockEncrypt, KeyInit};
@@ -8,16 +8,13 @@ use chacha20::ChaCha20;
 use chacha20::cipher::{KeyIvInit, StreamCipher};
 use rand::RngCore;
 use rand::rngs::OsRng;
+use crate::error_builders::{build_corrupted_data_error, build_unsupported_error};
 
 pub trait CryptoProcessor {
     fn encode(&self, data: Vec<u8>) -> Result<Vec<u8>, Error>;
     fn decode(&self, data: &Vec<u8>) -> Result<Vec<u8>, Error>;
     fn encode_bytes(&self, data: &mut [u8]) -> Result<(), Error>;
     fn decode_bytes(&self, data: &mut [u8]) -> Result<(), Error>;
-}
-
-pub fn build_corrupted_data_error() -> Error {
-    Error::new(ErrorKind::InvalidData, "corrupted data")
 }
 
 pub struct AesProcessor {
@@ -91,10 +88,6 @@ impl CryptoProcessor for AesProcessor {
     fn decode_bytes(&self, _data: &mut [u8]) -> Result<(), Error> {
         Err(build_unsupported_error())
     }
-}
-
-pub fn build_unsupported_error() -> Error {
-    Error::new(ErrorKind::Unsupported, "unsupported")
 }
 
 impl AesProcessor {

@@ -1,14 +1,11 @@
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 use std::sync::{Arc, RwLock};
-use crate::structs_interfaces::{DatabaseSearchResult, FileAction, PasswordDatabase};
+use crate::error_builders::build_read_only_db_error;
+use crate::structs_interfaces::{DatabaseEntity, DatabaseGroup, DatabaseSearchResult, FileAction, PasswordDatabase};
 
 pub struct KeePassDatabase {
 
-}
-
-pub fn build_read_only_db_error() -> Error {
-    Error::new(ErrorKind::Unsupported, "database is read only")
 }
 
 impl PasswordDatabase for KeePassDatabase {
@@ -30,7 +27,15 @@ impl PasswordDatabase for KeePassDatabase {
         todo!()
     }
 
-    fn get_users(&self) -> Result<HashMap<usize, String>, Error> {
+    fn get_groups(&mut self) -> Result<Vec<DatabaseGroup>, Error> {
+        todo!()
+    }
+
+    fn get_users(&mut self) -> Result<HashMap<usize, String>, Error> {
+        todo!()
+    }
+
+    fn get_entities(&mut self, group_id: usize) -> Result<Vec<Box<dyn DatabaseEntity>>, Error> {
         todo!()
     }
 
@@ -42,7 +47,7 @@ impl PasswordDatabase for KeePassDatabase {
         Err(build_read_only_db_error())
     }
 
-    fn search(&self, search_string: String) -> Result<Vec<DatabaseSearchResult>, Error> {
+    fn search(&mut self, search_string: String) -> Result<Vec<DatabaseSearchResult>, Error> {
         todo!()
     }
 
@@ -50,16 +55,26 @@ impl PasswordDatabase for KeePassDatabase {
         Err(build_read_only_db_error())
     }
 
-    fn delete_group(&mut self, name: String) -> Result<(), Error> {
+    fn rename_group(&mut self, group_id: usize, new_name: String) -> Result<(), Error> {
         Err(build_read_only_db_error())
     }
 
-    fn delete_entity(&mut self, group: String, name: String) -> Result<(), Error> {
+    fn delete_group(&mut self, group_id: usize) -> Result<(), Error> {
         Err(build_read_only_db_error())
     }
 
-    fn add_entity(&mut self, group: String, name: String, user_id: usize, password: String,
+    fn delete_entity(&mut self, entity_id: usize) -> Result<(), Error> {
+        Err(build_read_only_db_error())
+    }
+
+    fn add_entity(&mut self, group_id: usize, name: String, user_id: usize, password: String,
                   url: Option<String>, properties: HashMap<String, String>) -> Result<(), Error> {
+        Err(build_read_only_db_error())
+    }
+
+    fn modify_entity(&mut self, entity_id: usize, group_id: usize, name: String, user_id: usize,
+                     password: String, url: Option<String>, properties: HashMap<String, String>)
+                     -> Result<(), Error> {
         Err(build_read_only_db_error())
     }
 

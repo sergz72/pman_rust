@@ -44,8 +44,9 @@ use hmac::{Hmac, Mac};
 use rand::RngCore;
 use rand::rngs::OsRng;
 use sha2::{Sha256, Digest};
-use crate::crypto::{AesProcessor, build_corrupted_data_error, ChachaProcessor, CryptoProcessor, NoEncryptionProcessor};
-use crate::pman::id_value_map::id_value_map::IdValueMap;
+use crate::crypto::{AesProcessor, ChachaProcessor, CryptoProcessor, NoEncryptionProcessor};
+use crate::error_builders::build_corrupted_data_error;
+use crate::pman::id_value_map::id_value_map::{ByteValue, IdValueMap};
 use crate::pman::ids::{DATABASE_VERSION_ID, ENCRYPTION_ALGORITHM1_PROPERTIES_ID,
                        ENCRYPTION_ALGORITHM2_PROPERTIES_ID, HASH_ALGORITHM_PROPERTIES_ID};
 use crate::pman::data_file::DataFile;
@@ -280,6 +281,13 @@ impl PmanDatabaseProperties {
         }
         Ok(v)
     }
+
+    fn get_from_names_file<T: ByteValue>(&mut self, id: u32) -> Result<T, Error> {
+        if let Some(p) = &mut self.names_file {
+            return p.get(id);
+        }
+        Err(build_names_file_not_initialized_error())
+    }
 }
 
 impl PmanDatabaseFile {
@@ -318,14 +326,14 @@ impl PmanDatabaseFile {
 
     pub fn open(&mut self, data: Vec<Vec<u8>>) -> Result<(), Error> {
         if self.properties.is_none() {
-            return Err(Error::new(ErrorKind::NotFound, "database properties aren't initialised"))
+            return Err(build_properties_not_initialized_error())
         }
         self.properties.as_mut().unwrap().open(data)
     }
 
     pub fn save(&mut self, file_name: String) -> Result<Vec<FileAction>, Error> {
         if self.properties.is_none() {
-            return Err(Error::new(ErrorKind::NotFound, "database properties aren't initialised"))
+            return Err(build_properties_not_initialized_error())
         }
         self.properties.as_mut().unwrap().save(file_name)
     }
@@ -333,6 +341,25 @@ impl PmanDatabaseFile {
     pub fn set_argon2(&mut self, hash_id: usize, iterations: u8, parallelism: u8, memory: u16) -> Result<(), Error> {
         todo!()
     }
+
+    pub fn get_from_names_file<T: ByteValue>(&mut self, id: u32) -> Result<T, Error> {
+        if let Some(p) = &mut self.properties {
+            return p.get_from_names_file(id);
+        }
+        Err(build_properties_not_initialized_error())
+    }
+}
+
+pub fn build_properties_not_initialized_error() -> Error {
+    Error::new(ErrorKind::NotFound, "database properties aren't initialised")
+}
+
+pub fn build_names_file_not_initialized_error() -> Error {
+    Error::new(ErrorKind::NotFound, "names file is not initialised")
+}
+
+pub fn build_passwords_file_not_initialized_error() -> Error {
+    Error::new(ErrorKind::NotFound, "passwords file is not initialised")
 }
 
 fn build_encryption_processor(algorithm_parameters: Vec<u8>, encryption_key: [u8; 32]) -> Result<Arc<dyn CryptoProcessor>, Error> {

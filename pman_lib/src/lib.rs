@@ -5,7 +5,7 @@ use thiserror::Error;
 use crate::keepass::keepass_database::KeePassDatabase;
 use crate::pman::pman_database::PmanDatabase;
 use crate::pman::pman_database_file::{build_argon2_key, build_argon2_properties};
-use crate::structs_interfaces::{FileAction, PasswordDatabase, PasswordDatabaseType};
+use crate::structs_interfaces::{DatabaseGroup, FileAction, PasswordDatabase, PasswordDatabaseType};
 use crate::structs_interfaces::CryptoEngine;
 use crate::structs_interfaces::HashAlgorithm;
 
@@ -13,6 +13,7 @@ mod structs_interfaces;
 mod keepass;
 mod pman;
 mod crypto;
+mod error_builders;
 
 uniffi::include_scaffolding!("pman_lib");
 
@@ -165,4 +166,8 @@ pub fn set_argon2(database_id: u64, hash_id: u64, iterations: u64, parallelism: 
 pub fn build_argon2_hash(password: Vec<u8>, iterations: isize, parallelism: isize, memory: isize, salt: [u8; 16]) -> Result<[u8; 32], Error> {
     let properties = build_argon2_properties(iterations as u8, parallelism as u8, memory as u16, salt);
     build_argon2_key(properties, &password)
+}
+
+fn get_groups(database_id: u64) -> Result<Vec<DatabaseGroup>, PmanError> {
+    todo!()
 }

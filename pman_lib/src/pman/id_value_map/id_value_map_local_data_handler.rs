@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 use std::sync::Arc;
 use uniffi::deps::bytes::BufMut;
-use crate::crypto::{build_corrupted_data_error, build_unsupported_error, CryptoProcessor};
+use crate::crypto::CryptoProcessor;
+use crate::error_builders::{build_corrupted_data_error, build_not_found_error};
 use crate::pman::id_value_map::id_value_map::{IdValueMapDataHandler, IdValueMapValue};
 
 pub struct IdValueMapLocalDataHandler {
@@ -23,11 +24,11 @@ impl IdValueMapDataHandler for IdValueMapLocalDataHandler {
     }
 
     fn get(&self, id: u32) -> Result<Vec<u8>, Error> {
-        Err(build_unsupported_error())
+        Err(build_not_found_error())
     }
 
     fn mget(&self, ids: Vec<u32>) -> Result<HashMap<u32, Vec<u8>>, Error> {
-        Err(build_unsupported_error())
+        Err(build_not_found_error())
     }
 
     fn save(&self, next_id: u32, map: &HashMap<u32, Option<IdValueMapValue>>, processor: Arc<dyn CryptoProcessor>,

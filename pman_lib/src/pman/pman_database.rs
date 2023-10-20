@@ -2,7 +2,12 @@ use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 use std::sync::{Arc, RwLock};
 use crate::pman::pman_database_file::PmanDatabaseFile;
-use crate::structs_interfaces::{DatabaseSearchResult, FileAction, PasswordDatabase};
+use crate::structs_interfaces::{DatabaseEntity, DatabaseGroup, DatabaseSearchResult, FileAction, PasswordDatabase};
+
+const GROUPS_ID: u32 = 1;
+const USERS_ID: u32 = 2;
+
+const ENTITIES_ID: u32 = 3;
 
 pub struct PmanDatabase {
     file: PmanDatabaseFile
@@ -30,7 +35,25 @@ impl PasswordDatabase for PmanDatabase {
         self.file.open(data)
     }
 
-    fn get_users(&self) -> Result<HashMap<usize, String>, Error> {
+    fn get_groups(&mut self) -> Result<Vec<DatabaseGroup>, Error> {
+        let groups: Vec<u8> = match self.file.get_from_names_file(GROUPS_ID) {
+            Ok(g) => g,
+            Err(e) => {
+                if e.kind() == ErrorKind::NotFound {
+                    Vec::new()
+                } else {
+                    return Err(e)
+                }
+            }
+        };
+        Ok(Vec::new())
+    }
+
+    fn get_users(&mut self) -> Result<HashMap<usize, String>, Error> {
+        todo!()
+    }
+
+    fn get_entities(&mut self, group_id: usize) -> Result<Vec<Box<dyn DatabaseEntity>>, Error> {
         todo!()
     }
 
@@ -42,7 +65,7 @@ impl PasswordDatabase for PmanDatabase {
         todo!()
     }
 
-    fn search(&self, search_string: String) -> Result<Vec<DatabaseSearchResult>, Error> {
+    fn search(&mut self, search_string: String) -> Result<Vec<DatabaseSearchResult>, Error> {
         todo!()
     }
 
@@ -50,16 +73,26 @@ impl PasswordDatabase for PmanDatabase {
         todo!()
     }
 
-    fn delete_group(&mut self, name: String) -> Result<(), Error> {
+    fn rename_group(&mut self, group_id: usize, new_name: String) -> Result<(), Error> {
         todo!()
     }
 
-    fn delete_entity(&mut self, group: String, name: String) -> Result<(), Error> {
+    fn delete_group(&mut self, group_id: usize) -> Result<(), Error> {
         todo!()
     }
 
-    fn add_entity(&mut self, group: String, name: String, user_id: usize, password: String,
+    fn delete_entity(&mut self, entity_id: usize) -> Result<(), Error> {
+        todo!()
+    }
+
+    fn add_entity(&mut self, group_id: usize, name: String, user_id: usize, password: String,
                   url: Option<String>, properties: HashMap<String, String>) -> Result<(), Error> {
+        todo!()
+    }
+
+    fn modify_entity(&mut self, entity_id: usize, group_id: usize, name: String, user_id: usize,
+                     password: String, url: Option<String>, properties: HashMap<String, String>)
+                     -> Result<(), Error> {
         todo!()
     }
 
