@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::Error;
 use std::sync::Arc;
 use crate::crypto::CryptoProcessor;
@@ -10,13 +10,14 @@ use crate::pman::ids::{ENCRYPTION_ALGORITHM1_PROPERTIES_ID, ENCRYPTION_ALGORITHM
 use crate::pman::pman_database_file::{default_aes_properties, default_argon2_properties, default_chacha_properties, FILE_LOCATION_LOCAL};
 
 pub struct DataFile {
+    is_updated: bool,
     data: IdValueMap
 }
 
 impl DataFile {
     pub fn new(file_info: &mut IdValueMap, processor2: Arc<dyn CryptoProcessor>) -> Result<DataFile, Error> {
         let handlers = new_data_file_handlers(file_info)?;
-        Ok(DataFile {data: IdValueMap::new(processor2, handlers)?})
+        Ok(DataFile {is_updated: true, data: IdValueMap::new(processor2, handlers)?})
     }
 
     pub fn pre_load(main_file_name: &String, file_extension: &str, file_info: &mut IdValueMap) -> Result<Option<String>, Error> {
@@ -25,7 +26,7 @@ impl DataFile {
 
     pub fn load(local_file_data: Option<Vec<u8>>, file_info: &mut IdValueMap, encryption_key: [u8; 32], alg1: u8, processor2: Arc<dyn CryptoProcessor>) -> Result<DataFile, Error> {
         let handlers = build_data_file_handlers(file_info, local_file_data, encryption_key, alg1)?;
-        Ok(DataFile {data: IdValueMap::new(processor2, handlers)?})
+        Ok(DataFile {is_updated: false, data: IdValueMap::new(processor2, handlers)?})
     }
 
     pub fn save(&mut self, file_name: String, encryption_key: [u8; 32], alg1: u8,
@@ -33,6 +34,7 @@ impl DataFile {
                 file_info: &IdValueMap) -> Result<Option<Vec<u8>>, Error> {
         let output = self.data.save(Some(processor2), Some(alg1),
                                     Some(encryption_key))?;
+        self.is_updated = false;
         Ok(output)
     }
 
@@ -52,12 +54,22 @@ impl DataFile {
         self.data.get(id)
     }
 
+    pub fn mget<T: ByteValue>(&mut self, ids: HashSet<u32>) -> Result<HashMap<u32, T>, Error> {
+        self.data.mget(ids)
+    }
+
     pub fn get_indirect<T: ByteValue>(&mut self, id: u32) -> Result<HashMap<u32, T>, Error> {
         self.data.get_indirect(id)
     }
 
     pub fn add<T: ByteValue>(&mut self, value: T) -> Result<u32, Error> {
+        self.is_updated = true;
         self.data.add(value)
+    }
+
+    pub fn set<T: ByteValue>(&mut self, id: u32, value: T) -> Result<(), Error> {
+        self.is_updated = true;
+        self.data.set(id, value)
     }
 }
 

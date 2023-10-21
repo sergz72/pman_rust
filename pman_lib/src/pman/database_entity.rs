@@ -1,8 +1,14 @@
 use std::collections::HashMap;
 use std::io::Error;
+use std::sync::{Arc, Mutex};
+use crate::pman::data_file::DataFile;
 use crate::pman::id_value_map::id_value_map::ByteValue;
+use crate::pman::pman_database_file::PmanDatabaseFile;
+use crate::structs_interfaces::DatabaseEntity;
 
 pub struct PmanDatabaseEntityFields {
+    name_id: u32,
+    password_id: u32,
     group_id: u32,
     user_id: u32,
     url: Option<u32>,
@@ -12,6 +18,7 @@ pub struct PmanDatabaseEntityFields {
 }
 
 pub struct PmanDatabaseEntity {
+    database_file: Arc<Mutex<PmanDatabaseFile>>,
     history: Vec<PmanDatabaseEntityFields>
 }
 
@@ -31,9 +38,49 @@ impl ByteValue for PmanDatabaseEntity {
     }
 }
 
+impl DatabaseEntity for PmanDatabaseEntity {
+    fn get_name(&self) -> Result<String, Error> {
+        let name_id = self.history.get(0).unwrap().name_id;
+        self.database_file.lock().unwrap().get(name_id)
+    }
+
+    fn get_user_id(&self) -> u32 {
+        self.history.get(0).unwrap().user_id
+    }
+
+    fn get_group_id(&self) -> u32 {
+        self.history.get(0).unwrap().group_id
+    }
+
+    fn get_password(&self) -> Result<String, Error> {
+        todo!()
+    }
+
+    fn get_url(&self) -> Result<Option<String>, Error> {
+        todo!()
+    }
+
+    fn get_property_names(&self) -> Result<Vec<String>, Error> {
+        todo!()
+    }
+
+    fn get_property_value(&self, index: u32) -> Result<String, Error> {
+        todo!()
+    }
+
+    fn modify(&mut self, new_group_id: Option<u32>, new_name: Option<String>, new_user_id: Option<u32>,
+              new_password: Option<String>, new_url: Option<String>,
+              properties: HashMap<String, String>) -> Result<(), Error> {
+        todo!()
+    }
+}
+
 impl PmanDatabaseEntity {
-    pub fn new(group_id: u32, user_id: u32, url: Option<u32>, properties: HashMap<u32, u32>) -> PmanDatabaseEntity {
-        PmanDatabaseEntity{history: vec![PmanDatabaseEntityFields{
+    pub fn new(names_file: Arc<Mutex<DataFile>>, name_id: u32, password_id: u32, group_id: u32,
+               user_id: u32, url: Option<u32>, properties: HashMap<u32, u32>) -> PmanDatabaseEntity {
+        PmanDatabaseEntity{names_file, history: vec![PmanDatabaseEntityFields{
+            name_id,
+            password_id,
             group_id,
             user_id,
             url,
@@ -42,8 +89,11 @@ impl PmanDatabaseEntity {
         }]}
     }
 
-    pub fn update(&mut self, group_id: u32, user_id: u32, url: Option<u32>, properties: HashMap<u32, u32>) {
+    pub fn update(&mut self, name_id: u32, password_id: u32, group_id: u32, user_id: u32,
+                  url: Option<u32>, properties: HashMap<u32, u32>) {
         self.history.insert(0, PmanDatabaseEntityFields{
+            name_id,
+            password_id,
             group_id,
             user_id,
             url,

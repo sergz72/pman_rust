@@ -31,19 +31,19 @@ impl PasswordDatabase for KeePassDatabase {
         todo!()
     }
 
-    fn get_users(&mut self) -> Result<HashMap<usize, String>, Error> {
+    fn get_users(&mut self) -> Result<HashMap<u32, String>, Error> {
         todo!()
     }
 
-    fn get_entities(&mut self, group_id: usize) -> Result<Vec<Box<dyn DatabaseEntity>>, Error> {
+    fn get_entities(&mut self, group_id: u32) -> Result<HashMap<u32, Box<dyn DatabaseEntity>>, Error> {
         todo!()
     }
 
-    fn add_user(&mut self, name: String) -> Result<usize, Error> {
+    fn add_user(&mut self, name: String) -> Result<u32, Error> {
         Err(build_read_only_db_error())
     }
 
-    fn remove_user(&mut self, id: usize) -> Result<(), Error> {
+    fn remove_user(&mut self, id: u32) -> Result<(), Error> {
         Err(build_read_only_db_error())
     }
 
@@ -51,30 +51,30 @@ impl PasswordDatabase for KeePassDatabase {
         todo!()
     }
 
-    fn add_group(&mut self, name: String) -> Result<usize, Error> {
+    fn add_group(&mut self, name: String) -> Result<u32, Error> {
         Err(build_read_only_db_error())
     }
 
-    fn rename_group(&mut self, group_id: usize, new_name: String) -> Result<(), Error> {
+    fn rename_group(&mut self, group_id: u32, new_name: String) -> Result<(), Error> {
         Err(build_read_only_db_error())
     }
 
-    fn delete_group(&mut self, group_id: usize) -> Result<(), Error> {
+    fn delete_group(&mut self, group_id: u32) -> Result<(), Error> {
         Err(build_read_only_db_error())
     }
 
-    fn delete_entity(&mut self, entity_id: usize) -> Result<(), Error> {
+    fn delete_entity(&mut self, entity_id: u32) -> Result<(), Error> {
         Err(build_read_only_db_error())
     }
 
-    fn add_entity(&mut self, group_id: usize, name: String, user_id: usize, password: String,
-                  url: Option<String>, properties: HashMap<String, String>) -> Result<(), Error> {
+    fn add_entity(&mut self, group_id: u32, name: String, user_id: u32, password: String,
+                  url: Option<String>, properties: HashMap<String, String>) -> Result<u32, Error> {
         Err(build_read_only_db_error())
     }
 
-    fn modify_entity(&mut self, entity_id: usize, group_id: usize, name: String, user_id: usize,
-                     password: String, url: Option<String>, properties: HashMap<String, String>)
-                     -> Result<(), Error> {
+    fn modify_entity(&mut self, entity_id: u32, new_group_id: Option<u32>, new_name: Option<String>,
+                     new_user_id: Option<u32>, new_password: Option<String>, new_url: Option<String>,
+                     properties: HashMap<String, String>) -> Result<(), Error> {
         Err(build_read_only_db_error())
     }
 

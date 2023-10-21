@@ -21,32 +21,27 @@ impl FileAction {
 }
 
 pub trait DatabaseEntity {
-    fn get_name(&self) -> String;
-    fn get_user_id(&self) -> usize;
-    fn get_group_id(&self) -> usize;
-    fn get_password(&self) -> String;
-    fn get_url(&self) -> Option<String>;
-    fn get_property_names(&self) -> Vec<String>;
-    fn get_property_value(&self, index: usize) -> String;
+    fn get_name(&self) -> Result<String, Error>;
+    fn get_user_id(&self) -> u32;
+    fn get_group_id(&self) -> u32;
+    fn get_password(&self) -> Result<String, Error>;
+    fn get_url(&self) -> Result<Option<String>, Error>;
+    fn get_property_names(&self) -> Result<Vec<String>, Error>;
+    fn get_property_value(&self, index: u32) -> Result<String, Error>;
 
-    fn set_name(&mut self, value: String) -> Result<(), Error>;
-    fn set_user_id(&mut self, id: usize) -> Result<(), Error>;
-    fn set_group_id(&mut self, id: usize) -> Result<(), Error>;
-    fn set_password(&mut self, value: String) -> Result<(), Error>;
-    fn set_url(&mut self, value: Option<String>) -> Result<(), Error>;
-    fn set_property(&mut self, id: usize, value: String) -> Result<(), Error>;
-    fn add_property(&mut self, name: String, value: String) -> Result<(), Error>;
-    fn delete_property(&mut self, name: String) -> Result<(), Error>;
+    fn modify(&mut self, new_group_id: Option<u32>, new_name: Option<String>, new_user_id: Option<u32>,
+              new_password: Option<String>, new_url: Option<String>, properties: HashMap<String, String>)
+        -> Result<(), Error>;
 }
 
 pub struct DatabaseSearchResult {
-    pub group_id: usize,
+    pub group_id: u32,
     pub entities: Vec<Box<dyn DatabaseEntity>>
 }
 
 pub struct DatabaseGroup {
     pub name: String,
-    pub id: usize,
+    pub id: u32,
     pub entities_count: usize
 }
 
@@ -61,20 +56,20 @@ pub trait PasswordDatabase {
     // open - opens database using download results.
     fn open(&mut self, data: Vec<Vec<u8>>) -> Result<(), Error>;
     fn get_groups(&mut self) -> Result<Vec<DatabaseGroup>, Error>;
-    fn get_users(&mut self) -> Result<HashMap<usize, String>, Error>;
-    fn get_entities(&mut self, group_id: usize) -> Result<Vec<Box<dyn DatabaseEntity>>, Error>;
-    fn add_user(&mut self, name: String) -> Result<usize, Error>;
-    fn remove_user(&mut self, id: usize) -> Result<(), Error>;
+    fn get_users(&mut self) -> Result<HashMap<u32, String>, Error>;
+    fn get_entities(&mut self, group_id: u32) -> Result<HashMap<u32, Box<dyn DatabaseEntity>>, Error>;
+    fn add_user(&mut self, name: String) -> Result<u32, Error>;
+    fn remove_user(&mut self, id: u32) -> Result<(), Error>;
     fn search(&mut self, search_string: String) -> Result<Vec<DatabaseSearchResult>, Error>;
-    fn add_group(&mut self, name: String) -> Result<usize, Error>;
-    fn rename_group(&mut self, group_id: usize, new_name: String) -> Result<(), Error>;
-    fn delete_group(&mut self, id: usize) -> Result<(), Error>;
-    fn delete_entity(&mut self, entity_id: usize) -> Result<(), Error>;
-    fn add_entity(&mut self, group_id: usize, name: String, user_id: usize, password: String,
-                  url: Option<String>, properties: HashMap<String, String>) -> Result<(), Error>;
-    fn modify_entity(&mut self, entity_id: usize, group_id: usize, name: String, user_id: usize,
-                     password: String, url: Option<String>, properties: HashMap<String, String>)
-        -> Result<(), Error>;
+    fn add_group(&mut self, name: String) -> Result<u32, Error>;
+    fn rename_group(&mut self, group_id: u32, new_name: String) -> Result<(), Error>;
+    fn delete_group(&mut self, id: u32) -> Result<(), Error>;
+    fn delete_entity(&mut self, entity_id: u32) -> Result<(), Error>;
+    fn add_entity(&mut self, group_id: u32, name: String, user_id: u32, password: String,
+                  url: Option<String>, properties: HashMap<String, String>) -> Result<u32, Error>;
+    fn modify_entity(&mut self, entity_id: u32, new_group_id: Option<u32>, new_name: Option<String>,
+                     new_user_id: Option<u32>, new_password: Option<String>, new_url: Option<String>,
+                     properties: HashMap<String, String>) -> Result<(), Error>;
     fn save(&mut self, file_name: String) -> Result<Vec<FileAction>, Error>;
 }
 

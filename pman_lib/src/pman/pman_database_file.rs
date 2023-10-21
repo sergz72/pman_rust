@@ -36,9 +36,9 @@ passwords file structure
 
 */
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::{Error, ErrorKind};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use argon2::{Algorithm, Argon2, Params, Version};
 use hmac::digest::KeyInit;
 use hmac::{Hmac, Mac};
@@ -280,12 +280,20 @@ impl PmanDatabaseProperties {
         if let Some(a) = action2 {
             v.push(FileAction{ file_name: file_name +  ".passwords", data: a })
         }
+        self.is_updated = false;
         Ok(v)
     }
 
     fn get_from_names_file<T: ByteValue>(&mut self, id: u32) -> Result<T, Error> {
         if let Some(p) = &mut self.names_file {
             return p.get(id);
+        }
+        Err(build_names_file_not_initialized_error())
+    }
+
+    fn mget_from_names_file<T: ByteValue>(&mut self, ids: HashSet<u32>) -> Result<HashMap<u32, T>, Error> {
+        if let Some(p) = &mut self.names_file {
+            return p.mget(ids);
         }
         Err(build_names_file_not_initialized_error())
     }
@@ -300,6 +308,13 @@ impl PmanDatabaseProperties {
     fn add_to_names_file<T: ByteValue>(&mut self, value: T) -> Result<u32, Error> {
         if let Some(p) = &mut self.names_file {
             return p.add(value);
+        }
+        Err(build_names_file_not_initialized_error())
+    }
+
+    fn set_in_names_file<T: ByteValue>(&mut self, id: u32, value: T) -> Result<(), Error> {
+        if let Some(p) = &mut self.names_file {
+            return p.set(id, value);
         }
         Err(build_names_file_not_initialized_error())
     }
@@ -364,6 +379,13 @@ impl PmanDatabaseFile {
         Err(build_properties_not_initialized_error())
     }
 
+    pub fn mget_from_names_file<T: ByteValue>(&mut self, ids: HashSet<u32>) -> Result<HashMap<u32, T>, Error> {
+        if let Some(p) = &mut self.properties {
+            return p.mget_from_names_file(ids);
+        }
+        Err(build_properties_not_initialized_error())
+    }
+
     pub fn get_indirect_from_names_file<T: ByteValue>(&mut self, id: u32) -> Result<HashMap<u32, T>, Error> {
         if let Some(p) = &mut self.properties {
             return p.get_indirect_from_names_file(id);
@@ -374,6 +396,13 @@ impl PmanDatabaseFile {
     pub fn add_to_names_file<T: ByteValue>(&mut self, value: T) -> Result<u32, Error> {
         if let Some(p) = &mut self.properties {
             return p.add_to_names_file(value);
+        }
+        Err(build_properties_not_initialized_error())
+    }
+
+    pub fn set_in_names_file<T: ByteValue>(&mut self, id: u32, value: T) -> Result<(), Error> {
+        if let Some(p) = &mut self.properties {
+            return p.set_in_names_file(id, value);
         }
         Err(build_properties_not_initialized_error())
     }
