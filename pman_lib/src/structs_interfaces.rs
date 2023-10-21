@@ -26,17 +26,13 @@ pub trait DatabaseEntity {
     fn get_group_id(&self) -> u32;
     fn get_password(&self) -> Result<String, Error>;
     fn get_url(&self) -> Result<Option<String>, Error>;
-    fn get_property_names(&self) -> Result<Vec<String>, Error>;
+    fn get_property_names(&self) -> Result<HashMap<u32, String>, Error>;
     fn get_property_value(&self, index: u32) -> Result<String, Error>;
 
     fn modify(&mut self, new_group_id: Option<u32>, new_name: Option<String>, new_user_id: Option<u32>,
-              new_password: Option<String>, new_url: Option<String>, properties: HashMap<String, String>)
+              new_password: Option<String>, new_url: Option<String>, new_properties: HashMap<String, String>,
+              modified_properties: HashMap<u32, Option<String>>)
         -> Result<(), Error>;
-}
-
-pub struct DatabaseSearchResult {
-    pub group_id: u32,
-    pub entities: Vec<Box<dyn DatabaseEntity>>
 }
 
 pub struct DatabaseGroup {
@@ -60,7 +56,7 @@ pub trait PasswordDatabase {
     fn get_entities(&mut self, group_id: u32) -> Result<HashMap<u32, Box<dyn DatabaseEntity>>, Error>;
     fn add_user(&mut self, name: String) -> Result<u32, Error>;
     fn remove_user(&mut self, id: u32) -> Result<(), Error>;
-    fn search(&mut self, search_string: String) -> Result<Vec<DatabaseSearchResult>, Error>;
+    fn search(&mut self, search_string: String) -> Result<HashMap<u32, HashMap<u32, Box<dyn DatabaseEntity>>>, Error>;
     fn add_group(&mut self, name: String) -> Result<u32, Error>;
     fn rename_group(&mut self, group_id: u32, new_name: String) -> Result<(), Error>;
     fn delete_group(&mut self, id: u32) -> Result<(), Error>;

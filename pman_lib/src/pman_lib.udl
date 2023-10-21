@@ -16,28 +16,72 @@ namespace pman_lib {
   void close(u64 database_id);
   [Throws=PmanError]
   void set_argon2(u64 database_id, u64 hash_id, u64 iterations, u64 parallelism, u64 memory);
+  [Throws=PmanError]
+  record<u32, string> get_groups(u64 database_id);
+  [Throws=PmanError]
+  u32 add_group(u64 database_id, string name);
+  [Throws=PmanError]
+  void delete_group(u64 database_id, u32 id);
+  [Throws=PmanError]
+  record<u32, string> get_users(u64 database_id);
+  [Throws=PmanError]
+  u32 add_user(u64 database_id, string name);
+  [Throws=PmanError]
+  void delete_user(u64 database_id, u32 id);
+  [Throws=PmanError]
+  record<u32, DatabaseEntity> get_entities(u64 database_id, u32 group_id);
+  [Throws=PmanError]
+  u32 add_entity(u32 group_id, string name, u32 user_id, string password, string? url, record<string, string> properties);
+  [Throws=PmanError]
+  void delete_entity(u64 database_id, u32 id);
+  [Throws=PmanError]
+  record<u32, record<u32, DatabaseEntity>> search(u64 database_id, string search_string);
 };
 
 [Error]
 interface PmanError {
-    ErrorMessage(string error_text);
+  ErrorMessage(string error_text);
 };
 
 enum PasswordDatabaseType {
-	"KeePass",
-	"Pman",
+  "KeePass",
+  "Pman",
 };
 
 enum HashAlgorithm {
-	"Argon2",
+  "Argon2",
 };
 
 enum CryptoEngine {
-	"AES",
-	"Chacha20"
+  "AES",
+  "Chacha20"
 };
 
 interface FileAction {
-    string get_file_name();
-    bytes get_data();
+  string get_file_name();
+  bytes get_data();
+};
+
+interface DatabaseGroup {
+  string get_name();
+  u32 get_id();
+  u32 get_entities_count();
+};
+
+interface DatabaseEntity {
+  [Throws=PmanError]
+  string get_name();
+  u32 get_group_id();
+  u32 get_user_id();
+  [Throws=PmanError]
+  string get_password();
+  [Throws=PmanError]
+  string? get_url();
+  [Throws=PmanError]
+  record<u32, string> get_property_names();
+  [Throws=PmanError]
+  string get_property_value(u32 id);
+  [Throws=PmanError]
+  void modify(u32? new_group_id, string? new_name, u32? new_user_id, string? new_password, string? new_url,
+              record<string, string> new_properties, record<u32, string?> modified_properties);
 };
