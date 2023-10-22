@@ -38,7 +38,7 @@ passwords file structure
 
 use std::collections::{HashMap, HashSet};
 use std::io::{Error, ErrorKind};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use argon2::{Algorithm, Argon2, Params, Version};
 use hmac::digest::KeyInit;
 use hmac::{Hmac, Mac};
@@ -70,8 +70,10 @@ pub const FILE_LOCATION_REDIS: u8 = 3;
 pub struct PmanDatabaseProperties {
     password_hash: Vec<u8>,
     password2_hash: Vec<u8>,
-    encryption_key: [u8; 32],
-    encryption2_key: [u8; 32],
+    names_file_encryption_key1: [u8; 32],
+    names_file_encryption_key2: [u8; 32],
+    passwords_file_encryption_key1: [u8; 32],
+    passwords_file_encryption_key2: [u8; 32],
     header: IdValueMap,
     names_files_info: IdValueMap,
     passwords_files_info: IdValueMap,
@@ -104,26 +106,32 @@ impl PmanDatabaseProperties {
         let (alg1, alg2) = get_encryption_algorithms(&mut h)?;
         let a1 = alg1[0];
         // initially generating random key - it will be overwritten on save
-        let mut encryption_key = [0u8; 32];
-        OsRng.fill_bytes(&mut encryption_key);
-        let processor12 = build_encryption_processor(alg2, encryption_key)?;
+        let mut names_file_encryption_key1 = [0u8; 32];
+        OsRng.fill_bytes(&mut names_file_encryption_key1);
+        let mut names_file_encryption_key2 = [0u8; 32];
+        OsRng.fill_bytes(&mut names_file_encryption_key2);
+        let processor12 = build_encryption_processor(alg2, names_file_encryption_key2)?;
         let mut names_files_info = DataFile::build_file_info(processor12.clone(), false)?;
         let names_file = DataFile::new(&mut names_files_info, processor12.clone())?;
 
         let (alg21, alg22) = get_encryption_algorithms(&mut names_files_info)?;
         let a2 = alg21[0];
         // initially generating random key - it will be overwritten on save
-        let mut encryption2_key = [0u8; 32];
-        OsRng.fill_bytes(&mut encryption2_key);
-        let processor22 = build_encryption_processor(alg22, encryption_key)?;
+        let mut passwords_file_encryption_key1 = [0u8; 32];
+        OsRng.fill_bytes(&mut passwords_file_encryption_key1);
+        let mut passwords_file_encryption_key2 = [0u8; 32];
+        OsRng.fill_bytes(&mut passwords_file_encryption_key2);
+        let processor22 = build_encryption_processor(alg22, passwords_file_encryption_key2)?;
         let mut passwords_files_info = DataFile::build_file_info(processor22.clone(), true)?;
         let passwords_file = DataFile::new(&mut passwords_files_info, processor22.clone())?;
 
         Ok(PmanDatabaseProperties{
             password_hash,
             password2_hash,
-            encryption_key,
-            encryption2_key,
+            names_file_encryption_key1,
+            names_file_encryption_key2,
+            passwords_file_encryption_key1,
+            passwords_file_encryption_key2,
             header: h,
             names_files_info,
             passwords_files_info,
@@ -145,21 +153,21 @@ impl PmanDatabaseProperties {
         let _v = validate_database_version(&mut h)?;
         let (alg1, alg2) = get_encryption_algorithms(&mut h)?;
         let a1 = alg1[0];
-        let encryption_key = build_encryption_key(&mut h, &password_hash)?;
-        let l2 = validate_data_hmac(&encryption_key, data, data_length)?;
-        let processor11 = build_encryption_processor(alg1, encryption_key)?;
+        let (names_file_encryption_key1, names_file_encryption_key2) = build_encryption_keys(&mut h, &password_hash, &password2_hash)?;
+        let l2 = validate_data_hmac(&names_file_encryption_key1, data, data_length)?;
+        let processor11 = build_encryption_processor(alg1, names_file_encryption_key1)?;
         decrypt_data(processor11.clone(), data, offset, l2)?;
 
-        let processor12 = build_encryption_processor(alg2, encryption_key)?;
+        let processor12 = build_encryption_processor(alg2, names_file_encryption_key2)?;
         let (handler2, offset2) = IdValueMapLocalDataHandler::load(data, offset)?;
         let mut names_files_info = IdValueMap::new(processor12.clone(), vec![Box::new(handler2)])?;
 
         let (alg21, alg22) = get_encryption_algorithms(&mut names_files_info)?;
         let a2 = alg21[0];
-        let encryption2_key = build_encryption_key(&mut names_files_info, &password2_hash)?;
-        let processor21 = build_encryption_processor(alg21, encryption2_key)?;
+        let (passwords_file_encryption_key1, passwords_file_encryption_key2) = build_encryption_keys(&mut names_files_info, &password2_hash, &password_hash)?;
+        let processor21 = build_encryption_processor(alg21, passwords_file_encryption_key1)?;
         decrypt_data(processor21.clone(), data, offset2, l2)?;
-        let processor22 = build_encryption_processor(alg22, encryption2_key)?;
+        let processor22 = build_encryption_processor(alg22, passwords_file_encryption_key2)?;
         let (handler3, offset3) = IdValueMapLocalDataHandler::load(data, offset2)?;
         let mut passwords_files_info = IdValueMap::new(processor22.clone(), vec![Box::new(handler3)])?;
 
@@ -181,8 +189,10 @@ impl PmanDatabaseProperties {
         let properties = PmanDatabaseProperties{
             password_hash,
             password2_hash,
-            encryption_key,
-            encryption2_key,
+            names_file_encryption_key1,
+            names_file_encryption_key2,
+            passwords_file_encryption_key1,
+            passwords_file_encryption_key2,
             header: h,
             names_files_info,
             passwords_files_info,
@@ -215,11 +225,11 @@ impl PmanDatabaseProperties {
         };
 
         self.names_file = Some(DataFile::load(names_file_data,
-                                              &mut self.names_files_info, self.encryption_key,
+                                              &mut self.names_files_info, self.names_file_encryption_key2,
                                               self.alg1, self.processor12.clone())?);
         self.passwords_file = Some(DataFile::load(passwords_file_data,
                                                   &mut self.passwords_files_info,
-                                                  self.encryption2_key, self.alg21,
+                                                  self.passwords_file_encryption_key2, self.alg21,
                                                   self.processor22.clone())?);
 
         Ok(())
@@ -240,40 +250,41 @@ impl PmanDatabaseProperties {
             modify_header_algorithm_properties(&mut self.names_files_info)?;
             let (alg1, alg2) = get_encryption_algorithms(&mut self.header)?;
             self.alg1 = alg1[0];
-            self.encryption_key = build_encryption_key(&mut self.header, &self.password_hash)?;
-            self.processor12 = build_encryption_processor(alg2, self.encryption_key)?;
-            let mut data2 = self.names_files_info.save(Some(self.processor12.clone()), None, None)?.unwrap();
+            (self.names_file_encryption_key1, self.names_file_encryption_key2) =
+                build_encryption_keys(&mut self.header, &self.password_hash, &self.password2_hash)?;
+            self.processor12 = build_encryption_processor(alg2, self.names_file_encryption_key2)?;
+            let mut data2 =
+                self.names_files_info.save(Some(self.processor12.clone()), None, None)?.unwrap();
             output.append(&mut data2);
             let offset2 = output.len();
 
             // passwords info
             let (alg21, alg22) = get_encryption_algorithms(&mut self.names_files_info)?;
             self.alg21 = alg21[0];
-            self.encryption2_key = build_encryption_key(&mut self.names_files_info, &self.password2_hash)?;
-            self.processor22 = build_encryption_processor(alg22, self.encryption2_key)?;
-            let mut data3 = self.passwords_files_info.save(Some(self.processor22.clone()), None, None)?.unwrap();
+            (self.passwords_file_encryption_key1, self.passwords_file_encryption_key2) =
+                build_encryption_keys(&mut self.names_files_info, &self.password2_hash, &self.password_hash)?;
+            self.processor22 = build_encryption_processor(alg22, self.passwords_file_encryption_key2)?;
+            let mut data3 =
+                self.passwords_files_info.save(Some(self.processor22.clone()), None, None)?.unwrap();
             output.append(&mut data3);
             let ol = output.len();
 
             // encrypt passwords info
-            let processor21 = build_encryption_processor(alg21, self.encryption2_key)?;
+            let processor21 = build_encryption_processor(alg21, self.passwords_file_encryption_key1)?;
             encrypt_data(processor21, &mut output, offset2, ol)?;
 
             // encrypt names+passwords info
-            let processor11 = build_encryption_processor(alg1, self.encryption_key)?;
+            let processor11 = build_encryption_processor(alg1, self.names_file_encryption_key1)?;
             encrypt_data(processor11, &mut output, offset, ol)?;
-            add_data_hash_and_hmac(&mut output, self.encryption_key)?;
+            add_data_hash_and_hmac(&mut output, self.names_file_encryption_key1)?;
             v.push(FileAction::new(file_name.clone(), output));
         }
         let action1 =
-            self.names_file.as_mut().unwrap().save(file_name.clone(), self.encryption_key,
-                                                   self.alg1, self.processor12.clone(),
-                                                   &self.names_files_info)?;
+            self.names_file.as_mut().unwrap().save(self.names_file_encryption_key2,
+                                                   self.alg1, self.processor12.clone())?;
         let action2 =
-            self.passwords_file.as_mut().unwrap().save(file_name.clone(),
-                                                       self.encryption2_key,
-                                                       self.alg21, self.processor22.clone(),
-                                                       &self.passwords_files_info)?;
+            self.passwords_file.as_mut().unwrap().save(self.passwords_file_encryption_key2,
+                                                       self.alg21, self.processor22.clone())?;
         if let Some(a) = action1 {
             v.push(FileAction{ file_name: file_name.clone() +  ".names", data: a })
         }
@@ -416,8 +427,12 @@ pub fn build_names_file_not_initialized_error() -> Error {
     Error::new(ErrorKind::NotFound, "names file is not initialised")
 }
 
-pub fn build_passwords_file_not_initialized_error() -> Error {
+/*pub fn build_passwords_file_not_initialized_error() -> Error {
     Error::new(ErrorKind::NotFound, "passwords file is not initialised")
+}*/
+
+pub fn build_unsupported_algorithm_error() -> Error {
+    Error::new(ErrorKind::Unsupported, "unsupported encryption algorithm")
 }
 
 fn build_encryption_processor(algorithm_parameters: Vec<u8>, encryption_key: [u8; 32]) -> Result<Arc<dyn CryptoProcessor>, Error> {
@@ -429,10 +444,6 @@ fn build_encryption_processor(algorithm_parameters: Vec<u8>, encryption_key: [u8
         ENCRYPTION_ALGORITHM_CHACHA20 => build_chacha_processor(algorithm_parameters, encryption_key),
         _ => Err(build_unsupported_algorithm_error())
     }
-}
-
-pub fn build_unsupported_algorithm_error() -> Error {
-    Error::new(ErrorKind::Unsupported, "unsupported encryption algorithm")
 }
 
 pub fn build_aes_processor(parameters: Vec<u8>, key: [u8; 32]) -> Result<Arc<dyn CryptoProcessor>, Error> {
@@ -492,13 +503,23 @@ pub fn get_encryption_algorithms(header: &mut IdValueMap) -> Result<(Vec<u8>, Ve
     return Ok((alg1, alg2))
 }
 
-pub fn build_encryption_key(header: &mut IdValueMap, password_hash: &Vec<u8>) -> Result<[u8;32], Error> {
+pub fn build_encryption_keys(header: &mut IdValueMap, password_hash: &Vec<u8>,
+                             password2_hash: &Vec<u8>) -> Result<([u8;32], [u8;32]), Error> {
     let alg: Vec<u8> = header.get(HASH_ALGORITHM_PROPERTIES_ID)?;
     if alg.len() == 0 {
         return Err(build_corrupted_data_error())
     }
+    let mut hasher = Sha256::new();
+    hasher.update(password_hash);
+    hasher.update(password2_hash);
+    let hash = hasher.finalize();
+    let passwords_hash = Vec::from(hash.as_slice());
     match alg[0] {
-        HASH_ALGORITHM_ARGON2 => build_argon2_key(alg, password_hash),
+        HASH_ALGORITHM_ARGON2 => {
+            let key1 = build_argon2_key(alg.clone(), &passwords_hash)?;
+            let key2 = build_argon2_key(alg, password_hash)?;
+            Ok((key1, key2))
+        },
         _ => Err(Error::new(ErrorKind::Unsupported, "unsupported hash algorithm"))
     }
 }

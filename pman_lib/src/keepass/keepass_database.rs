@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 use std::sync::{Arc, RwLock};
 use crate::error_builders::build_read_only_db_error;
-use crate::structs_interfaces::{DatabaseEntity, DatabaseGroup, DatabaseSearchResult, FileAction, PasswordDatabase};
+use crate::structs_interfaces::{DatabaseGroup, FileAction, PasswordDatabase, PasswordDatabaseEntity};
 
 pub struct KeePassDatabase {
 
@@ -35,7 +35,7 @@ impl PasswordDatabase for KeePassDatabase {
         todo!()
     }
 
-    fn get_entities(&mut self, group_id: u32) -> Result<HashMap<u32, Box<dyn DatabaseEntity>>, Error> {
+    fn get_entities(&mut self, group_id: u32) -> Result<HashMap<u32, Box<dyn PasswordDatabaseEntity>>, Error> {
         todo!()
     }
 
@@ -47,7 +47,7 @@ impl PasswordDatabase for KeePassDatabase {
         Err(build_read_only_db_error())
     }
 
-    fn search(&mut self, search_string: String) -> Result<Vec<DatabaseSearchResult>, Error> {
+    fn search(&mut self, search_string: String) -> Result<HashMap<u32, HashMap<u32, Box<dyn PasswordDatabaseEntity>>>, Error> {
         todo!()
     }
 

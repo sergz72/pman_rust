@@ -372,9 +372,35 @@ internal interface _UniFFILib : Library {
     ): RustBuffer.ByValue
     fun uniffi_pman_lib_fn_method_fileaction_get_data(`ptr`: Pointer,_uniffi_out_err: RustCallStatus, 
     ): RustBuffer.ByValue
+    fun uniffi_pman_lib_fn_free_databasegroup(`ptr`: Pointer,_uniffi_out_err: RustCallStatus, 
+    ): Unit
+    fun uniffi_pman_lib_fn_method_databasegroup_get_name(`ptr`: Pointer,_uniffi_out_err: RustCallStatus, 
+    ): RustBuffer.ByValue
+    fun uniffi_pman_lib_fn_method_databasegroup_get_id(`ptr`: Pointer,_uniffi_out_err: RustCallStatus, 
+    ): Int
+    fun uniffi_pman_lib_fn_method_databasegroup_get_entities_count(`ptr`: Pointer,_uniffi_out_err: RustCallStatus, 
+    ): Int
+    fun uniffi_pman_lib_fn_free_databaseentity(`ptr`: Pointer,_uniffi_out_err: RustCallStatus, 
+    ): Unit
+    fun uniffi_pman_lib_fn_method_databaseentity_get_name(`ptr`: Pointer,_uniffi_out_err: RustCallStatus, 
+    ): RustBuffer.ByValue
+    fun uniffi_pman_lib_fn_method_databaseentity_get_group_id(`ptr`: Pointer,_uniffi_out_err: RustCallStatus, 
+    ): Int
+    fun uniffi_pman_lib_fn_method_databaseentity_get_user_id(`ptr`: Pointer,_uniffi_out_err: RustCallStatus, 
+    ): Int
+    fun uniffi_pman_lib_fn_method_databaseentity_get_password(`ptr`: Pointer,_uniffi_out_err: RustCallStatus, 
+    ): RustBuffer.ByValue
+    fun uniffi_pman_lib_fn_method_databaseentity_get_url(`ptr`: Pointer,_uniffi_out_err: RustCallStatus, 
+    ): RustBuffer.ByValue
+    fun uniffi_pman_lib_fn_method_databaseentity_get_property_names(`ptr`: Pointer,_uniffi_out_err: RustCallStatus, 
+    ): RustBuffer.ByValue
+    fun uniffi_pman_lib_fn_method_databaseentity_get_property_value(`ptr`: Pointer,`id`: Int,_uniffi_out_err: RustCallStatus, 
+    ): RustBuffer.ByValue
+    fun uniffi_pman_lib_fn_method_databaseentity_modify(`ptr`: Pointer,`newName`: RustBuffer.ByValue,`newGroupId`: RustBuffer.ByValue,`newUserId`: RustBuffer.ByValue,`newPassword`: RustBuffer.ByValue,`newUrl`: RustBuffer.ByValue,`newProperties`: RustBuffer.ByValue,`modifiedProperties`: RustBuffer.ByValue,_uniffi_out_err: RustCallStatus, 
+    ): Unit
     fun uniffi_pman_lib_fn_func_lib_init(_uniffi_out_err: RustCallStatus, 
     ): Unit
-    fun uniffi_pman_lib_fn_func_create(`databaseType`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,`password2`: RustBuffer.ByValue,`keyFileContents`: RustBuffer.ByValue,_uniffi_out_err: RustCallStatus, 
+    fun uniffi_pman_lib_fn_func_create(`databaseType`: RustBuffer.ByValue,`passwordHash`: RustBuffer.ByValue,`password2Hash`: RustBuffer.ByValue,`keyFileContents`: RustBuffer.ByValue,_uniffi_out_err: RustCallStatus, 
     ): Long
     fun uniffi_pman_lib_fn_func_prepare(`data`: RustBuffer.ByValue,`fileName`: RustBuffer.ByValue,_uniffi_out_err: RustCallStatus, 
     ): Long
@@ -390,6 +416,26 @@ internal interface _UniFFILib : Library {
     ): Unit
     fun uniffi_pman_lib_fn_func_set_argon2(`databaseId`: Long,`hashId`: Long,`iterations`: Long,`parallelism`: Long,`memory`: Long,_uniffi_out_err: RustCallStatus, 
     ): Unit
+    fun uniffi_pman_lib_fn_func_get_groups(`databaseId`: Long,_uniffi_out_err: RustCallStatus, 
+    ): RustBuffer.ByValue
+    fun uniffi_pman_lib_fn_func_add_group(`databaseId`: Long,`name`: RustBuffer.ByValue,_uniffi_out_err: RustCallStatus, 
+    ): Int
+    fun uniffi_pman_lib_fn_func_delete_group(`databaseId`: Long,`id`: Int,_uniffi_out_err: RustCallStatus, 
+    ): Unit
+    fun uniffi_pman_lib_fn_func_get_users(`databaseId`: Long,_uniffi_out_err: RustCallStatus, 
+    ): RustBuffer.ByValue
+    fun uniffi_pman_lib_fn_func_add_user(`databaseId`: Long,`name`: RustBuffer.ByValue,_uniffi_out_err: RustCallStatus, 
+    ): Int
+    fun uniffi_pman_lib_fn_func_delete_user(`databaseId`: Long,`id`: Int,_uniffi_out_err: RustCallStatus, 
+    ): Unit
+    fun uniffi_pman_lib_fn_func_get_entities(`databaseId`: Long,`groupId`: Int,_uniffi_out_err: RustCallStatus, 
+    ): RustBuffer.ByValue
+    fun uniffi_pman_lib_fn_func_add_entity(`databaseId`: Long,`name`: RustBuffer.ByValue,`groupId`: Int,`userId`: Int,`password`: RustBuffer.ByValue,`url`: RustBuffer.ByValue,`properties`: RustBuffer.ByValue,_uniffi_out_err: RustCallStatus, 
+    ): Int
+    fun uniffi_pman_lib_fn_func_delete_entity(`databaseId`: Long,`id`: Int,_uniffi_out_err: RustCallStatus, 
+    ): Unit
+    fun uniffi_pman_lib_fn_func_search(`databaseId`: Long,`searchString`: RustBuffer.ByValue,_uniffi_out_err: RustCallStatus, 
+    ): RustBuffer.ByValue
     fun ffi_pman_lib_rustbuffer_alloc(`size`: Int,_uniffi_out_err: RustCallStatus, 
     ): RustBuffer.ByValue
     fun ffi_pman_lib_rustbuffer_from_bytes(`bytes`: ForeignBytes.ByValue,_uniffi_out_err: RustCallStatus, 
@@ -416,9 +462,51 @@ internal interface _UniFFILib : Library {
     ): Short
     fun uniffi_pman_lib_checksum_func_set_argon2(
     ): Short
+    fun uniffi_pman_lib_checksum_func_get_groups(
+    ): Short
+    fun uniffi_pman_lib_checksum_func_add_group(
+    ): Short
+    fun uniffi_pman_lib_checksum_func_delete_group(
+    ): Short
+    fun uniffi_pman_lib_checksum_func_get_users(
+    ): Short
+    fun uniffi_pman_lib_checksum_func_add_user(
+    ): Short
+    fun uniffi_pman_lib_checksum_func_delete_user(
+    ): Short
+    fun uniffi_pman_lib_checksum_func_get_entities(
+    ): Short
+    fun uniffi_pman_lib_checksum_func_add_entity(
+    ): Short
+    fun uniffi_pman_lib_checksum_func_delete_entity(
+    ): Short
+    fun uniffi_pman_lib_checksum_func_search(
+    ): Short
     fun uniffi_pman_lib_checksum_method_fileaction_get_file_name(
     ): Short
     fun uniffi_pman_lib_checksum_method_fileaction_get_data(
+    ): Short
+    fun uniffi_pman_lib_checksum_method_databasegroup_get_name(
+    ): Short
+    fun uniffi_pman_lib_checksum_method_databasegroup_get_id(
+    ): Short
+    fun uniffi_pman_lib_checksum_method_databasegroup_get_entities_count(
+    ): Short
+    fun uniffi_pman_lib_checksum_method_databaseentity_get_name(
+    ): Short
+    fun uniffi_pman_lib_checksum_method_databaseentity_get_group_id(
+    ): Short
+    fun uniffi_pman_lib_checksum_method_databaseentity_get_user_id(
+    ): Short
+    fun uniffi_pman_lib_checksum_method_databaseentity_get_password(
+    ): Short
+    fun uniffi_pman_lib_checksum_method_databaseentity_get_url(
+    ): Short
+    fun uniffi_pman_lib_checksum_method_databaseentity_get_property_names(
+    ): Short
+    fun uniffi_pman_lib_checksum_method_databaseentity_get_property_value(
+    ): Short
+    fun uniffi_pman_lib_checksum_method_databaseentity_modify(
     ): Short
     fun ffi_pman_lib_uniffi_contract_version(
     ): Int
@@ -440,7 +528,7 @@ private fun uniffiCheckApiChecksums(lib: _UniFFILib) {
     if (lib.uniffi_pman_lib_checksum_func_lib_init() != 26793.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_pman_lib_checksum_func_create() != 11968.toShort()) {
+    if (lib.uniffi_pman_lib_checksum_func_create() != 62806.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_pman_lib_checksum_func_prepare() != 39598.toShort()) {
@@ -464,16 +552,99 @@ private fun uniffiCheckApiChecksums(lib: _UniFFILib) {
     if (lib.uniffi_pman_lib_checksum_func_set_argon2() != 29730.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_pman_lib_checksum_func_get_groups() != 56226.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_pman_lib_checksum_func_add_group() != 43636.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_pman_lib_checksum_func_delete_group() != 5206.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_pman_lib_checksum_func_get_users() != 58275.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_pman_lib_checksum_func_add_user() != 56469.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_pman_lib_checksum_func_delete_user() != 3477.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_pman_lib_checksum_func_get_entities() != 60582.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_pman_lib_checksum_func_add_entity() != 54179.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_pman_lib_checksum_func_delete_entity() != 10898.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_pman_lib_checksum_func_search() != 18297.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_pman_lib_checksum_method_fileaction_get_file_name() != 14148.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_pman_lib_checksum_method_fileaction_get_data() != 11569.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_pman_lib_checksum_method_databasegroup_get_name() != 32122.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_pman_lib_checksum_method_databasegroup_get_id() != 45252.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_pman_lib_checksum_method_databasegroup_get_entities_count() != 60634.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_pman_lib_checksum_method_databaseentity_get_name() != 46136.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_pman_lib_checksum_method_databaseentity_get_group_id() != 42002.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_pman_lib_checksum_method_databaseentity_get_user_id() != 21757.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_pman_lib_checksum_method_databaseentity_get_password() != 16927.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_pman_lib_checksum_method_databaseentity_get_url() != 36390.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_pman_lib_checksum_method_databaseentity_get_property_names() != 20822.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_pman_lib_checksum_method_databaseentity_get_property_value() != 26480.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_pman_lib_checksum_method_databaseentity_modify() != 57610.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
 }
 
 // Public interface members begin here.
 
+
+public object FfiConverterUInt: FfiConverter<UInt, Int> {
+    override fun lift(value: Int): UInt {
+        return value.toUInt()
+    }
+
+    override fun read(buf: ByteBuffer): UInt {
+        return lift(buf.getInt())
+    }
+
+    override fun lower(value: UInt): Int {
+        return value.toInt()
+    }
+
+    override fun allocationSize(value: UInt) = 4
+
+    override fun write(value: UInt, buf: ByteBuffer) {
+        buf.putInt(value.toInt())
+    }
+}
 
 public object FfiConverterULong: FfiConverter<ULong, Long> {
     override fun lift(value: Long): ULong {
@@ -740,6 +911,247 @@ abstract class FFIObject(
     }
 }
 
+public interface DatabaseEntityInterface {
+    @Throws(PmanException::class)
+    fun `getName`(): String
+    fun `getGroupId`(): UInt
+    fun `getUserId`(): UInt@Throws(PmanException::class)
+    fun `getPassword`(): String@Throws(PmanException::class)
+    fun `getUrl`(): String?@Throws(PmanException::class)
+    fun `getPropertyNames`(): Map<UInt, String>@Throws(PmanException::class)
+    fun `getPropertyValue`(`id`: UInt): String@Throws(PmanException::class)
+    fun `modify`(`newName`: String?, `newGroupId`: UInt?, `newUserId`: UInt?, `newPassword`: String?, `newUrl`: String?, `newProperties`: Map<String, String>, `modifiedProperties`: Map<UInt, String?>)
+}
+
+class DatabaseEntity(
+    pointer: Pointer
+) : FFIObject(pointer), DatabaseEntityInterface {
+
+    /**
+     * Disconnect the object from the underlying Rust object.
+     *
+     * It can be called more than once, but once called, interacting with the object
+     * causes an `IllegalStateException`.
+     *
+     * Clients **must** call this method once done with the object, or cause a memory leak.
+     */
+    override protected fun freeRustArcPtr() {
+        rustCall() { status ->
+            _UniFFILib.INSTANCE.uniffi_pman_lib_fn_free_databaseentity(this.pointer, status)
+        }
+    }
+
+    
+    @Throws(PmanException::class)override fun `getName`(): String =
+        callWithPointer {
+    rustCallWithError(PmanException) { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_method_databaseentity_get_name(it,
+        
+        _status)
+}
+        }.let {
+            FfiConverterString.lift(it)
+        }
+    
+    override fun `getGroupId`(): UInt =
+        callWithPointer {
+    rustCall() { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_method_databaseentity_get_group_id(it,
+        
+        _status)
+}
+        }.let {
+            FfiConverterUInt.lift(it)
+        }
+    
+    override fun `getUserId`(): UInt =
+        callWithPointer {
+    rustCall() { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_method_databaseentity_get_user_id(it,
+        
+        _status)
+}
+        }.let {
+            FfiConverterUInt.lift(it)
+        }
+    
+    
+    @Throws(PmanException::class)override fun `getPassword`(): String =
+        callWithPointer {
+    rustCallWithError(PmanException) { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_method_databaseentity_get_password(it,
+        
+        _status)
+}
+        }.let {
+            FfiConverterString.lift(it)
+        }
+    
+    
+    @Throws(PmanException::class)override fun `getUrl`(): String? =
+        callWithPointer {
+    rustCallWithError(PmanException) { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_method_databaseentity_get_url(it,
+        
+        _status)
+}
+        }.let {
+            FfiConverterOptionalString.lift(it)
+        }
+    
+    
+    @Throws(PmanException::class)override fun `getPropertyNames`(): Map<UInt, String> =
+        callWithPointer {
+    rustCallWithError(PmanException) { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_method_databaseentity_get_property_names(it,
+        
+        _status)
+}
+        }.let {
+            FfiConverterMapUIntString.lift(it)
+        }
+    
+    
+    @Throws(PmanException::class)override fun `getPropertyValue`(`id`: UInt): String =
+        callWithPointer {
+    rustCallWithError(PmanException) { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_method_databaseentity_get_property_value(it,
+        FfiConverterUInt.lower(`id`),
+        _status)
+}
+        }.let {
+            FfiConverterString.lift(it)
+        }
+    
+    
+    @Throws(PmanException::class)override fun `modify`(`newName`: String?, `newGroupId`: UInt?, `newUserId`: UInt?, `newPassword`: String?, `newUrl`: String?, `newProperties`: Map<String, String>, `modifiedProperties`: Map<UInt, String?>) =
+        callWithPointer {
+    rustCallWithError(PmanException) { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_method_databaseentity_modify(it,
+        FfiConverterOptionalString.lower(`newName`),FfiConverterOptionalUInt.lower(`newGroupId`),FfiConverterOptionalUInt.lower(`newUserId`),FfiConverterOptionalString.lower(`newPassword`),FfiConverterOptionalString.lower(`newUrl`),FfiConverterMapStringString.lower(`newProperties`),FfiConverterMapUIntOptionalString.lower(`modifiedProperties`),
+        _status)
+}
+        }
+    
+    
+    
+
+    
+}
+
+public object FfiConverterTypeDatabaseEntity: FfiConverter<DatabaseEntity, Pointer> {
+    override fun lower(value: DatabaseEntity): Pointer = value.callWithPointer { it }
+
+    override fun lift(value: Pointer): DatabaseEntity {
+        return DatabaseEntity(value)
+    }
+
+    override fun read(buf: ByteBuffer): DatabaseEntity {
+        // The Rust code always writes pointers as 8 bytes, and will
+        // fail to compile if they don't fit.
+        return lift(Pointer(buf.getLong()))
+    }
+
+    override fun allocationSize(value: DatabaseEntity) = 8
+
+    override fun write(value: DatabaseEntity, buf: ByteBuffer) {
+        // The Rust code always expects pointers written as 8 bytes,
+        // and will fail to compile if they don't fit.
+        buf.putLong(Pointer.nativeValue(lower(value)))
+    }
+}
+
+
+
+
+public interface DatabaseGroupInterface {
+    
+    fun `getName`(): String
+    fun `getId`(): UInt
+    fun `getEntitiesCount`(): UInt
+}
+
+class DatabaseGroup(
+    pointer: Pointer
+) : FFIObject(pointer), DatabaseGroupInterface {
+
+    /**
+     * Disconnect the object from the underlying Rust object.
+     *
+     * It can be called more than once, but once called, interacting with the object
+     * causes an `IllegalStateException`.
+     *
+     * Clients **must** call this method once done with the object, or cause a memory leak.
+     */
+    override protected fun freeRustArcPtr() {
+        rustCall() { status ->
+            _UniFFILib.INSTANCE.uniffi_pman_lib_fn_free_databasegroup(this.pointer, status)
+        }
+    }
+
+    override fun `getName`(): String =
+        callWithPointer {
+    rustCall() { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_method_databasegroup_get_name(it,
+        
+        _status)
+}
+        }.let {
+            FfiConverterString.lift(it)
+        }
+    
+    override fun `getId`(): UInt =
+        callWithPointer {
+    rustCall() { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_method_databasegroup_get_id(it,
+        
+        _status)
+}
+        }.let {
+            FfiConverterUInt.lift(it)
+        }
+    
+    override fun `getEntitiesCount`(): UInt =
+        callWithPointer {
+    rustCall() { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_method_databasegroup_get_entities_count(it,
+        
+        _status)
+}
+        }.let {
+            FfiConverterUInt.lift(it)
+        }
+    
+    
+
+    
+}
+
+public object FfiConverterTypeDatabaseGroup: FfiConverter<DatabaseGroup, Pointer> {
+    override fun lower(value: DatabaseGroup): Pointer = value.callWithPointer { it }
+
+    override fun lift(value: Pointer): DatabaseGroup {
+        return DatabaseGroup(value)
+    }
+
+    override fun read(buf: ByteBuffer): DatabaseGroup {
+        // The Rust code always writes pointers as 8 bytes, and will
+        // fail to compile if they don't fit.
+        return lift(Pointer(buf.getLong()))
+    }
+
+    override fun allocationSize(value: DatabaseGroup) = 8
+
+    override fun write(value: DatabaseGroup, buf: ByteBuffer) {
+        // The Rust code always expects pointers written as 8 bytes,
+        // and will fail to compile if they don't fit.
+        buf.putLong(Pointer.nativeValue(lower(value)))
+    }
+}
+
+
+
+
 public interface FileActionInterface {
     
     fun `getFileName`(): String
@@ -941,6 +1353,35 @@ public object FfiConverterTypePmanError : FfiConverterRustBuffer<PmanException> 
 
 
 
+public object FfiConverterOptionalUInt: FfiConverterRustBuffer<UInt?> {
+    override fun read(buf: ByteBuffer): UInt? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterUInt.read(buf)
+    }
+
+    override fun allocationSize(value: UInt?): Int {
+        if (value == null) {
+            return 1
+        } else {
+            return 1 + FfiConverterUInt.allocationSize(value)
+        }
+    }
+
+    override fun write(value: UInt?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterUInt.write(value, buf)
+        }
+    }
+}
+
+
+
+
 public object FfiConverterOptionalString: FfiConverterRustBuffer<String?> {
     override fun read(buf: ByteBuffer): String? {
         if (buf.get().toInt() == 0) {
@@ -1049,6 +1490,31 @@ public object FfiConverterSequenceByteArray: FfiConverterRustBuffer<List<ByteArr
 
 
 
+public object FfiConverterSequenceTypeDatabaseGroup: FfiConverterRustBuffer<List<DatabaseGroup>> {
+    override fun read(buf: ByteBuffer): List<DatabaseGroup> {
+        val len = buf.getInt()
+        return List<DatabaseGroup>(len) {
+            FfiConverterTypeDatabaseGroup.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<DatabaseGroup>): Int {
+        val sizeForLength = 4
+        val sizeForItems = value.map { FfiConverterTypeDatabaseGroup.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<DatabaseGroup>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.forEach {
+            FfiConverterTypeDatabaseGroup.write(it, buf)
+        }
+    }
+}
+
+
+
+
 public object FfiConverterSequenceTypeFileAction: FfiConverterRustBuffer<List<FileAction>> {
     override fun read(buf: ByteBuffer): List<FileAction> {
         val len = buf.getInt()
@@ -1071,6 +1537,186 @@ public object FfiConverterSequenceTypeFileAction: FfiConverterRustBuffer<List<Fi
     }
 }
 
+
+
+public object FfiConverterMapUIntString: FfiConverterRustBuffer<Map<UInt, String>> {
+    override fun read(buf: ByteBuffer): Map<UInt, String> {
+        // TODO: Once Kotlin's `buildMap` API is stabilized we should use it here.
+        val items : MutableMap<UInt, String> = mutableMapOf()
+        val len = buf.getInt()
+        repeat(len) {
+            val k = FfiConverterUInt.read(buf)
+            val v = FfiConverterString.read(buf)
+            items[k] = v
+        }
+        return items
+    }
+
+    override fun allocationSize(value: Map<UInt, String>): Int {
+        val spaceForMapSize = 4
+        val spaceForChildren = value.map { (k, v) ->
+            FfiConverterUInt.allocationSize(k) +
+            FfiConverterString.allocationSize(v)
+        }.sum()
+        return spaceForMapSize + spaceForChildren
+    }
+
+    override fun write(value: Map<UInt, String>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        // The parens on `(k, v)` here ensure we're calling the right method,
+        // which is important for compatibility with older android devices.
+        // Ref https://blog.danlew.net/2017/03/16/kotlin-puzzler-whose-line-is-it-anyways/
+        value.forEach { (k, v) ->
+            FfiConverterUInt.write(k, buf)
+            FfiConverterString.write(v, buf)
+        }
+    }
+}
+
+
+
+public object FfiConverterMapUIntTypeDatabaseEntity: FfiConverterRustBuffer<Map<UInt, DatabaseEntity>> {
+    override fun read(buf: ByteBuffer): Map<UInt, DatabaseEntity> {
+        // TODO: Once Kotlin's `buildMap` API is stabilized we should use it here.
+        val items : MutableMap<UInt, DatabaseEntity> = mutableMapOf()
+        val len = buf.getInt()
+        repeat(len) {
+            val k = FfiConverterUInt.read(buf)
+            val v = FfiConverterTypeDatabaseEntity.read(buf)
+            items[k] = v
+        }
+        return items
+    }
+
+    override fun allocationSize(value: Map<UInt, DatabaseEntity>): Int {
+        val spaceForMapSize = 4
+        val spaceForChildren = value.map { (k, v) ->
+            FfiConverterUInt.allocationSize(k) +
+            FfiConverterTypeDatabaseEntity.allocationSize(v)
+        }.sum()
+        return spaceForMapSize + spaceForChildren
+    }
+
+    override fun write(value: Map<UInt, DatabaseEntity>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        // The parens on `(k, v)` here ensure we're calling the right method,
+        // which is important for compatibility with older android devices.
+        // Ref https://blog.danlew.net/2017/03/16/kotlin-puzzler-whose-line-is-it-anyways/
+        value.forEach { (k, v) ->
+            FfiConverterUInt.write(k, buf)
+            FfiConverterTypeDatabaseEntity.write(v, buf)
+        }
+    }
+}
+
+
+
+public object FfiConverterMapUIntOptionalString: FfiConverterRustBuffer<Map<UInt, String?>> {
+    override fun read(buf: ByteBuffer): Map<UInt, String?> {
+        // TODO: Once Kotlin's `buildMap` API is stabilized we should use it here.
+        val items : MutableMap<UInt, String?> = mutableMapOf()
+        val len = buf.getInt()
+        repeat(len) {
+            val k = FfiConverterUInt.read(buf)
+            val v = FfiConverterOptionalString.read(buf)
+            items[k] = v
+        }
+        return items
+    }
+
+    override fun allocationSize(value: Map<UInt, String?>): Int {
+        val spaceForMapSize = 4
+        val spaceForChildren = value.map { (k, v) ->
+            FfiConverterUInt.allocationSize(k) +
+            FfiConverterOptionalString.allocationSize(v)
+        }.sum()
+        return spaceForMapSize + spaceForChildren
+    }
+
+    override fun write(value: Map<UInt, String?>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        // The parens on `(k, v)` here ensure we're calling the right method,
+        // which is important for compatibility with older android devices.
+        // Ref https://blog.danlew.net/2017/03/16/kotlin-puzzler-whose-line-is-it-anyways/
+        value.forEach { (k, v) ->
+            FfiConverterUInt.write(k, buf)
+            FfiConverterOptionalString.write(v, buf)
+        }
+    }
+}
+
+
+
+public object FfiConverterMapUIntMapUIntTypeDatabaseEntity: FfiConverterRustBuffer<Map<UInt, Map<UInt, DatabaseEntity>>> {
+    override fun read(buf: ByteBuffer): Map<UInt, Map<UInt, DatabaseEntity>> {
+        // TODO: Once Kotlin's `buildMap` API is stabilized we should use it here.
+        val items : MutableMap<UInt, Map<UInt, DatabaseEntity>> = mutableMapOf()
+        val len = buf.getInt()
+        repeat(len) {
+            val k = FfiConverterUInt.read(buf)
+            val v = FfiConverterMapUIntTypeDatabaseEntity.read(buf)
+            items[k] = v
+        }
+        return items
+    }
+
+    override fun allocationSize(value: Map<UInt, Map<UInt, DatabaseEntity>>): Int {
+        val spaceForMapSize = 4
+        val spaceForChildren = value.map { (k, v) ->
+            FfiConverterUInt.allocationSize(k) +
+            FfiConverterMapUIntTypeDatabaseEntity.allocationSize(v)
+        }.sum()
+        return spaceForMapSize + spaceForChildren
+    }
+
+    override fun write(value: Map<UInt, Map<UInt, DatabaseEntity>>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        // The parens on `(k, v)` here ensure we're calling the right method,
+        // which is important for compatibility with older android devices.
+        // Ref https://blog.danlew.net/2017/03/16/kotlin-puzzler-whose-line-is-it-anyways/
+        value.forEach { (k, v) ->
+            FfiConverterUInt.write(k, buf)
+            FfiConverterMapUIntTypeDatabaseEntity.write(v, buf)
+        }
+    }
+}
+
+
+
+public object FfiConverterMapStringString: FfiConverterRustBuffer<Map<String, String>> {
+    override fun read(buf: ByteBuffer): Map<String, String> {
+        // TODO: Once Kotlin's `buildMap` API is stabilized we should use it here.
+        val items : MutableMap<String, String> = mutableMapOf()
+        val len = buf.getInt()
+        repeat(len) {
+            val k = FfiConverterString.read(buf)
+            val v = FfiConverterString.read(buf)
+            items[k] = v
+        }
+        return items
+    }
+
+    override fun allocationSize(value: Map<String, String>): Int {
+        val spaceForMapSize = 4
+        val spaceForChildren = value.map { (k, v) ->
+            FfiConverterString.allocationSize(k) +
+            FfiConverterString.allocationSize(v)
+        }.sum()
+        return spaceForMapSize + spaceForChildren
+    }
+
+    override fun write(value: Map<String, String>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        // The parens on `(k, v)` here ensure we're calling the right method,
+        // which is important for compatibility with older android devices.
+        // Ref https://blog.danlew.net/2017/03/16/kotlin-puzzler-whose-line-is-it-anyways/
+        value.forEach { (k, v) ->
+            FfiConverterString.write(k, buf)
+            FfiConverterString.write(v, buf)
+        }
+    }
+}
+
 fun `libInit`() =
     
     rustCall() { _status ->
@@ -1080,10 +1726,10 @@ fun `libInit`() =
 
 @Throws(PmanException::class)
 
-fun `create`(`databaseType`: PasswordDatabaseType, `password`: String, `password2`: String?, `keyFileContents`: ByteArray?): ULong {
+fun `create`(`databaseType`: PasswordDatabaseType, `passwordHash`: ByteArray, `password2Hash`: ByteArray?, `keyFileContents`: ByteArray?): ULong {
     return FfiConverterULong.lift(
     rustCallWithError(PmanException) { _status ->
-    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_create(FfiConverterTypePasswordDatabaseType.lower(`databaseType`),FfiConverterString.lower(`password`),FfiConverterOptionalString.lower(`password2`),FfiConverterOptionalByteArray.lower(`keyFileContents`),_status)
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_create(FfiConverterTypePasswordDatabaseType.lower(`databaseType`),FfiConverterByteArray.lower(`passwordHash`),FfiConverterOptionalByteArray.lower(`password2Hash`),FfiConverterOptionalByteArray.lower(`keyFileContents`),_status)
 })
 }
 
@@ -1149,5 +1795,95 @@ fun `setArgon2`(`databaseId`: ULong, `hashId`: ULong, `iterations`: ULong, `para
     _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_set_argon2(FfiConverterULong.lower(`databaseId`),FfiConverterULong.lower(`hashId`),FfiConverterULong.lower(`iterations`),FfiConverterULong.lower(`parallelism`),FfiConverterULong.lower(`memory`),_status)
 }
 
+
+@Throws(PmanException::class)
+
+fun `getGroups`(`databaseId`: ULong): List<DatabaseGroup> {
+    return FfiConverterSequenceTypeDatabaseGroup.lift(
+    rustCallWithError(PmanException) { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_get_groups(FfiConverterULong.lower(`databaseId`),_status)
+})
+}
+
+@Throws(PmanException::class)
+
+fun `addGroup`(`databaseId`: ULong, `name`: String): UInt {
+    return FfiConverterUInt.lift(
+    rustCallWithError(PmanException) { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_add_group(FfiConverterULong.lower(`databaseId`),FfiConverterString.lower(`name`),_status)
+})
+}
+
+@Throws(PmanException::class)
+
+fun `deleteGroup`(`databaseId`: ULong, `id`: UInt) =
+    
+    rustCallWithError(PmanException) { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_delete_group(FfiConverterULong.lower(`databaseId`),FfiConverterUInt.lower(`id`),_status)
+}
+
+
+@Throws(PmanException::class)
+
+fun `getUsers`(`databaseId`: ULong): Map<UInt, String> {
+    return FfiConverterMapUIntString.lift(
+    rustCallWithError(PmanException) { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_get_users(FfiConverterULong.lower(`databaseId`),_status)
+})
+}
+
+@Throws(PmanException::class)
+
+fun `addUser`(`databaseId`: ULong, `name`: String): UInt {
+    return FfiConverterUInt.lift(
+    rustCallWithError(PmanException) { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_add_user(FfiConverterULong.lower(`databaseId`),FfiConverterString.lower(`name`),_status)
+})
+}
+
+@Throws(PmanException::class)
+
+fun `deleteUser`(`databaseId`: ULong, `id`: UInt) =
+    
+    rustCallWithError(PmanException) { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_delete_user(FfiConverterULong.lower(`databaseId`),FfiConverterUInt.lower(`id`),_status)
+}
+
+
+@Throws(PmanException::class)
+
+fun `getEntities`(`databaseId`: ULong, `groupId`: UInt): Map<UInt, DatabaseEntity> {
+    return FfiConverterMapUIntTypeDatabaseEntity.lift(
+    rustCallWithError(PmanException) { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_get_entities(FfiConverterULong.lower(`databaseId`),FfiConverterUInt.lower(`groupId`),_status)
+})
+}
+
+@Throws(PmanException::class)
+
+fun `addEntity`(`databaseId`: ULong, `name`: String, `groupId`: UInt, `userId`: UInt, `password`: String, `url`: String?, `properties`: Map<String, String>): UInt {
+    return FfiConverterUInt.lift(
+    rustCallWithError(PmanException) { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_add_entity(FfiConverterULong.lower(`databaseId`),FfiConverterString.lower(`name`),FfiConverterUInt.lower(`groupId`),FfiConverterUInt.lower(`userId`),FfiConverterString.lower(`password`),FfiConverterOptionalString.lower(`url`),FfiConverterMapStringString.lower(`properties`),_status)
+})
+}
+
+@Throws(PmanException::class)
+
+fun `deleteEntity`(`databaseId`: ULong, `id`: UInt) =
+    
+    rustCallWithError(PmanException) { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_delete_entity(FfiConverterULong.lower(`databaseId`),FfiConverterUInt.lower(`id`),_status)
+}
+
+
+@Throws(PmanException::class)
+
+fun `search`(`databaseId`: ULong, `searchString`: String): Map<UInt, Map<UInt, DatabaseEntity>> {
+    return FfiConverterMapUIntMapUIntTypeDatabaseEntity.lift(
+    rustCallWithError(PmanException) { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_search(FfiConverterULong.lower(`databaseId`),FfiConverterString.lower(`searchString`),_status)
+})
+}
 
 

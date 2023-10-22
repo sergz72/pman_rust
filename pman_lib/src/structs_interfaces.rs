@@ -20,7 +20,7 @@ impl FileAction {
     }
 }
 
-pub trait DatabaseEntity {
+pub trait PasswordDatabaseEntity {
     fn get_name(&self) -> Result<String, Error>;
     fn get_user_id(&self) -> u32;
     fn get_group_id(&self) -> u32;
@@ -38,7 +38,21 @@ pub trait DatabaseEntity {
 pub struct DatabaseGroup {
     pub name: String,
     pub id: u32,
-    pub entities_count: usize
+    pub entities_count: u32
+}
+
+impl DatabaseGroup {
+    pub fn get_name(&self) -> String {
+        self.name.clone()
+    }
+
+    pub fn get_id(&self) -> u32 {
+        self.id
+    }
+
+    pub fn get_entities_count(&self) -> u32 {
+        self.entities_count
+    }
 }
 
 pub trait PasswordDatabase {
@@ -53,10 +67,10 @@ pub trait PasswordDatabase {
     fn open(&mut self, data: Vec<Vec<u8>>) -> Result<(), Error>;
     fn get_groups(&mut self) -> Result<Vec<DatabaseGroup>, Error>;
     fn get_users(&mut self) -> Result<HashMap<u32, String>, Error>;
-    fn get_entities(&mut self, group_id: u32) -> Result<HashMap<u32, Box<dyn DatabaseEntity>>, Error>;
+    fn get_entities(&mut self, group_id: u32) -> Result<HashMap<u32, Box<dyn PasswordDatabaseEntity>>, Error>;
     fn add_user(&mut self, name: String) -> Result<u32, Error>;
     fn remove_user(&mut self, id: u32) -> Result<(), Error>;
-    fn search(&mut self, search_string: String) -> Result<HashMap<u32, HashMap<u32, Box<dyn DatabaseEntity>>>, Error>;
+    fn search(&mut self, search_string: String) -> Result<HashMap<u32, HashMap<u32, Box<dyn PasswordDatabaseEntity>>>, Error>;
     fn add_group(&mut self, name: String) -> Result<u32, Error>;
     fn rename_group(&mut self, group_id: u32, new_name: String) -> Result<(), Error>;
     fn delete_group(&mut self, id: u32) -> Result<(), Error>;

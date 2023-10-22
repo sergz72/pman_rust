@@ -29,9 +29,11 @@ impl DataFile {
         Ok(DataFile {is_updated: false, data: IdValueMap::new(processor2, handlers)?})
     }
 
-    pub fn save(&mut self, file_name: String, encryption_key: [u8; 32], alg1: u8,
-                processor2: Arc<dyn CryptoProcessor>,
-                file_info: &IdValueMap) -> Result<Option<Vec<u8>>, Error> {
+    pub fn save(&mut self, encryption_key: [u8; 32], alg1: u8,
+                processor2: Arc<dyn CryptoProcessor>) -> Result<Option<Vec<u8>>, Error> {
+        if !self.is_updated {
+            return Ok(None);
+        }
         let output = self.data.save(Some(processor2), Some(alg1),
                                     Some(encryption_key))?;
         self.is_updated = false;

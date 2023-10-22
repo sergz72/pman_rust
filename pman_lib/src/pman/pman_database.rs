@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 use crate::pman::database_entity::PmanDatabaseEntity;
 use crate::pman::pman_database_file::PmanDatabaseFile;
-use crate::structs_interfaces::{DatabaseEntity, DatabaseGroup, DatabaseSearchResult, FileAction, PasswordDatabase};
+use crate::structs_interfaces::{DatabaseGroup, FileAction, PasswordDatabase, PasswordDatabaseEntity};
 
 const GROUPS_ID: u32 = 1;
 const USERS_ID: u32 = 2;
@@ -50,7 +50,7 @@ impl PasswordDatabase for PmanDatabase {
         let entities = self.get_entities()?;
         let mut counts = HashMap::new();
         for (id, entity) in entities {
-            let e = counts.entry(entity.get_group_id()).or_insert(0usize);
+            let e = counts.entry(entity.get_group_id()).or_insert(0u32);
             *e += 1;
         }
         Ok(groups.into_iter().map(|(id, g)|DatabaseGroup{
@@ -64,9 +64,9 @@ impl PasswordDatabase for PmanDatabase {
         self.file.get_indirect_from_names_file(USERS_ID)
     }
 
-    fn get_entities(&mut self, group_id: u32) -> Result<HashMap<u32, Box<dyn DatabaseEntity>>, Error> {
+    fn get_entities(&mut self, group_id: u32) -> Result<HashMap<u32, Box<dyn PasswordDatabaseEntity>>, Error> {
         let entities = self.get_entities()?;
-        let mut result: HashMap<u32, Box<dyn DatabaseEntity>> = HashMap::new();
+        let mut result: HashMap<u32, Box<dyn PasswordDatabaseEntity>> = HashMap::new();
         for (k, v) in entities {
             if v.get_group_id() == group_id {
                 result.insert(k, Box::new(v));
@@ -83,7 +83,7 @@ impl PasswordDatabase for PmanDatabase {
         todo!()
     }
 
-    fn search(&mut self, search_string: String) -> Result<Vec<DatabaseSearchResult>, Error> {
+    fn search(&mut self, search_string: String) -> Result<HashMap<u32, HashMap<u32, Box<dyn PasswordDatabaseEntity>>>, Error> {
         todo!()
     }
 

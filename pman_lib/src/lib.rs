@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 use thiserror::Error;
 use crate::keepass::keepass_database::KeePassDatabase;
 use crate::pman::pman_database::PmanDatabase;
 use crate::pman::pman_database_file::{build_argon2_key, build_argon2_properties};
-use crate::structs_interfaces::{DatabaseGroup, FileAction, PasswordDatabase, PasswordDatabaseType};
+use crate::structs_interfaces::{DatabaseGroup, FileAction, PasswordDatabase, PasswordDatabaseEntity, PasswordDatabaseType};
 use crate::structs_interfaces::CryptoEngine;
 use crate::structs_interfaces::HashAlgorithm;
 
@@ -173,6 +173,92 @@ pub fn build_argon2_hash(password: Vec<u8>, iterations: isize, parallelism: isiz
     build_argon2_key(properties, &password)
 }
 
-fn get_groups(database_id: u64) -> Result<Vec<DatabaseGroup>, PmanError> {
+pub fn get_groups(database_id: u64) -> Result<Vec<Arc<DatabaseGroup>>, PmanError> {
     todo!()
+}
+
+pub fn add_group(database_id: u64, name: String) -> Result<u32, PmanError> {
+    todo!()
+}
+
+pub fn delete_group(database_id: u64, id: u32) -> Result<(), PmanError> {
+    todo!()
+}
+
+pub fn get_users(database_id: u64) -> Result<HashMap<u32, String>, PmanError> {
+    todo!()
+}
+
+pub fn add_user(database_id: u64, name: String) -> Result<u32, PmanError> {
+    todo!()
+}
+
+pub fn delete_user(database_id: u64, id: u32) -> Result<(), PmanError> {
+    todo!()
+}
+
+pub fn get_entities(database_id: u64, group_id: u32) -> Result<HashMap<u32, Arc<DatabaseEntity>>, PmanError> {
+    todo!()
+}
+
+pub fn add_entity(database_id: u64, name: String, group_id: u32, user_id: u32, password: String,
+                  url: Option<String>, properties: HashMap<String, String>) -> Result<u32, PmanError> {
+    todo!()
+}
+
+pub fn delete_entity(database_id: u64, id: u32) -> Result<(), PmanError> {
+    todo!()
+}
+
+pub fn search(database_id: u64, search_string: String)
+    -> Result<HashMap<u32, HashMap<u32, Arc<DatabaseEntity>>>, PmanError> {
+    todo!()
+}
+
+pub struct DatabaseEntity {
+    entity: Mutex<Box<dyn PasswordDatabaseEntity + Send>>
+}
+
+impl DatabaseEntity {
+
+    pub fn new(entity: Box<dyn PasswordDatabaseEntity + Send>) -> DatabaseEntity {
+        DatabaseEntity{entity: Mutex::new(entity)}
+    }
+
+    fn get_name(&self) -> Result<String, PmanError> {
+        self.entity.lock().unwrap().get_name().map_err(|e|PmanError::message(e.to_string()))
+    }
+
+    fn get_user_id(&self) -> u32 {
+        self.entity.lock().unwrap().get_user_id()
+    }
+
+    fn get_group_id(&self) -> u32 {
+        self.entity.lock().unwrap().get_group_id()
+    }
+
+    fn get_password(&self) -> Result<String, PmanError> {
+        self.entity.lock().unwrap().get_password().map_err(|e|PmanError::message(e.to_string()))
+    }
+
+    fn get_url(&self) -> Result<Option<String>, PmanError> {
+        self.entity.lock().unwrap().get_url().map_err(|e|PmanError::message(e.to_string()))
+    }
+
+    fn get_property_names(&self) -> Result<HashMap<u32, String>, PmanError> {
+        self.entity.lock().unwrap().get_property_names().map_err(|e|PmanError::message(e.to_string()))
+    }
+
+    fn get_property_value(&self, index: u32) -> Result<String, PmanError> {
+        self.entity.lock().unwrap().get_property_value(index).map_err(|e|PmanError::message(e.to_string()))
+    }
+
+    fn modify(&self, new_name: Option<String>, new_group_id: Option<u32>, new_user_id: Option<u32>,
+              new_password: Option<String>, new_url: Option<String>, new_properties: HashMap<String, String>,
+              modified_properties: HashMap<u32, Option<String>>)
+              -> Result<(), PmanError> {
+        self.entity.lock().unwrap().modify(new_group_id, new_name, new_user_id, new_password, new_url,
+                           new_properties, modified_properties)
+            .map_err(|e|PmanError::message(e.to_string()))
+    }
 }

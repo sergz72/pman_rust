@@ -17,7 +17,7 @@ namespace pman_lib {
   [Throws=PmanError]
   void set_argon2(u64 database_id, u64 hash_id, u64 iterations, u64 parallelism, u64 memory);
   [Throws=PmanError]
-  record<u32, string> get_groups(u64 database_id);
+  sequence<DatabaseGroup> get_groups(u64 database_id);
   [Throws=PmanError]
   u32 add_group(u64 database_id, string name);
   [Throws=PmanError]
@@ -31,7 +31,7 @@ namespace pman_lib {
   [Throws=PmanError]
   record<u32, DatabaseEntity> get_entities(u64 database_id, u32 group_id);
   [Throws=PmanError]
-  u32 add_entity(u32 group_id, string name, u32 user_id, string password, string? url, record<string, string> properties);
+  u32 add_entity(u64 database_id, string name, u32 group_id, u32 user_id, string password, string? url, record<string, string> properties);
   [Throws=PmanError]
   void delete_entity(u64 database_id, u32 id);
   [Throws=PmanError]
@@ -82,6 +82,6 @@ interface DatabaseEntity {
   [Throws=PmanError]
   string get_property_value(u32 id);
   [Throws=PmanError]
-  void modify(u32? new_group_id, string? new_name, u32? new_user_id, string? new_password, string? new_url,
+  void modify(string? new_name, u32? new_group_id, u32? new_user_id, string? new_password, string? new_url,
               record<string, string> new_properties, record<u32, string?> modified_properties);
 };
