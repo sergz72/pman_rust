@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 use std::io::Error;
 use std::sync::{Arc, Mutex};
+use std::time::SystemTime;
 use crate::error_builders::build_corrupted_data_error;
 use crate::pman::id_value_map::id_value_map::ByteValue;
 use crate::pman::pman_database_file::PmanDatabaseFile;
 use crate::structs_interfaces::PasswordDatabaseEntity;
 
+#[derive(PartialEq, Eq, Debug)]
 pub struct PmanDatabaseEntityFields {
     name_id: u32,
     password_id: u32,
@@ -194,5 +196,38 @@ impl PmanDatabaseEntity {
 }
 
 fn get_current_timestamp() -> u64 {
-    todo!()
+    SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs()
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+    use std::io::Error;
+    use std::sync::{Arc, Mutex};
+    use rand::RngCore;
+    use rand::rngs::OsRng;
+    use crate::pman::database_entity::PmanDatabaseEntity;
+    use crate::pman::id_value_map::id_value_map::ByteValue;
+    use crate::pman::pman_database_file::PmanDatabaseFile;
+
+    #[test]
+    fn test_database_entity() -> Result<(), Error> {
+        let mut hash1 = [0u8; 32];
+        OsRng.fill_bytes(&mut hash1);
+        let mut hash2 = [0u8; 32];
+        OsRng.fill_bytes(&mut hash2);
+        let hash1_vec = Vec::from(hash1);
+        let hash2_vec = Vec::from(hash2);
+        let mut db = Arc::new(Mutex::new(PmanDatabaseFile::new(hash1_vec.clone(), hash2_vec.clone())?));
+        let mut entity1 = PmanDatabaseEntity::new(db.clone(), 1, 2, 3, 4, None, HashMap::new());
+        entity1.update(55, 66, 77, 88, Some(99),
+                       HashMap::from([(110, 111), (112, 113)]));
+        let entity2 = PmanDatabaseEntity::new(db, 5, 6, 7, 8, Some(9),
+                                              HashMap::from([(10, 11), (12, 13)]));
+        let e1 = PmanDatabaseEntity::from_bytes(entity1.to_bytes())?;
+        assert_eq!(entity1.history, e1.history);
+        let e2 = PmanDatabaseEntity::from_bytes(entity2.to_bytes())?;
+        assert_eq!(entity2.history, e2.history);
+        Ok(())
+    }
 }
