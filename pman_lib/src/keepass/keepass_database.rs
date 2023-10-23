@@ -9,7 +9,7 @@ pub struct KeePassDatabase {
 }
 
 impl PasswordDatabase for KeePassDatabase {
-    fn set_argon2(&mut self, hash_id: usize, iterations: u8, parallelism: u8, memory: u16) -> Result<(), Error> {
+    fn set_argon2(&self, _hash_id: usize, _iterations: u8, _parallelism: u8, _memory: u16) -> Result<(), Error> {
         todo!()
     }
 
@@ -17,68 +17,69 @@ impl PasswordDatabase for KeePassDatabase {
         true
     }
 
-    fn pre_open(&mut self, main_file_name: &String, password_hash: Vec<u8>,
-                password2_hash: Option<Vec<u8>>, key_file_contents: Option<Vec<u8>>)
+    fn pre_open(&self, _main_file_name: &String, _password_hash: Vec<u8>,
+                _password2_hash: Option<Vec<u8>>, _key_file_contents: Option<Vec<u8>>)
             -> Result<Vec<String>, Error> {
         todo!()
     }
 
-    fn open(&mut self, data: Vec<Vec<u8>>) -> Result<(), Error> {
+    fn open(&self, _data: Vec<Vec<u8>>) -> Result<(), Error> {
         todo!()
     }
 
-    fn get_groups(&mut self) -> Result<Vec<DatabaseGroup>, Error> {
+    fn get_groups(&self) -> Result<Vec<DatabaseGroup>, Error> {
         todo!()
     }
 
-    fn get_users(&mut self) -> Result<HashMap<u32, String>, Error> {
+    fn get_users(&self) -> Result<HashMap<u32, String>, Error> {
         todo!()
     }
 
-    fn get_entities(&mut self, group_id: u32) -> Result<HashMap<u32, Box<dyn PasswordDatabaseEntity>>, Error> {
+    fn get_entities(&self, _group_id: u32) -> Result<HashMap<u32, Box<dyn PasswordDatabaseEntity>>, Error> {
         todo!()
     }
 
-    fn add_user(&mut self, name: String) -> Result<u32, Error> {
+    fn add_user(&self, _name: String) -> Result<u32, Error> {
         Err(build_read_only_db_error())
     }
 
-    fn remove_user(&mut self, id: u32) -> Result<(), Error> {
+    fn remove_user(&self, _id: u32) -> Result<(), Error> {
         Err(build_read_only_db_error())
     }
 
-    fn search(&mut self, search_string: String) -> Result<HashMap<u32, HashMap<u32, Box<dyn PasswordDatabaseEntity>>>, Error> {
+    fn search(&self, _search_string: String) -> Result<HashMap<u32, HashMap<u32, Box<dyn PasswordDatabaseEntity>>>, Error> {
         todo!()
     }
 
-    fn add_group(&mut self, name: String) -> Result<u32, Error> {
+    fn add_group(&self, _name: String) -> Result<u32, Error> {
         Err(build_read_only_db_error())
     }
 
-    fn rename_group(&mut self, group_id: u32, new_name: String) -> Result<(), Error> {
+    fn rename_group(&self, _group_id: u32, _new_name: String) -> Result<(), Error> {
         Err(build_read_only_db_error())
     }
 
-    fn delete_group(&mut self, group_id: u32) -> Result<(), Error> {
+    fn delete_group(&self, _group_id: u32) -> Result<(), Error> {
         Err(build_read_only_db_error())
     }
 
-    fn delete_entity(&mut self, entity_id: u32) -> Result<(), Error> {
+    fn delete_entity(&self, _entity_id: u32) -> Result<(), Error> {
         Err(build_read_only_db_error())
     }
 
-    fn add_entity(&mut self, group_id: u32, name: String, user_id: u32, password: String,
-                  url: Option<String>, properties: HashMap<String, String>) -> Result<u32, Error> {
+    fn add_entity(&self, _group_id: u32, _name: String, _user_id: u32, _password: String,
+                  _url: Option<String>, _properties: HashMap<String, String>) -> Result<u32, Error> {
         Err(build_read_only_db_error())
     }
 
-    fn modify_entity(&mut self, entity_id: u32, new_group_id: Option<u32>, new_name: Option<String>,
-                     new_user_id: Option<u32>, new_password: Option<String>, new_url: Option<String>,
-                     properties: HashMap<String, String>) -> Result<(), Error> {
+    /*fn modify_entity(&mut self, _entity_id: u32, _new_group_id: Option<u32>, _new_name: Option<String>,
+                     _new_user_id: Option<u32>, _new_password: Option<String>, _new_url: Option<String>,
+                     _new_properties: HashMap<String, String>,
+                     _modified_properties: HashMap<u32, Option<String>>) -> Result<(), Error> {
         Err(build_read_only_db_error())
-    }
+    }*/
 
-    fn save(&mut self, file_name: String) -> Result<Vec<FileAction>, Error> {
+    fn save(&self, _file_name: String) -> Result<Vec<FileAction>, Error> {
         Err(build_read_only_db_error())
     }
 }
@@ -88,13 +89,13 @@ impl KeePassDatabase {
         Ok(Arc::new(RwLock::new(KeePassDatabase{})))
     }
 
-    pub fn new(password_hash: Vec<u8>, key_file_contents: Option<Vec<u8>>)
+    pub fn new(_password_hash: Vec<u8>, _key_file_contents: Option<Vec<u8>>)
         -> Result<Arc<RwLock<dyn PasswordDatabase>>, Error> {
         Err(Error::new(ErrorKind::Unsupported, "not implemented"))
     }
 
-    fn open(&mut self, password: String, password2: Option<String>,
-            key_file_contents: Option<Vec<u8>>) -> Result<KeePassDatabase, Error> {
+    fn open(&mut self, _password: String, _password2: Option<String>,
+            _key_file_contents: Option<Vec<u8>>) -> Result<KeePassDatabase, Error> {
         todo!()
     }
 }
