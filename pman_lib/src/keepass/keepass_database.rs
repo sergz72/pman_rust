@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
-use std::sync::{Arc, Mutex, RwLock};
 use crate::error_builders::build_read_only_db_error;
 use crate::structs_interfaces::{DatabaseGroup, FileAction, PasswordDatabase, PasswordDatabaseEntity};
 

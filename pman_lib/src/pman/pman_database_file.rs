@@ -329,6 +329,27 @@ impl PmanDatabaseProperties {
         }
         Err(build_names_file_not_initialized_error())
     }
+
+    fn get_from_passwords_file<T: ByteValue>(&mut self, id: u32) -> Result<T, Error> {
+        if let Some(p) = &mut self.passwords_file {
+            return p.get(id);
+        }
+        Err(build_passwords_file_not_initialized_error())
+    }
+
+    fn add_to_passwords_file<T: ByteValue>(&mut self, value: T) -> Result<u32, Error> {
+        if let Some(p) = &mut self.passwords_file {
+            return p.add(value);
+        }
+        Err(build_passwords_file_not_initialized_error())
+    }
+
+    fn set_in_passwords_file<T: ByteValue>(&mut self, id: u32, value: T) -> Result<(), Error> {
+        if let Some(p) = &mut self.passwords_file {
+            return p.set(id, value);
+        }
+        Err(build_passwords_file_not_initialized_error())
+    }
 }
 
 impl PmanDatabaseFile {
@@ -417,6 +438,27 @@ impl PmanDatabaseFile {
         }
         Err(build_properties_not_initialized_error())
     }
+
+    pub fn get_from_passwords_file<T: ByteValue>(&mut self, id: u32) -> Result<T, Error> {
+        if let Some(p) = &mut self.properties {
+            return p.get_from_passwords_file(id);
+        }
+        Err(build_properties_not_initialized_error())
+    }
+
+    pub fn add_to_passwords_file<T: ByteValue>(&mut self, value: T) -> Result<u32, Error> {
+        if let Some(p) = &mut self.properties {
+            return p.add_to_passwords_file(value);
+        }
+        Err(build_properties_not_initialized_error())
+    }
+
+    pub fn set_in_passwords_file<T: ByteValue>(&mut self, id: u32, value: T) -> Result<(), Error> {
+        if let Some(p) = &mut self.properties {
+            return p.set_in_passwords_file(id, value);
+        }
+        Err(build_properties_not_initialized_error())
+    }
 }
 
 pub fn build_properties_not_initialized_error() -> Error {
@@ -427,9 +469,9 @@ pub fn build_names_file_not_initialized_error() -> Error {
     Error::new(ErrorKind::NotFound, "names file is not initialised")
 }
 
-/*pub fn build_passwords_file_not_initialized_error() -> Error {
+pub fn build_passwords_file_not_initialized_error() -> Error {
     Error::new(ErrorKind::NotFound, "passwords file is not initialised")
-}*/
+}
 
 pub fn build_unsupported_algorithm_error() -> Error {
     Error::new(ErrorKind::Unsupported, "unsupported encryption algorithm")

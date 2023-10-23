@@ -140,14 +140,15 @@ impl PasswordDatabaseEntity for PmanDatabaseEntity {
     }
 
     fn get_password(&self) -> Result<String, Error> {
-        todo!()
+        let id = self.history.get(0).unwrap().password_id;
+        self.database_file.as_ref().unwrap().lock().unwrap().get_from_passwords_file(id)
     }
 
     fn get_url(&self) -> Result<Option<String>, Error> {
         todo!()
     }
 
-    fn get_property_names(&self) -> Result<HashMap<u32, String>, Error> {
+    fn get_property_names(&self) -> Result<HashMap<String, u32>, Error> {
         todo!()
     }
 

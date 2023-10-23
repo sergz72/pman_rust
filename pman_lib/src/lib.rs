@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex};
 use thiserror::Error;
 use crate::keepass::keepass_database::KeePassDatabase;
 use crate::pman::pman_database::PmanDatabase;
@@ -241,7 +241,7 @@ impl DatabaseEntity {
         self.entity.lock().unwrap().get_url().map_err(|e|PmanError::message(e.to_string()))
     }
 
-    fn get_property_names(&self) -> Result<HashMap<u32, String>, PmanError> {
+    fn get_property_names(&self) -> Result<HashMap<String, u32>, PmanError> {
         self.entity.lock().unwrap().get_property_names().map_err(|e|PmanError::message(e.to_string()))
     }
 

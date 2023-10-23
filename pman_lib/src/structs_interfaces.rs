@@ -26,7 +26,7 @@ pub trait PasswordDatabaseEntity {
     fn get_group_id(&self) -> u32;
     fn get_password(&self) -> Result<String, Error>;
     fn get_url(&self) -> Result<Option<String>, Error>;
-    fn get_property_names(&self) -> Result<HashMap<u32, String>, Error>;
+    fn get_property_names(&self) -> Result<HashMap<String, u32>, Error>;
     fn get_property_value(&self, index: u32) -> Result<String, Error>;
 
     fn modify(&mut self, new_group_id: Option<u32>, new_name: Option<String>, new_user_id: Option<u32>,

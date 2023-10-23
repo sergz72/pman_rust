@@ -78,7 +78,7 @@ interface DatabaseEntity {
   [Throws=PmanError]
   string? get_url();
   [Throws=PmanError]
-  record<u32, string> get_property_names();
+  record<string, u32> get_property_names();
   [Throws=PmanError]
   string get_property_value(u32 id);
   [Throws=PmanError]

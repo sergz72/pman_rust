@@ -53,7 +53,7 @@ impl IdValueMapDataHandler for IdValueMapLocalDataHandler {
 
 impl IdValueMapLocalDataHandler {
     pub fn new() -> IdValueMapLocalDataHandler {
-        IdValueMapLocalDataHandler{ next_id: 1, map: Some(HashMap::new()) }
+        IdValueMapLocalDataHandler{ next_id: 100, map: Some(HashMap::new()) }
     }
 
     pub fn load(source: &Vec<u8>, offset: usize) -> Result<(IdValueMapLocalDataHandler, usize), Error> {
