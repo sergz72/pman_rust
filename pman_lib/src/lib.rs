@@ -31,7 +31,7 @@ impl PmanError {
 
 struct DatabaseFile {
     file_name: Option<String>,
-    database: Arc<RwLock<dyn PasswordDatabase>>
+    database: Box<dyn PasswordDatabase>
 }
 
 static mut DATABASES: Option<HashMap<u64, DatabaseFile>> = None;
@@ -120,7 +120,7 @@ fn build_database_not_found_error() -> PmanError {
 
 pub fn is_read_only(database_id: u64) -> Result<bool, PmanError> {
     let db = get_database(database_id)?;
-    let result = db.database.read().unwrap().is_read_only();
+    let result = db.database.is_read_only();
     Ok(result)
 }
 
@@ -130,16 +130,14 @@ pub fn pre_open(database_id: u64, password_hash: Vec<u8>, password2_hash: Option
     if db.file_name.is_none() {
         return Err(PmanError::message("file name is required"));
     }
-    let mut write_lock = db.database.write().unwrap();
-    write_lock.pre_open(db.file_name.as_ref().unwrap(),
+    db.database.pre_open(db.file_name.as_ref().unwrap(),
                         password_hash, password2_hash, key_file_contents)
         .map_err(|e|PmanError::message(e.to_string()))
 }
 
 pub fn open(database_id: u64, data: Vec<Vec<u8>>) -> Result<(), PmanError> {
     let db = get_database(database_id)?;
-    let mut write_lock = db.database.write().unwrap();
-    write_lock.open(data)
+    db.database.open(data)
         .map_err(|e|PmanError::message(e.to_string()))
 }
 
@@ -152,8 +150,7 @@ pub fn close(database_id: u64) -> Result<(), PmanError> {
 
 pub fn save(database_id: u64) -> Result<Vec<Arc<FileAction>>, PmanError> {
     let db = get_database(database_id)?;
-    let mut write_lock = db.database.write().unwrap();
-    write_lock.save(db.file_name.as_ref().unwrap().clone())
+    db.database.save(db.file_name.as_ref().unwrap().clone())
         .map(|a|a.into_iter().map(|fa|Arc::new(fa)).collect())
         .map_err(|e|PmanError::message(e.to_string()))
 }
@@ -163,8 +160,7 @@ pub fn set_argon2(database_id: u64, hash_id: u64, iterations: u64, parallelism: 
         return Err(PmanError::message("incorrect argon2 parameters"));
     }
     let db = get_database(database_id)?;
-    let mut write_lock = db.database.write().unwrap();
-    write_lock.set_argon2(hash_id as usize, iterations as u8, parallelism as u8, memory as u16)
+    db.database.set_argon2(hash_id as usize, iterations as u8, parallelism as u8, memory as u16)
         .map_err(|e|PmanError::message(e.to_string()))
 }
 

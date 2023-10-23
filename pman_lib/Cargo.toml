@@ -7,7 +7,7 @@ edition = "2021"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [dependencies]
-uniffi = { version = "0.24.3", features = [ "cli" ] }
+uniffi = { version = "0.25", features = [ "cli" ] }
 thiserror = "1.0"
 rand = "0.8.5"
 aes = "0.8.3"
@@ -18,5 +18,5 @@ argon2 = "0.5.2"
 #minreq = { version = "2.10", features = [ "https" ] }
 
 [build-dependencies]
-uniffi_build = "0.24.3"
-uniffi_bindgen = "0.24.3"
+uniffi_build = "0.25"
+uniffi_bindgen = "0.25"

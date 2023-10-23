@@ -121,14 +121,14 @@ impl PasswordDatabase for PmanDatabase {
 }
 
 impl PmanDatabase {
-    pub fn new_from_file(contents: Vec<u8>) -> Result<Arc<RwLock<dyn PasswordDatabase>>, Error> {
+    pub fn new_from_file(contents: Vec<u8>) -> Result<Box<dyn PasswordDatabase>, Error> {
         let file = Arc::new(Mutex::new(PmanDatabaseFile::prepare(contents)?));
-        Ok(Arc::new(RwLock::new(PmanDatabase{file})))
+        Ok(Box::new(PmanDatabase{file}))
     }
 
-    pub fn new(password_hash: Vec<u8>, password2_hash: Vec<u8>) -> Result<Arc<RwLock<dyn PasswordDatabase>>, Error> {
+    pub fn new(password_hash: Vec<u8>, password2_hash: Vec<u8>) -> Result<Box<dyn PasswordDatabase>, Error> {
         let file = Arc::new(Mutex::new(PmanDatabaseFile::new(password_hash, password2_hash)?));
-        Ok(Arc::new(RwLock::new(PmanDatabase{file})))
+        Ok(Box::new(PmanDatabase{file}))
     }
 
     fn get_all_entities(&self) -> Result<HashMap<u32, PmanDatabaseEntity>, Error> {

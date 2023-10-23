@@ -10,6 +10,7 @@ fn main() {
                            uniffi_bindgen::bindings::TargetLanguage::Kotlin],
                       Some(out_dir.into()),
                       None,
+                                      None,
                       true).unwrap();
 
     Command::new("uniffi-bindgen-cs").arg("--out-dir").arg(out_dir).arg(udl_file).output()

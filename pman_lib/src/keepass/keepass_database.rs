@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 use crate::error_builders::build_read_only_db_error;
 use crate::structs_interfaces::{DatabaseGroup, FileAction, PasswordDatabase, PasswordDatabaseEntity};
 
@@ -85,12 +85,12 @@ impl PasswordDatabase for KeePassDatabase {
 }
 
 impl KeePassDatabase {
-    pub fn new_from_file(_contents: Vec<u8>) -> Result<Arc<RwLock<dyn PasswordDatabase>>, Error> {
-        Ok(Arc::new(RwLock::new(KeePassDatabase{})))
+    pub fn new_from_file(_contents: Vec<u8>) -> Result<Box<dyn PasswordDatabase>, Error> {
+        Ok(Box::new(KeePassDatabase{}))
     }
 
     pub fn new(_password_hash: Vec<u8>, _key_file_contents: Option<Vec<u8>>)
-        -> Result<Arc<RwLock<dyn PasswordDatabase>>, Error> {
+        -> Result<Box<dyn PasswordDatabase>, Error> {
         Err(Error::new(ErrorKind::Unsupported, "not implemented"))
     }
 

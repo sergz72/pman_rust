@@ -1,12 +1,10 @@
-use std::any::Any;
 use std::collections::HashMap;
-use std::io::{Error, ErrorKind};
+use std::io::Error;
 use std::sync::{Arc, Mutex};
 use crate::error_builders::build_corrupted_data_error;
 use crate::pman::id_value_map::id_value_map::ByteValue;
-use crate::pman::pman_database::PmanDatabase;
 use crate::pman::pman_database_file::PmanDatabaseFile;
-use crate::structs_interfaces::{PasswordDatabase, PasswordDatabaseEntity};
+use crate::structs_interfaces::PasswordDatabaseEntity;
 
 pub struct PmanDatabaseEntityFields {
     name_id: u32,
