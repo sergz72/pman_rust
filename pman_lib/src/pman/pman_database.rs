@@ -126,7 +126,7 @@ impl PasswordDatabase for PmanDatabase {
         let mut property_ids = HashMap::new();
         for (k, v) in properties {
             let key_id = file.add_to_names_file(k)?;
-            let value_id = file.add_to_names_file(v)?;
+            let value_id = file.add_to_passwords_file(v)?;
             property_ids.insert(key_id, value_id);
         }
         drop(file);
@@ -246,7 +246,10 @@ mod tests {
         assert_eq!(en.get_password()?, password1);
         let names = en.get_property_names()?;
         assert_eq!(names.len(), 1);
-        //assert_eq!();
+        let p1Value = names.get(&p1);
+        assert!(p1Value.is_some());
+        let p1ValueString = en.get_property_value(*p1Value.unwrap())?;
+        assert_eq!(p1ValueString, pv1);
         Ok(())
     }
 }

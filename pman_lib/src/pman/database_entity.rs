@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::io::Error;
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
-use crate::error_builders::build_corrupted_data_error;
+use crate::error_builders::{build_corrupted_data_error, build_not_found_error};
 use crate::pman::id_value_map::id_value_map::ByteValue;
 use crate::pman::pman_database_file::PmanDatabaseFile;
 use crate::structs_interfaces::PasswordDatabaseEntity;
@@ -149,11 +149,20 @@ impl PasswordDatabaseEntity for PmanDatabaseEntity {
     }
 
     fn get_property_names(&self) -> Result<HashMap<String, u32>, Error> {
-        todo!()
+        let mut result = HashMap::new();
+        for (k, _v) in &self.history.get(0).unwrap().properties {
+            let kk = *k;
+            let name = self.database_file.as_ref().unwrap().lock().unwrap().get_from_names_file(kk)?;
+            result.insert(name, kk);
+        }
+        Ok(result)
     }
 
     fn get_property_value(&self, index: u32) -> Result<String, Error> {
-        todo!()
+        if let Some(v) = self.history.get(0).unwrap().properties.get(&index) {
+            return self.database_file.as_ref().unwrap().lock().unwrap().get_from_passwords_file(*v);
+        }
+        Err(build_not_found_error())
     }
 
     fn modify(&mut self, new_group_id: Option<u32>, new_name: Option<String>, new_user_id: Option<u32>,
