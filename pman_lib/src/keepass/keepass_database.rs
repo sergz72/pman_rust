@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 use crate::error_builders::build_read_only_db_error;
@@ -80,6 +81,10 @@ impl PasswordDatabase for KeePassDatabase {
 
     fn save(&self, _file_name: String) -> Result<Vec<FileAction>, Error> {
         Err(build_read_only_db_error())
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

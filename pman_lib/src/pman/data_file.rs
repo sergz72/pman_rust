@@ -79,6 +79,10 @@ impl DataFile {
         self.is_updated = true;
         self.data.remove(id);
     }
+
+    pub fn get_records_count(&self) -> usize {
+        self.data.get_records_count()
+    }
 }
 
 fn build_local_file_name(main_file_name: &String, file_exiension: &str,

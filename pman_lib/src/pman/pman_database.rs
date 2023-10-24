@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -91,7 +92,16 @@ impl PasswordDatabase for PmanDatabase {
     }
 
     fn search(&self, search_string: String) -> Result<HashMap<u32, HashMap<u32, Box<dyn PasswordDatabaseEntity + Send>>>, Error> {
-        todo!()
+        let entities = self.get_all_entities()?;
+        let mut result: HashMap<u32, HashMap<u32, Box<dyn PasswordDatabaseEntity + Send>>> = HashMap::new();
+        for (entity_id, entity) in entities {
+            if entity.get_name()?.to_lowercase().contains(&search_string.to_lowercase()) {
+                let group_id = entity.get_group_id(ENTITY_VERSION_LATEST)?;
+                let map = result.entry(group_id).or_insert(HashMap::new());
+                map.insert(entity_id, Box::new(entity));
+            }
+        }
+        Ok(result)
     }
 
     fn add_group(&self, name: String) -> Result<u32, Error> {
@@ -169,6 +179,10 @@ impl PasswordDatabase for PmanDatabase {
     fn save(&self, file_name: String) -> Result<Vec<FileAction>, Error> {
         self.file.lock().unwrap().save(file_name)
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl PmanDatabase {
@@ -237,10 +251,22 @@ impl PmanDatabase {
             if indexes[i] == id {
                 file.remove_from_names_file(id)?;
                 indexes.remove(i);
-                return file.set_in_names_file(list_id, indexes)
+                return if indexes.is_empty() {
+                    file.remove_from_names_file(list_id)
+                } else {
+                    file.set_in_names_file(list_id, indexes)
+                }
             }
         }
         Err(build_not_found_error())
+    }
+
+    fn get_names_file_records_count(&self) -> Result<usize, Error> {
+        self.file.lock().unwrap().get_names_file_records_count()
+    }
+
+    fn get_passwords_file_records_count(&self) -> Result<usize, Error> {
+        self.file.lock().unwrap().get_passwords_file_records_count()
     }
 }
 
@@ -304,6 +330,24 @@ mod tests {
         assert!(p1value.is_some());
         let p1value_string = en.get_property_value(ENTITY_VERSION_LATEST, *p1value.unwrap())?;
         assert_eq!(p1value_string, pv1);
+        let search_result = database.search("ama".to_string())?;
+        assert_eq!(search_result.len(), 1);
+        let group_result_option = search_result.get(&internet_group);
+        assert!(group_result_option.is_some());
+        let group_result = group_result_option.unwrap();
+        assert_eq!(group_result.len(), 1);
+        let entity_option = group_result.get(&entity);
+        assert!(entity_option.is_some());
+        database.remove_entity(entity)?;
+        database.remove_user(user1)?;
+        database.remove_user(user2)?;
+        database.remove_user(user3)?;
+        database.remove_group(internet_group)?;
+        database.remove_group(banks_group)?;
+        database.remove_group(others_group)?;
+        let db: &PmanDatabase = database.as_any().downcast_ref().unwrap();
+        assert_eq!(db.get_passwords_file_records_count()?, 0);
+        assert_eq!(db.get_names_file_records_count()?, 0);
         Ok(())
     }
 }

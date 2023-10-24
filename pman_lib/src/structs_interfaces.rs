@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::collections::HashMap;
 use std::io::Error;
 use crate::structs_interfaces::PasswordDatabaseType::Pman;
@@ -85,6 +86,8 @@ pub trait PasswordDatabase {
                      new_properties: HashMap<String, String>,
                      modified_properties: HashMap<u32, Option<String>>) -> Result<(), Error>;*/
     fn save(&self, file_name: String) -> Result<Vec<FileAction>, Error>;
+
+    fn as_any(&self) -> &dyn Any;
 }
 
 pub enum HashAlgorithm {

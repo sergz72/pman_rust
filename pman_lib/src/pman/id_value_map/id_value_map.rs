@@ -150,6 +150,10 @@ impl IdValueMap {
         self.processor = encode_processor;
         Ok(output)
     }
+
+    pub fn get_records_count(&self)  -> usize {
+        self.map.iter().filter(|(k, v)|v.is_some()).count()
+    }
 }
 
 fn select_handler(handlers: &mut Vec<Box<dyn IdValueMapDataHandler + Send + Sync>>) -> Result<Box<dyn IdValueMapDataHandler + Send + Sync>, Error> {

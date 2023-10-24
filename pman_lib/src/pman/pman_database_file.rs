@@ -366,6 +366,20 @@ impl PmanDatabaseProperties {
         }
         Err(build_passwords_file_not_initialized_error())
     }
+
+    fn get_names_file_records_count(&self) -> Result<usize, Error> {
+        if let Some(p) = &self.names_file {
+            return Ok(p.get_records_count());
+        }
+        Err(build_names_file_not_initialized_error())
+    }
+
+    fn get_passwords_file_records_count(&self) -> Result<usize, Error> {
+        if let Some(p) = &self.passwords_file {
+            return Ok(p.get_records_count());
+        }
+        Err(build_passwords_file_not_initialized_error())
+    }
 }
 
 impl PmanDatabaseFile {
@@ -486,6 +500,20 @@ impl PmanDatabaseFile {
     pub fn remove_from_passwords_file(&mut self, id: u32) -> Result<(), Error> {
         if let Some(p) = &mut self.properties {
             return p.remove_from_passwords_file(id);
+        }
+        Err(build_properties_not_initialized_error())
+    }
+
+    pub fn get_names_file_records_count(&self) -> Result<usize, Error> {
+        if let Some(p) = &self.properties {
+            return p.get_names_file_records_count()
+        }
+        Err(build_properties_not_initialized_error())
+    }
+
+    pub fn get_passwords_file_records_count(&self) -> Result<usize, Error> {
+        if let Some(p) = &self.properties {
+            return p.get_passwords_file_records_count()
         }
         Err(build_properties_not_initialized_error())
     }
