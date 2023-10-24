@@ -73,6 +73,11 @@ impl DataFile {
         self.is_updated = true;
         self.data.set(id, value)
     }
+
+    pub fn remove(&mut self, id: u32) {
+        self.is_updated = true;
+        self.data.remove(id);
+    }
 }
 
 fn build_local_file_name(main_file_name: &String, file_exiension: &str,

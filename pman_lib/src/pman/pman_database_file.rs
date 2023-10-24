@@ -350,6 +350,22 @@ impl PmanDatabaseProperties {
         }
         Err(build_passwords_file_not_initialized_error())
     }
+
+    fn remove_from_names_file(&mut self, id: u32) -> Result<(), Error> {
+        if let Some(p) = &mut self.names_file {
+            p.remove(id);
+            return Ok(());
+        }
+        Err(build_names_file_not_initialized_error())
+    }
+
+    fn remove_from_passwords_file(&mut self, id: u32) -> Result<(), Error> {
+        if let Some(p) = &mut self.passwords_file {
+            p.remove(id);
+            return Ok(());
+        }
+        Err(build_passwords_file_not_initialized_error())
+    }
 }
 
 impl PmanDatabaseFile {
@@ -456,6 +472,20 @@ impl PmanDatabaseFile {
     pub fn set_in_passwords_file<T: ByteValue>(&mut self, id: u32, value: T) -> Result<(), Error> {
         if let Some(p) = &mut self.properties {
             return p.set_in_passwords_file(id, value);
+        }
+        Err(build_properties_not_initialized_error())
+    }
+
+    pub fn remove_from_names_file(&mut self, id: u32) -> Result<(), Error> {
+        if let Some(p) = &mut self.properties {
+            return p.remove_from_names_file(id);
+        }
+        Err(build_properties_not_initialized_error())
+    }
+
+    pub fn remove_from_passwords_file(&mut self, id: u32) -> Result<(), Error> {
+        if let Some(p) = &mut self.properties {
+            return p.remove_from_passwords_file(id);
         }
         Err(build_properties_not_initialized_error())
     }

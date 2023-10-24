@@ -439,6 +439,8 @@ internal interface _UniFFILib : Library {
     ): RustBuffer.ByValue
     fun uniffi_pman_lib_fn_func_prepare(`data`: RustBuffer.ByValue,`fileName`: RustBuffer.ByValue,_uniffi_out_err: RustCallStatus, 
     ): Long
+    fun uniffi_pman_lib_fn_func_rename_group(`databaseId`: Long,`id`: Int,`newName`: RustBuffer.ByValue,_uniffi_out_err: RustCallStatus, 
+    ): Unit
     fun uniffi_pman_lib_fn_func_save(`databaseId`: Long,_uniffi_out_err: RustCallStatus, 
     ): RustBuffer.ByValue
     fun uniffi_pman_lib_fn_func_search(`databaseId`: Long,`searchString`: RustBuffer.ByValue,_uniffi_out_err: RustCallStatus, 
@@ -591,6 +593,8 @@ internal interface _UniFFILib : Library {
     ): Short
     fun uniffi_pman_lib_checksum_func_prepare(
     ): Short
+    fun uniffi_pman_lib_checksum_func_rename_group(
+    ): Short
     fun uniffi_pman_lib_checksum_func_save(
     ): Short
     fun uniffi_pman_lib_checksum_func_search(
@@ -688,6 +692,9 @@ private fun uniffiCheckApiChecksums(lib: _UniFFILib) {
     if (lib.uniffi_pman_lib_checksum_func_prepare() != 43921.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_pman_lib_checksum_func_rename_group() != 37906.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_pman_lib_checksum_func_save() != 28650.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -706,7 +713,7 @@ private fun uniffiCheckApiChecksums(lib: _UniFFILib) {
     if (lib.uniffi_pman_lib_checksum_method_databaseentity_get_password() != 28831.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_pman_lib_checksum_method_databaseentity_get_property_names() != 32392.toShort()) {
+    if (lib.uniffi_pman_lib_checksum_method_databaseentity_get_property_names() != 34655.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_pman_lib_checksum_method_databaseentity_get_property_value() != 162.toShort()) {
@@ -1041,7 +1048,7 @@ public interface DatabaseEntityInterface {
     fun `getGroupId`(): UInt@Throws(PmanException::class)
     fun `getName`(): String@Throws(PmanException::class)
     fun `getPassword`(): String@Throws(PmanException::class)
-    fun `getPropertyNames`(): Map<UInt, String>@Throws(PmanException::class)
+    fun `getPropertyNames`(): Map<String, UInt>@Throws(PmanException::class)
     fun `getPropertyValue`(`id`: UInt): String@Throws(PmanException::class)
     fun `getUrl`(): String?
     fun `getUserId`(): UInt@Throws(PmanException::class)
@@ -1103,7 +1110,7 @@ class DatabaseEntity(
         }
     
     
-    @Throws(PmanException::class)override fun `getPropertyNames`(): Map<UInt, String> =
+    @Throws(PmanException::class)override fun `getPropertyNames`(): Map<String, UInt> =
         callWithPointer {
     rustCallWithError(PmanException) { _status ->
     _UniFFILib.INSTANCE.uniffi_pman_lib_fn_method_databaseentity_get_property_names(it,
@@ -1111,7 +1118,7 @@ class DatabaseEntity(
         _status)
 }
         }.let {
-            FfiConverterMapUIntString.lift(it)
+            FfiConverterMapStringUInt.lift(it)
         }
     
     
@@ -1816,6 +1823,41 @@ public object FfiConverterMapUIntMapUIntTypeDatabaseEntity: FfiConverterRustBuff
 
 
 
+public object FfiConverterMapStringUInt: FfiConverterRustBuffer<Map<String, UInt>> {
+    override fun read(buf: ByteBuffer): Map<String, UInt> {
+        val len = buf.getInt()
+        return buildMap<String, UInt>(len) {
+            repeat(len) {
+                val k = FfiConverterString.read(buf)
+                val v = FfiConverterUInt.read(buf)
+                this[k] = v
+            }
+        }
+    }
+
+    override fun allocationSize(value: Map<String, UInt>): Int {
+        val spaceForMapSize = 4
+        val spaceForChildren = value.map { (k, v) ->
+            FfiConverterString.allocationSize(k) +
+            FfiConverterUInt.allocationSize(v)
+        }.sum()
+        return spaceForMapSize + spaceForChildren
+    }
+
+    override fun write(value: Map<String, UInt>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        // The parens on `(k, v)` here ensure we're calling the right method,
+        // which is important for compatibility with older android devices.
+        // Ref https://blog.danlew.net/2017/03/16/kotlin-puzzler-whose-line-is-it-anyways/
+        value.forEach { (k, v) ->
+            FfiConverterString.write(k, buf)
+            FfiConverterUInt.write(v, buf)
+        }
+    }
+}
+
+
+
 public object FfiConverterMapStringString: FfiConverterRustBuffer<Map<String, String>> {
     override fun read(buf: ByteBuffer): Map<String, String> {
         val len = buf.getInt()
@@ -1990,6 +2032,15 @@ fun `prepare`(`data`: ByteArray, `fileName`: String): ULong {
     _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_prepare(FfiConverterByteArray.lower(`data`),FfiConverterString.lower(`fileName`),_status)
 })
 }
+
+@Throws(PmanException::class)
+
+fun `renameGroup`(`databaseId`: ULong, `id`: UInt, `newName`: String) =
+    
+    rustCallWithError(PmanException) { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_rename_group(FfiConverterULong.lower(`databaseId`),FfiConverterUInt.lower(`id`),FfiConverterString.lower(`newName`),_status)
+}
+
 
 @Throws(PmanException::class)
 

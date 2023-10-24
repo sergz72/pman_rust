@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 use std::sync::{Arc, Mutex, MutexGuard};
+use crate::error_builders::build_not_found_error;
 use crate::pman::database_entity::PmanDatabaseEntity;
 use crate::pman::id_value_map::id_value_map::ByteValue;
 use crate::pman::pman_database_file::PmanDatabaseFile;
@@ -93,11 +94,20 @@ impl PasswordDatabase for PmanDatabase {
     }
 
     fn rename_group(&self, group_id: u32, new_name: String) -> Result<(), Error> {
-        todo!()
+        self.check_group_exists(group_id)?;
+        let mut file = self.file.lock().unwrap();
+        let mut indexes: Vec<u32> = file.get_from_names_file(GROUPS_ID)?;
+        string_validator(&indexes, &mut file, &new_name)?;
+        file.set_in_names_file(group_id, new_name)
     }
 
     fn delete_group(&self, group_id: u32) -> Result<(), Error> {
-        todo!()
+        self.check_group_exists(group_id)?;
+        let entities = self.get_entities(group_id)?;
+        if entities.len() > 0 {
+            return Err(Error::new(ErrorKind::InvalidInput, "group is not empty"));
+        }
+        self.remove_from_list(GROUPS_ID, group_id)
     }
 
     fn delete_entity(&self, entity_id: u32) -> Result<(), Error> {
@@ -106,9 +116,7 @@ impl PasswordDatabase for PmanDatabase {
 
     fn add_entity(&self, group_id: u32, name: String, user_id: u32, password: String,
                   url: Option<String>, properties: HashMap<String, String>) -> Result<u32, Error> {
-        if self.get_groups()?.into_iter().find(|g|g.id == group_id).is_none() {
-            return Err(Error::new(ErrorKind::NotFound, "group not found"));
-        }
+        self.check_group_exists(group_id)?;
         if self.get_users()?.into_iter().find(|(id, _u)|*id == user_id).is_none() {
             return Err(Error::new(ErrorKind::NotFound, "user not found"));
         }
@@ -188,6 +196,26 @@ impl PmanDatabase {
 
     fn add_to_entity_list(&self, value: PmanDatabaseEntity) -> Result<u32, Error> {
         self.add_to_list(ENTITIES_ID, value, no_validator)
+    }
+
+    fn check_group_exists(&self, group_id: u32) -> Result<(), Error> {
+        if self.get_groups()?.into_iter().find(|g|g.id == group_id).is_none() {
+            return Err(Error::new(ErrorKind::NotFound, "group not found"));
+        }
+        Ok(())
+    }
+
+    fn remove_from_list(&self, list_id: u32, id: u32) -> Result<(), Error> {
+        let mut file = self.file.lock().unwrap();
+        let mut indexes: Vec<u32> = file.get_from_names_file(list_id)?;
+        for i in 0..indexes.len() {
+            if indexes[i] == id {
+                file.remove_from_names_file(id)?;
+                indexes.remove(i);
+                return file.set_in_names_file(list_id, indexes)
+            }
+        }
+        Err(build_not_found_error())
     }
 }
 

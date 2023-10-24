@@ -21,6 +21,8 @@ namespace pman_lib {
   [Throws=PmanError]
   u32 add_group(u64 database_id, string name);
   [Throws=PmanError]
+  void rename_group(u64 database_id, u32 id, string new_name);
+  [Throws=PmanError]
   void delete_group(u64 database_id, u32 id);
   [Throws=PmanError]
   record<u32, string> get_users(u64 database_id);

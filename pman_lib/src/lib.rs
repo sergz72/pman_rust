@@ -177,6 +177,11 @@ pub fn add_group(database_id: u64, name: String) -> Result<u32, PmanError> {
     todo!()
 }
 
+
+pub fn rename_group(database_id: u64, id: u32, new_name: String) -> Result<(), PmanError> {
+    todo!()
+}
+
 pub fn delete_group(database_id: u64, id: u32) -> Result<(), PmanError> {
     todo!()
 }
