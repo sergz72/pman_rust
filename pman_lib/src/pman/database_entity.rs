@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::Error;
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
@@ -86,6 +86,23 @@ impl PmanDatabaseEntityFields {
             properties
         };
         Ok((fields, offset))
+    }
+
+    fn collect_names_ids(&self, result: &mut HashSet<u32>) {
+        result.insert(self.name_id);
+        if let Some(url_id) = self.url_id {
+            result.insert(url_id);
+        }
+        for (k, _v) in &self.properties {
+            result.insert(*k);
+        }
+    }
+
+    fn collect_passwords_ids(&self, result: &mut HashSet<u32>) {
+        result.insert(self.password_id);
+        for (_k, v) in &self.properties {
+            result.insert(*v);
+        }
     }
 }
 
@@ -203,6 +220,22 @@ impl PmanDatabaseEntity {
     pub fn set_database_file(&mut self, database_file: Arc<Mutex<PmanDatabaseFile>>) {
         self.database_file = Some(database_file);
     }
+
+    pub fn collect_names_ids(&self) -> Vec<u32> {
+        let mut result = HashSet::new();
+        for item in &self.history {
+            item.collect_names_ids(&mut result);
+        }
+        result.into_iter().collect()
+    }
+
+    pub fn collect_passwords_ids(&self) -> Vec<u32> {
+        let mut result = HashSet::new();
+        for item in &self.history {
+            item.collect_passwords_ids(&mut result);
+        }
+        result.into_iter().collect()
+    }
 }
 
 fn get_current_timestamp() -> u64 {
@@ -228,7 +261,7 @@ mod tests {
         OsRng.fill_bytes(&mut hash2);
         let hash1_vec = Vec::from(hash1);
         let hash2_vec = Vec::from(hash2);
-        let mut db = Arc::new(Mutex::new(PmanDatabaseFile::new(hash1_vec.clone(), hash2_vec.clone())?));
+        let db = Arc::new(Mutex::new(PmanDatabaseFile::new(hash1_vec.clone(), hash2_vec.clone())?));
         let mut entity1 = PmanDatabaseEntity::new(db.clone(), 1, 2, 3, 4, None, HashMap::new());
         entity1.update(55, 66, 77, 88, Some(99),
                        HashMap::from([(110, 111), (112, 113)]));

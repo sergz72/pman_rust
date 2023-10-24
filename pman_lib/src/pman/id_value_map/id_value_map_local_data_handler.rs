@@ -23,15 +23,15 @@ impl IdValueMapDataHandler for IdValueMapLocalDataHandler {
         self.map.take().ok_or(Error::new(ErrorKind::NotFound, "map is None"))
     }
 
-    fn get(&self, id: u32) -> Result<Vec<u8>, Error> {
+    fn get(&self, _id: u32) -> Result<Vec<u8>, Error> {
         Err(build_not_found_error())
     }
 
-    fn mget(&self, ids: Vec<u32>) -> Result<HashMap<u32, Vec<u8>>, Error> {
+    fn mget(&self, _ids: Vec<u32>) -> Result<HashMap<u32, Vec<u8>>, Error> {
         Err(build_not_found_error())
     }
 
-    fn save(&self, next_id: u32, map: &HashMap<u32, Option<IdValueMapValue>>, processor: Arc<dyn CryptoProcessor>,
+    fn save(&self, _next_id: u32, map: &HashMap<u32, Option<IdValueMapValue>>, processor: Arc<dyn CryptoProcessor>,
             new_processor: Arc<dyn CryptoProcessor>, _alg1: Option<u8>, _encryption_key: Option<[u8; 32]>)
         -> Result<(HashMap<u32, Option<IdValueMapValue>>, Option<Vec<u8>>), Error> {
         let mut output = Vec::new();

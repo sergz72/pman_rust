@@ -81,8 +81,13 @@ impl PasswordDatabase for PmanDatabase {
         self.add_to_list(USERS_ID, name, string_validator)
     }
 
-    fn remove_user(&self, id: u32) -> Result<(), Error> {
-        todo!()
+    fn remove_user(&self, user_id: u32) -> Result<(), Error> {
+        self.check_user_exists(user_id)?;
+        let entities = self.get_all_entities()?;
+        if entities.iter().find(|(_id, e)|e.get_user_id() == user_id).is_some() {
+            return Err(Error::new(ErrorKind::InvalidInput, "user name is in use"));
+        }
+        self.remove_from_list(USERS_ID, user_id)
     }
 
     fn search(&self, search_string: String) -> Result<HashMap<u32, HashMap<u32, Box<dyn PasswordDatabaseEntity>>>, Error> {
@@ -96,7 +101,7 @@ impl PasswordDatabase for PmanDatabase {
     fn rename_group(&self, group_id: u32, new_name: String) -> Result<(), Error> {
         self.check_group_exists(group_id)?;
         let mut file = self.file.lock().unwrap();
-        let mut indexes: Vec<u32> = file.get_from_names_file(GROUPS_ID)?;
+        let indexes: Vec<u32> = file.get_from_names_file(GROUPS_ID)?;
         string_validator(&indexes, &mut file, &new_name)?;
         file.set_in_names_file(group_id, new_name)
     }
@@ -111,15 +116,26 @@ impl PasswordDatabase for PmanDatabase {
     }
 
     fn delete_entity(&self, entity_id: u32) -> Result<(), Error> {
-        todo!()
+        self.check_exists(ENTITIES_ID, entity_id, "entity not found")?;
+        let mut file = self.file.lock().unwrap();
+        let entity: PmanDatabaseEntity = file.get_from_names_file(entity_id)?;
+        let names_ids = entity.collect_names_ids();
+        let passwords_ids = entity.collect_passwords_ids();
+        for id in names_ids {
+            file.remove_from_names_file(id)?;
+        }
+        for id in passwords_ids {
+            file.remove_from_passwords_file(id)?;
+        }
+        file.remove_from_names_file(entity_id)?;
+        drop(file);
+        self.remove_from_list(ENTITIES_ID, entity_id)
     }
 
     fn add_entity(&self, group_id: u32, name: String, user_id: u32, password: String,
                   url: Option<String>, properties: HashMap<String, String>) -> Result<u32, Error> {
         self.check_group_exists(group_id)?;
-        if self.get_users()?.into_iter().find(|(id, _u)|*id == user_id).is_none() {
-            return Err(Error::new(ErrorKind::NotFound, "user not found"));
-        }
+        self.check_user_exists(user_id)?;
         for (_key, value) in self.get_entities(group_id)? {
             if value.get_name()? == name {
                 return Err(Error::new(ErrorKind::AlreadyExists, "entity with given name already exists"));
@@ -198,11 +214,20 @@ impl PmanDatabase {
         self.add_to_list(ENTITIES_ID, value, no_validator)
     }
 
-    fn check_group_exists(&self, group_id: u32) -> Result<(), Error> {
-        if self.get_groups()?.into_iter().find(|g|g.id == group_id).is_none() {
-            return Err(Error::new(ErrorKind::NotFound, "group not found"));
+    fn check_exists(&self, list_id: u32, id: u32, error_message: &str) -> Result<(), Error> {
+        let items: Vec<u32> = self.file.lock().unwrap().get_from_names_file(list_id)?;
+        if items.into_iter().find(|i|*i == id).is_none() {
+            return Err(Error::new(ErrorKind::NotFound, error_message));
         }
         Ok(())
+    }
+
+    fn check_group_exists(&self, group_id: u32) -> Result<(), Error> {
+        self.check_exists(GROUPS_ID, group_id, "group not found")
+    }
+
+    fn check_user_exists(&self, user_id: u32) -> Result<(), Error> {
+        self.check_exists(USERS_ID, user_id, "user not found")
     }
 
     fn remove_from_list(&self, list_id: u32, id: u32) -> Result<(), Error> {
@@ -227,7 +252,7 @@ fn string_validator(indexes: &Vec<u32>, file: &mut MutexGuard<PmanDatabaseFile>,
     Ok(())
 }
 
-fn no_validator<T: ByteValue>(_indexes: &Vec<u32>, _file: &mut MutexGuard<PmanDatabaseFile>, value: &T) -> Result<(), Error> {
+fn no_validator<T: ByteValue>(_indexes: &Vec<u32>, _file: &mut MutexGuard<PmanDatabaseFile>, _value: &T) -> Result<(), Error> {
     Ok(())
 }
 
@@ -274,10 +299,10 @@ mod tests {
         assert_eq!(en.get_password()?, password1);
         let names = en.get_property_names()?;
         assert_eq!(names.len(), 1);
-        let p1Value = names.get(&p1);
-        assert!(p1Value.is_some());
-        let p1ValueString = en.get_property_value(*p1Value.unwrap())?;
-        assert_eq!(p1ValueString, pv1);
+        let p1value = names.get(&p1);
+        assert!(p1value.is_some());
+        let p1value_string = en.get_property_value(*p1value.unwrap())?;
+        assert_eq!(p1value_string, pv1);
         Ok(())
     }
 }
