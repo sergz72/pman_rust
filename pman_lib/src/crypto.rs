@@ -91,7 +91,7 @@ impl CryptoProcessor for AesProcessor {
 }
 
 impl AesProcessor {
-    pub fn new(key: [u8;32]) -> Arc<dyn CryptoProcessor> {
+    pub fn new(key: [u8;32]) -> Arc<dyn CryptoProcessor + Send + Sync> {
         let k = GenericArray::from(key);
         Arc::new(AesProcessor{ cipher: Aes256::new(&k) })
     }
@@ -119,7 +119,7 @@ impl CryptoProcessor for NoEncryptionProcessor {
 }
 
 impl NoEncryptionProcessor {
-    pub fn new() -> Arc<dyn CryptoProcessor> {
+    pub fn new() -> Arc<dyn CryptoProcessor + Send + Sync> {
         Arc::new(NoEncryptionProcessor{})
     }
 }
@@ -152,7 +152,7 @@ impl CryptoProcessor for ChachaProcessor {
 }
 
 impl ChachaProcessor {
-    pub fn new(key: [u8; 32], iv: [u8; 12]) -> Arc<dyn CryptoProcessor> {
+    pub fn new(key: [u8; 32], iv: [u8; 12]) -> Arc<dyn CryptoProcessor + Send + Sync> {
         Arc::new(ChachaProcessor{key, iv})
     }
 }

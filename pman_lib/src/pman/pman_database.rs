@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 use std::sync::{Arc, Mutex, MutexGuard};
 use crate::error_builders::build_not_found_error;
-use crate::pman::database_entity::PmanDatabaseEntity;
+use crate::pman::database_entity::{ENTITY_VERSION_LATEST, PmanDatabaseEntity};
 use crate::pman::id_value_map::id_value_map::ByteValue;
 use crate::pman::pman_database_file::PmanDatabaseFile;
 use crate::structs_interfaces::{DatabaseGroup, FileAction, PasswordDatabase, PasswordDatabaseEntity};
@@ -52,7 +52,7 @@ impl PasswordDatabase for PmanDatabase {
         let entities = self.get_all_entities()?;
         let mut counts = HashMap::new();
         for (_id, entity) in entities {
-            let e = counts.entry(entity.get_group_id()).or_insert(0u32);
+            let e = counts.entry(entity.get_group_id(ENTITY_VERSION_LATEST)?).or_insert(0u32);
             *e += 1;
         }
         Ok(groups.into_iter().map(|(id, g)|DatabaseGroup{
@@ -66,11 +66,11 @@ impl PasswordDatabase for PmanDatabase {
         self.file.lock().unwrap().get_indirect_from_names_file(USERS_ID)
     }
 
-    fn get_entities(&self, group_id: u32) -> Result<HashMap<u32, Box<dyn PasswordDatabaseEntity>>, Error> {
+    fn get_entities(&self, group_id: u32) -> Result<HashMap<u32, Box<dyn PasswordDatabaseEntity + Send>>, Error> {
         let entities = self.get_all_entities()?;
-        let mut result: HashMap<u32, Box<dyn PasswordDatabaseEntity>> = HashMap::new();
+        let mut result: HashMap<u32, Box<dyn PasswordDatabaseEntity + Send>> = HashMap::new();
         for (k, v) in entities {
-            if v.get_group_id() == group_id {
+            if v.get_group_id(ENTITY_VERSION_LATEST)? == group_id {
                 result.insert(k, Box::new(v));
             }
         }
@@ -84,13 +84,13 @@ impl PasswordDatabase for PmanDatabase {
     fn remove_user(&self, user_id: u32) -> Result<(), Error> {
         self.check_user_exists(user_id)?;
         let entities = self.get_all_entities()?;
-        if entities.iter().find(|(_id, e)|e.get_user_id() == user_id).is_some() {
+        if entities.iter().find(|(_id, e)|e.contains_user_id(user_id)).is_some() {
             return Err(Error::new(ErrorKind::InvalidInput, "user name is in use"));
         }
         self.remove_from_list(USERS_ID, user_id)
     }
 
-    fn search(&self, search_string: String) -> Result<HashMap<u32, HashMap<u32, Box<dyn PasswordDatabaseEntity>>>, Error> {
+    fn search(&self, search_string: String) -> Result<HashMap<u32, HashMap<u32, Box<dyn PasswordDatabaseEntity + Send>>>, Error> {
         todo!()
     }
 
@@ -106,16 +106,16 @@ impl PasswordDatabase for PmanDatabase {
         file.set_in_names_file(group_id, new_name)
     }
 
-    fn delete_group(&self, group_id: u32) -> Result<(), Error> {
+    fn remove_group(&self, group_id: u32) -> Result<(), Error> {
         self.check_group_exists(group_id)?;
-        let entities = self.get_entities(group_id)?;
-        if entities.len() > 0 {
+        let entities = self.get_all_entities()?;
+        if entities.iter().find(|(_k, v)|v.contains_group_id(group_id)).is_some() {
             return Err(Error::new(ErrorKind::InvalidInput, "group is not empty"));
         }
         self.remove_from_list(GROUPS_ID, group_id)
     }
 
-    fn delete_entity(&self, entity_id: u32) -> Result<(), Error> {
+    fn remove_entity(&self, entity_id: u32) -> Result<(), Error> {
         self.check_exists(ENTITIES_ID, entity_id, "entity not found")?;
         let mut file = self.file.lock().unwrap();
         let entity: PmanDatabaseEntity = file.get_from_names_file(entity_id)?;
@@ -262,6 +262,7 @@ mod tests {
     use std::io::Error;
     use rand::RngCore;
     use rand::rngs::OsRng;
+    use crate::pman::database_entity::ENTITY_VERSION_LATEST;
     use crate::pman::pman_database::PmanDatabase;
 
     #[test]
@@ -294,14 +295,14 @@ mod tests {
         assert!(e.is_some());
         let en = e.unwrap();
         assert_eq!(en.get_name()?, name1);
-        assert_eq!(en.get_group_id(), internet_group);
-        assert_eq!(en.get_user_id(), user1);
-        assert_eq!(en.get_password()?, password1);
-        let names = en.get_property_names()?;
+        assert_eq!(en.get_group_id(ENTITY_VERSION_LATEST)?, internet_group);
+        assert_eq!(en.get_user_id(ENTITY_VERSION_LATEST)?, user1);
+        assert_eq!(en.get_password(ENTITY_VERSION_LATEST)?, password1);
+        let names = en.get_property_names(ENTITY_VERSION_LATEST)?;
         assert_eq!(names.len(), 1);
         let p1value = names.get(&p1);
         assert!(p1value.is_some());
-        let p1value_string = en.get_property_value(*p1value.unwrap())?;
+        let p1value_string = en.get_property_value(ENTITY_VERSION_LATEST, *p1value.unwrap())?;
         assert_eq!(p1value_string, pv1);
         Ok(())
     }

@@ -34,7 +34,7 @@ impl PasswordDatabase for KeePassDatabase {
         todo!()
     }
 
-    fn get_entities(&self, _group_id: u32) -> Result<HashMap<u32, Box<dyn PasswordDatabaseEntity>>, Error> {
+    fn get_entities(&self, _group_id: u32) -> Result<HashMap<u32, Box<dyn PasswordDatabaseEntity + Send>>, Error> {
         todo!()
     }
 
@@ -46,7 +46,7 @@ impl PasswordDatabase for KeePassDatabase {
         Err(build_read_only_db_error())
     }
 
-    fn search(&self, _search_string: String) -> Result<HashMap<u32, HashMap<u32, Box<dyn PasswordDatabaseEntity>>>, Error> {
+    fn search(&self, _search_string: String) -> Result<HashMap<u32, HashMap<u32, Box<dyn PasswordDatabaseEntity + Send>>>, Error> {
         todo!()
     }
 
@@ -58,11 +58,11 @@ impl PasswordDatabase for KeePassDatabase {
         Err(build_read_only_db_error())
     }
 
-    fn delete_group(&self, _group_id: u32) -> Result<(), Error> {
+    fn remove_group(&self, _group_id: u32) -> Result<(), Error> {
         Err(build_read_only_db_error())
     }
 
-    fn delete_entity(&self, _entity_id: u32) -> Result<(), Error> {
+    fn remove_entity(&self, _entity_id: u32) -> Result<(), Error> {
         Err(build_read_only_db_error())
     }
 

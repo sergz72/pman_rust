@@ -27,13 +27,13 @@ pub struct IdValueMapValue {
 pub struct IdValueMap {
     next_id: u32,
     map: HashMap<u32, Option<IdValueMapValue>>,
-    processor: Arc<dyn CryptoProcessor>,
-    other_handlers: Vec<Box<dyn IdValueMapDataHandler>>,
-    selected_handler: Box<dyn IdValueMapDataHandler>
+    processor: Arc<dyn CryptoProcessor + Send + Sync>,
+    other_handlers: Vec<Box<dyn IdValueMapDataHandler + Send + Sync>>,
+    selected_handler: Box<dyn IdValueMapDataHandler + Send + Sync>
 }
 
 impl IdValueMap {
-    pub fn new(processor: Arc<dyn CryptoProcessor>, mut handlers: Vec<Box<dyn IdValueMapDataHandler>>) -> Result<IdValueMap, Error> {
+    pub fn new(processor: Arc<dyn CryptoProcessor + Send + Sync>, mut handlers: Vec<Box<dyn IdValueMapDataHandler + Send + Sync>>) -> Result<IdValueMap, Error> {
         let mut selected_handler = select_handler(&mut handlers)?;
         let map = selected_handler.get_map()?.into_iter()
             .map(|(k, v)|(k, Some(IdValueMapValue{ updated: false, data: v }))).collect();
@@ -132,7 +132,7 @@ impl IdValueMap {
         Ok(result)
     }
 
-    pub fn save(&mut self, new_processor: Option<Arc<dyn CryptoProcessor>>, alg1: Option<u8>,
+    pub fn save(&mut self, new_processor: Option<Arc<dyn CryptoProcessor + Send + Sync>>, alg1: Option<u8>,
                 encryption_key: Option<[u8; 32]>) -> Result<Option<Vec<u8>>, Error> {
         let encode_processor = new_processor.unwrap_or(self.processor.clone());
         let (map, mut output) =
@@ -152,7 +152,7 @@ impl IdValueMap {
     }
 }
 
-fn select_handler(handlers: &mut Vec<Box<dyn IdValueMapDataHandler>>) -> Result<Box<dyn IdValueMapDataHandler>, Error> {
+fn select_handler(handlers: &mut Vec<Box<dyn IdValueMapDataHandler + Send + Sync>>) -> Result<Box<dyn IdValueMapDataHandler + Send + Sync>, Error> {
     match handlers.len() {
         0 => Err(Error::new(ErrorKind::InvalidData, "empty handlers list")),
         1 => Ok(handlers.remove(0)),

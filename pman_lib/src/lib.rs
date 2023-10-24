@@ -170,50 +170,75 @@ pub fn build_argon2_hash(password: Vec<u8>, iterations: isize, parallelism: isiz
 }
 
 pub fn get_groups(database_id: u64) -> Result<Vec<Arc<DatabaseGroup>>, PmanError> {
-    todo!()
+    let db = get_database(database_id)?;
+    db.database.get_groups()
+        .map(|v|v.into_iter().map(|e|Arc::new(e)).collect())
+        .map_err(|e|PmanError::message(e.to_string()))
 }
 
 pub fn add_group(database_id: u64, name: String) -> Result<u32, PmanError> {
-    todo!()
+    let db = get_database(database_id)?;
+    db.database.add_group(name).map_err(|e|PmanError::message(e.to_string()))
 }
 
 
 pub fn rename_group(database_id: u64, id: u32, new_name: String) -> Result<(), PmanError> {
-    todo!()
+    let db = get_database(database_id)?;
+    db.database.rename_group(id, new_name).map_err(|e|PmanError::message(e.to_string()))
 }
 
-pub fn delete_group(database_id: u64, id: u32) -> Result<(), PmanError> {
-    todo!()
+pub fn remove_group(database_id: u64, id: u32) -> Result<(), PmanError> {
+    let db = get_database(database_id)?;
+    db.database.remove_group(id).map_err(|e|PmanError::message(e.to_string()))
 }
 
 pub fn get_users(database_id: u64) -> Result<HashMap<u32, String>, PmanError> {
-    todo!()
+    let db = get_database(database_id)?;
+    db.database.get_users().map_err(|e|PmanError::message(e.to_string()))
 }
 
 pub fn add_user(database_id: u64, name: String) -> Result<u32, PmanError> {
-    todo!()
+    let db = get_database(database_id)?;
+    db.database.add_user(name).map_err(|e|PmanError::message(e.to_string()))
 }
 
-pub fn delete_user(database_id: u64, id: u32) -> Result<(), PmanError> {
-    todo!()
+pub fn remove_user(database_id: u64, id: u32) -> Result<(), PmanError> {
+    let db = get_database(database_id)?;
+    db.database.remove_user(id).map_err(|e|PmanError::message(e.to_string()))
 }
 
 pub fn get_entities(database_id: u64, group_id: u32) -> Result<HashMap<u32, Arc<DatabaseEntity>>, PmanError> {
-    todo!()
+    let db = get_database(database_id)?;
+    db.database.get_entities(group_id)
+        .map(|v|v.into_iter()
+            .map(|(k, v)|(k, Arc::new(DatabaseEntity::new(v)))).collect())
+        .map_err(|e|PmanError::message(e.to_string()))
 }
 
 pub fn add_entity(database_id: u64, name: String, group_id: u32, user_id: u32, password: String,
                   url: Option<String>, properties: HashMap<String, String>) -> Result<u32, PmanError> {
-    todo!()
+    let db = get_database(database_id)?;
+    db.database.add_entity(group_id, name, user_id, password, url, properties)
+        .map_err(|e|PmanError::message(e.to_string()))
 }
 
-pub fn delete_entity(database_id: u64, id: u32) -> Result<(), PmanError> {
-    todo!()
+pub fn remove_entity(database_id: u64, id: u32) -> Result<(), PmanError> {
+    let db = get_database(database_id)?;
+    db.database.remove_entity(id).map_err(|e|PmanError::message(e.to_string()))
 }
 
 pub fn search(database_id: u64, search_string: String)
     -> Result<HashMap<u32, HashMap<u32, Arc<DatabaseEntity>>>, PmanError> {
-    todo!()
+    let db = get_database(database_id)?;
+    db.database.search(search_string)
+        .map(|v|v.into_iter()
+            .map(|(k, v)|(k, build_entity_map(v))).collect())
+        .map_err(|e|PmanError::message(e.to_string()))
+}
+
+fn build_entity_map(map: HashMap<u32, Box<dyn PasswordDatabaseEntity + Send>>) -> HashMap<u32, Arc<DatabaseEntity>> {
+    map.into_iter()
+        .map(|(k, v)|(k, Arc::new(DatabaseEntity::new(v)))).collect()
 }
 
 pub struct DatabaseEntity {
@@ -221,7 +246,6 @@ pub struct DatabaseEntity {
 }
 
 impl DatabaseEntity {
-
     pub fn new(entity: Box<dyn PasswordDatabaseEntity + Send>) -> DatabaseEntity {
         DatabaseEntity{entity: Mutex::new(entity)}
     }
@@ -230,28 +254,36 @@ impl DatabaseEntity {
         self.entity.lock().unwrap().get_name().map_err(|e|PmanError::message(e.to_string()))
     }
 
-    fn get_user_id(&self) -> u32 {
-        self.entity.lock().unwrap().get_user_id()
+    fn get_user_id(&self, version: u32) -> Result<u32, PmanError> {
+        self.entity.lock().unwrap().get_user_id(version).map_err(|e|PmanError::message(e.to_string()))
     }
 
-    fn get_group_id(&self) -> u32 {
-        self.entity.lock().unwrap().get_group_id()
+    fn get_group_id(&self, version: u32) -> Result<u32, PmanError> {
+        self.entity.lock().unwrap().get_group_id(version).map_err(|e|PmanError::message(e.to_string()))
     }
 
-    fn get_password(&self) -> Result<String, PmanError> {
-        self.entity.lock().unwrap().get_password().map_err(|e|PmanError::message(e.to_string()))
+    fn get_password(&self, version: u32) -> Result<String, PmanError> {
+        self.entity.lock().unwrap().get_password(version).map_err(|e|PmanError::message(e.to_string()))
     }
 
-    fn get_url(&self) -> Result<Option<String>, PmanError> {
-        self.entity.lock().unwrap().get_url().map_err(|e|PmanError::message(e.to_string()))
+    fn get_url(&self, version: u32) -> Result<Option<String>, PmanError> {
+        self.entity.lock().unwrap().get_url(version).map_err(|e|PmanError::message(e.to_string()))
     }
 
-    fn get_property_names(&self) -> Result<HashMap<String, u32>, PmanError> {
-        self.entity.lock().unwrap().get_property_names().map_err(|e|PmanError::message(e.to_string()))
+    fn get_property_names(&self, version: u32) -> Result<HashMap<String, u32>, PmanError> {
+        self.entity.lock().unwrap().get_property_names(version).map_err(|e|PmanError::message(e.to_string()))
     }
 
-    fn get_property_value(&self, index: u32) -> Result<String, PmanError> {
-        self.entity.lock().unwrap().get_property_value(index).map_err(|e|PmanError::message(e.to_string()))
+    fn get_property_value(&self, version: u32, index: u32) -> Result<String, PmanError> {
+        self.entity.lock().unwrap().get_property_value(version, index).map_err(|e|PmanError::message(e.to_string()))
+    }
+
+    fn get_created_at(&self, version: u32) -> Result<u64, PmanError> {
+        self.entity.lock().unwrap().get_created_at(version).map_err(|e|PmanError::message(e.to_string()))
+    }
+
+    fn get_max_version(&self) -> u32 {
+        self.entity.lock().unwrap().get_max_version()
     }
 
     fn modify(&self, new_name: Option<String>, new_group_id: Option<u32>, new_user_id: Option<u32>,

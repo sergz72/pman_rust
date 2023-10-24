@@ -21,13 +21,16 @@ impl FileAction {
 }
 
 pub trait PasswordDatabaseEntity {
+    fn get_max_version(&self) -> u32;
     fn get_name(&self) -> Result<String, Error>;
-    fn get_user_id(&self) -> u32;
-    fn get_group_id(&self) -> u32;
-    fn get_password(&self) -> Result<String, Error>;
-    fn get_url(&self) -> Result<Option<String>, Error>;
-    fn get_property_names(&self) -> Result<HashMap<String, u32>, Error>;
-    fn get_property_value(&self, index: u32) -> Result<String, Error>;
+    fn get_user_id(&self, version: u32) -> Result<u32, Error>;
+    fn get_group_id(&self, version: u32) -> Result<u32, Error>;
+    fn get_password(&self, version: u32) -> Result<String, Error>;
+    fn get_url(&self, version: u32) -> Result<Option<String>, Error>;
+    fn get_property_names(&self, version: u32) -> Result<HashMap<String, u32>, Error>;
+    fn get_property_value(&self, version: u32, index: u32) -> Result<String, Error>;
+
+    fn get_created_at(&self, version: u32) -> Result<u64, Error>;
 
     fn modify(&mut self, new_group_id: Option<u32>, new_name: Option<String>, new_user_id: Option<u32>,
               new_password: Option<String>, new_url: Option<String>, new_properties: HashMap<String, String>,
@@ -67,14 +70,14 @@ pub trait PasswordDatabase {
     fn open(&self, data: Vec<Vec<u8>>) -> Result<(), Error>;
     fn get_groups(&self) -> Result<Vec<DatabaseGroup>, Error>;
     fn get_users(&self) -> Result<HashMap<u32, String>, Error>;
-    fn get_entities(&self, group_id: u32) -> Result<HashMap<u32, Box<dyn PasswordDatabaseEntity>>, Error>;
+    fn get_entities(&self, group_id: u32) -> Result<HashMap<u32, Box<dyn PasswordDatabaseEntity + Send>>, Error>;
     fn add_user(&self, name: String) -> Result<u32, Error>;
     fn remove_user(&self, id: u32) -> Result<(), Error>;
-    fn search(&self, search_string: String) -> Result<HashMap<u32, HashMap<u32, Box<dyn PasswordDatabaseEntity>>>, Error>;
+    fn search(&self, search_string: String) -> Result<HashMap<u32, HashMap<u32, Box<dyn PasswordDatabaseEntity + Send>>>, Error>;
     fn add_group(&self, name: String) -> Result<u32, Error>;
     fn rename_group(&self, group_id: u32, new_name: String) -> Result<(), Error>;
-    fn delete_group(&self, id: u32) -> Result<(), Error>;
-    fn delete_entity(&self, entity_id: u32) -> Result<(), Error>;
+    fn remove_group(&self, id: u32) -> Result<(), Error>;
+    fn remove_entity(&self, entity_id: u32) -> Result<(), Error>;
     fn add_entity(&self, group_id: u32, name: String, user_id: u32, password: String,
                   url: Option<String>, properties: HashMap<String, String>) -> Result<u32, Error>;
     /*fn modify_entity(&self, entity_id: u32, new_group_id: Option<u32>, new_name: Option<String>,

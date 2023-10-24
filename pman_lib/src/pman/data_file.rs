@@ -15,7 +15,7 @@ pub struct DataFile {
 }
 
 impl DataFile {
-    pub fn new(file_info: &mut IdValueMap, processor2: Arc<dyn CryptoProcessor>) -> Result<DataFile, Error> {
+    pub fn new(file_info: &mut IdValueMap, processor2: Arc<dyn CryptoProcessor + Send + Sync>) -> Result<DataFile, Error> {
         let handlers = new_data_file_handlers(file_info)?;
         Ok(DataFile {is_updated: true, data: IdValueMap::new(processor2, handlers)?})
     }
@@ -24,13 +24,14 @@ impl DataFile {
         build_local_file_name(main_file_name, file_extension, file_info)
     }
 
-    pub fn load(local_file_data: Option<Vec<u8>>, file_info: &mut IdValueMap, encryption_key: [u8; 32], alg1: u8, processor2: Arc<dyn CryptoProcessor>) -> Result<DataFile, Error> {
+    pub fn load(local_file_data: Option<Vec<u8>>, file_info: &mut IdValueMap, encryption_key: [u8; 32],
+                alg1: u8, processor2: Arc<dyn CryptoProcessor + Send + Sync>) -> Result<DataFile, Error> {
         let handlers = build_data_file_handlers(file_info, local_file_data, encryption_key, alg1)?;
         Ok(DataFile {is_updated: false, data: IdValueMap::new(processor2, handlers)?})
     }
 
     pub fn save(&mut self, encryption_key: [u8; 32], alg1: u8,
-                processor2: Arc<dyn CryptoProcessor>) -> Result<Option<Vec<u8>>, Error> {
+                processor2: Arc<dyn CryptoProcessor + Send + Sync>) -> Result<Option<Vec<u8>>, Error> {
         if !self.is_updated {
             return Ok(None);
         }
@@ -40,7 +41,7 @@ impl DataFile {
         Ok(output)
     }
 
-    pub fn build_file_info(processor2: Arc<dyn CryptoProcessor>, only_locations: bool) -> Result<IdValueMap, Error> {
+    pub fn build_file_info(processor2: Arc<dyn CryptoProcessor + Send + Sync>, only_locations: bool) -> Result<IdValueMap, Error> {
         let mut h = IdValueMap::new(processor2, vec![Box::new(IdValueMapLocalDataHandler::new())])?;
         if !only_locations {
             h.add_with_id(HASH_ALGORITHM_PROPERTIES_ID, default_argon2_properties()).unwrap();
@@ -95,9 +96,9 @@ fn build_local_file_name(main_file_name: &String, file_exiension: &str,
     Ok(None)
 }
 
-fn new_data_file_handlers(file_info: &mut IdValueMap) -> Result<Vec<Box<dyn IdValueMapDataHandler>>, Error> {
+fn new_data_file_handlers(file_info: &mut IdValueMap) -> Result<Vec<Box<dyn IdValueMapDataHandler + Send + Sync>>, Error> {
     let locations: Vec<u8> = file_info.get(FILES_LOCATIONS_ID)?;
-    let mut result: Vec<Box<dyn IdValueMapDataHandler>> = Vec::new();
+    let mut result: Vec<Box<dyn IdValueMapDataHandler + Send + Sync>> = Vec::new();
     for location in locations {
         let location_data: Vec<u8> = file_info.get(location as u32)?;
         if location_data.is_empty() {
@@ -117,9 +118,9 @@ fn new_data_file_handlers(file_info: &mut IdValueMap) -> Result<Vec<Box<dyn IdVa
 }
 
 fn build_data_file_handlers(file_info: &mut IdValueMap, local_file_data: Option<Vec<u8>>,
-                            encryption_key: [u8; 32], alg1: u8) -> Result<Vec<Box<dyn IdValueMapDataHandler>>, Error> {
+                            encryption_key: [u8; 32], alg1: u8) -> Result<Vec<Box<dyn IdValueMapDataHandler + Send + Sync>>, Error> {
     let locations: Vec<u8> = file_info.get(FILES_LOCATIONS_ID)?;
-    let mut result: Vec<Box<dyn IdValueMapDataHandler>> = Vec::new();
+    let mut result: Vec<Box<dyn IdValueMapDataHandler + Send + Sync>> = Vec::new();
     for location in locations {
         let location_data: Vec<u8> = file_info.get(location as u32)?;
         if location_data.is_empty() {

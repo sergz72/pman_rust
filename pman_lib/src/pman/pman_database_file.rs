@@ -83,8 +83,8 @@ pub struct PmanDatabaseProperties {
     is_updated: bool,
     alg1: u8,
     alg21: u8,
-    processor12: Arc<dyn CryptoProcessor>,
-    processor22: Arc<dyn CryptoProcessor>
+    processor12: Arc<dyn CryptoProcessor + Send + Sync>,
+    processor22: Arc<dyn CryptoProcessor + Send + Sync>
 }
 
 pub struct PmanDatabaseFile {
@@ -507,7 +507,7 @@ pub fn build_unsupported_algorithm_error() -> Error {
     Error::new(ErrorKind::Unsupported, "unsupported encryption algorithm")
 }
 
-fn build_encryption_processor(algorithm_parameters: Vec<u8>, encryption_key: [u8; 32]) -> Result<Arc<dyn CryptoProcessor>, Error> {
+fn build_encryption_processor(algorithm_parameters: Vec<u8>, encryption_key: [u8; 32]) -> Result<Arc<dyn CryptoProcessor + Send + Sync>, Error> {
     if algorithm_parameters.len() == 0 {
         return Err(build_corrupted_data_error())
     }
@@ -518,14 +518,14 @@ fn build_encryption_processor(algorithm_parameters: Vec<u8>, encryption_key: [u8
     }
 }
 
-pub fn build_aes_processor(parameters: Vec<u8>, key: [u8; 32]) -> Result<Arc<dyn CryptoProcessor>, Error> {
+pub fn build_aes_processor(parameters: Vec<u8>, key: [u8; 32]) -> Result<Arc<dyn CryptoProcessor + Send + Sync>, Error> {
     if parameters.len() != 1 {
         return Err(build_corrupted_data_error());
     }
     Ok(AesProcessor::new(key))
 }
 
-pub fn build_chacha_processor(parameters: Vec<u8>, key: [u8; 32]) -> Result<Arc<dyn CryptoProcessor>, Error> {
+pub fn build_chacha_processor(parameters: Vec<u8>, key: [u8; 32]) -> Result<Arc<dyn CryptoProcessor + Send + Sync>, Error> {
     if parameters.len() != 13 {
         return Err(build_corrupted_data_error());
     }
