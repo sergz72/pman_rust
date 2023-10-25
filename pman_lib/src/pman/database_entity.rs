@@ -262,6 +262,18 @@ impl PmanDatabaseEntity {
         }
         Ok(())
     }
+
+    pub fn get_name_id(&self) -> u32 {
+        self.name_id
+    }
+
+    pub fn get_password_id(&self) -> u32 {
+        self.history.get(0).unwrap().password_id
+    }
+
+    pub fn get_properties(&self) -> HashMap<u32, u32> {
+        self.history.get(0).unwrap().properties.clone()
+    }
 }
 
 fn get_current_timestamp() -> u64 {

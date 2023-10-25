@@ -223,18 +223,18 @@ pub fn add_entity(database_id: u64, name: String, group_id: u32, user_id: u32, p
 }
 
 pub fn rename_entity(database_id: u64, entity_id: u32, new_name: String) -> Result<(), PmanError> {
-    //self.entity.lock().unwrap().rename(new_name).map_err(|e|PmanError::message(e.to_string()))
-    todo!()
+    let db = get_database(database_id)?;
+    db.database.rename_entity(entity_id, new_name).map_err(|e|PmanError::message(e.to_string()))
 }
 
 pub fn modify_entity(database_id: u64, entity_id: u32, new_group_id: Option<u32>, new_user_id: Option<u32>,
           new_password: Option<String>, new_url: Option<String>, new_properties: HashMap<String, String>,
           modified_properties: HashMap<u32, Option<String>>)
           -> Result<(), PmanError> {
-    /*self.entity.lock().unwrap().modify(new_group_id, new_user_id, new_password, new_url,
+    let db = get_database(database_id)?;
+    db.database.modify_entity(entity_id, new_group_id, new_user_id, new_password, new_url,
                                        new_properties, modified_properties)
-        .map_err(|e|PmanError::message(e.to_string()))*/
-    todo!()
+        .map_err(|e|PmanError::message(e.to_string()))
 }
 
 pub fn remove_entity(database_id: u64, id: u32) -> Result<(), PmanError> {

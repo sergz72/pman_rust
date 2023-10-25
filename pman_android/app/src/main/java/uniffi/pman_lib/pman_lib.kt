@@ -377,22 +377,24 @@ internal interface _UniFFILib : Library {
 
     fun uniffi_pman_lib_fn_free_databaseentity(`ptr`: Pointer,_uniffi_out_err: RustCallStatus, 
     ): Unit
-    fun uniffi_pman_lib_fn_method_databaseentity_get_group_id(`ptr`: Pointer,_uniffi_out_err: RustCallStatus, 
+    fun uniffi_pman_lib_fn_method_databaseentity_get_created_at(`ptr`: Pointer,`version`: Int,_uniffi_out_err: RustCallStatus, 
+    ): Long
+    fun uniffi_pman_lib_fn_method_databaseentity_get_group_id(`ptr`: Pointer,`version`: Int,_uniffi_out_err: RustCallStatus, 
+    ): Int
+    fun uniffi_pman_lib_fn_method_databaseentity_get_max_version(`ptr`: Pointer,_uniffi_out_err: RustCallStatus, 
     ): Int
     fun uniffi_pman_lib_fn_method_databaseentity_get_name(`ptr`: Pointer,_uniffi_out_err: RustCallStatus, 
     ): RustBuffer.ByValue
-    fun uniffi_pman_lib_fn_method_databaseentity_get_password(`ptr`: Pointer,_uniffi_out_err: RustCallStatus, 
+    fun uniffi_pman_lib_fn_method_databaseentity_get_password(`ptr`: Pointer,`version`: Int,_uniffi_out_err: RustCallStatus, 
     ): RustBuffer.ByValue
-    fun uniffi_pman_lib_fn_method_databaseentity_get_property_names(`ptr`: Pointer,_uniffi_out_err: RustCallStatus, 
+    fun uniffi_pman_lib_fn_method_databaseentity_get_property_names(`ptr`: Pointer,`version`: Int,_uniffi_out_err: RustCallStatus, 
     ): RustBuffer.ByValue
-    fun uniffi_pman_lib_fn_method_databaseentity_get_property_value(`ptr`: Pointer,`id`: Int,_uniffi_out_err: RustCallStatus, 
+    fun uniffi_pman_lib_fn_method_databaseentity_get_property_value(`ptr`: Pointer,`version`: Int,`id`: Int,_uniffi_out_err: RustCallStatus, 
     ): RustBuffer.ByValue
-    fun uniffi_pman_lib_fn_method_databaseentity_get_url(`ptr`: Pointer,_uniffi_out_err: RustCallStatus, 
+    fun uniffi_pman_lib_fn_method_databaseentity_get_url(`ptr`: Pointer,`version`: Int,_uniffi_out_err: RustCallStatus, 
     ): RustBuffer.ByValue
-    fun uniffi_pman_lib_fn_method_databaseentity_get_user_id(`ptr`: Pointer,_uniffi_out_err: RustCallStatus, 
+    fun uniffi_pman_lib_fn_method_databaseentity_get_user_id(`ptr`: Pointer,`version`: Int,_uniffi_out_err: RustCallStatus, 
     ): Int
-    fun uniffi_pman_lib_fn_method_databaseentity_modify(`ptr`: Pointer,`newName`: RustBuffer.ByValue,`newGroupId`: RustBuffer.ByValue,`newUserId`: RustBuffer.ByValue,`newPassword`: RustBuffer.ByValue,`newUrl`: RustBuffer.ByValue,`newProperties`: RustBuffer.ByValue,`modifiedProperties`: RustBuffer.ByValue,_uniffi_out_err: RustCallStatus, 
-    ): Unit
     fun uniffi_pman_lib_fn_free_databasegroup(`ptr`: Pointer,_uniffi_out_err: RustCallStatus, 
     ): Unit
     fun uniffi_pman_lib_fn_method_databasegroup_get_entities_count(`ptr`: Pointer,_uniffi_out_err: RustCallStatus, 
@@ -417,12 +419,6 @@ internal interface _UniFFILib : Library {
     ): Unit
     fun uniffi_pman_lib_fn_func_create(`databaseType`: RustBuffer.ByValue,`passwordHash`: RustBuffer.ByValue,`password2Hash`: RustBuffer.ByValue,`keyFileContents`: RustBuffer.ByValue,_uniffi_out_err: RustCallStatus, 
     ): Long
-    fun uniffi_pman_lib_fn_func_delete_entity(`databaseId`: Long,`id`: Int,_uniffi_out_err: RustCallStatus, 
-    ): Unit
-    fun uniffi_pman_lib_fn_func_delete_group(`databaseId`: Long,`id`: Int,_uniffi_out_err: RustCallStatus, 
-    ): Unit
-    fun uniffi_pman_lib_fn_func_delete_user(`databaseId`: Long,`id`: Int,_uniffi_out_err: RustCallStatus, 
-    ): Unit
     fun uniffi_pman_lib_fn_func_get_entities(`databaseId`: Long,`groupId`: Int,_uniffi_out_err: RustCallStatus, 
     ): RustBuffer.ByValue
     fun uniffi_pman_lib_fn_func_get_groups(`databaseId`: Long,_uniffi_out_err: RustCallStatus, 
@@ -433,12 +429,22 @@ internal interface _UniFFILib : Library {
     ): Byte
     fun uniffi_pman_lib_fn_func_lib_init(_uniffi_out_err: RustCallStatus, 
     ): Unit
+    fun uniffi_pman_lib_fn_func_modify_entity(`databaseId`: Long,`entityId`: Int,`newGroupId`: RustBuffer.ByValue,`newUserId`: RustBuffer.ByValue,`newPassword`: RustBuffer.ByValue,`newUrl`: RustBuffer.ByValue,`newProperties`: RustBuffer.ByValue,`modifiedProperties`: RustBuffer.ByValue,_uniffi_out_err: RustCallStatus, 
+    ): Unit
     fun uniffi_pman_lib_fn_func_open(`databaseId`: Long,`data`: RustBuffer.ByValue,_uniffi_out_err: RustCallStatus, 
     ): Unit
     fun uniffi_pman_lib_fn_func_pre_open(`databaseId`: Long,`passwordHash`: RustBuffer.ByValue,`password2Hash`: RustBuffer.ByValue,`keyFileContents`: RustBuffer.ByValue,_uniffi_out_err: RustCallStatus, 
     ): RustBuffer.ByValue
     fun uniffi_pman_lib_fn_func_prepare(`data`: RustBuffer.ByValue,`fileName`: RustBuffer.ByValue,_uniffi_out_err: RustCallStatus, 
     ): Long
+    fun uniffi_pman_lib_fn_func_remove_entity(`databaseId`: Long,`id`: Int,_uniffi_out_err: RustCallStatus, 
+    ): Unit
+    fun uniffi_pman_lib_fn_func_remove_group(`databaseId`: Long,`id`: Int,_uniffi_out_err: RustCallStatus, 
+    ): Unit
+    fun uniffi_pman_lib_fn_func_remove_user(`databaseId`: Long,`id`: Int,_uniffi_out_err: RustCallStatus, 
+    ): Unit
+    fun uniffi_pman_lib_fn_func_rename_entity(`databaseId`: Long,`entityId`: Int,`newName`: RustBuffer.ByValue,_uniffi_out_err: RustCallStatus, 
+    ): Unit
     fun uniffi_pman_lib_fn_func_rename_group(`databaseId`: Long,`id`: Int,`newName`: RustBuffer.ByValue,_uniffi_out_err: RustCallStatus, 
     ): Unit
     fun uniffi_pman_lib_fn_func_save(`databaseId`: Long,_uniffi_out_err: RustCallStatus, 
@@ -571,12 +577,6 @@ internal interface _UniFFILib : Library {
     ): Short
     fun uniffi_pman_lib_checksum_func_create(
     ): Short
-    fun uniffi_pman_lib_checksum_func_delete_entity(
-    ): Short
-    fun uniffi_pman_lib_checksum_func_delete_group(
-    ): Short
-    fun uniffi_pman_lib_checksum_func_delete_user(
-    ): Short
     fun uniffi_pman_lib_checksum_func_get_entities(
     ): Short
     fun uniffi_pman_lib_checksum_func_get_groups(
@@ -587,11 +587,21 @@ internal interface _UniFFILib : Library {
     ): Short
     fun uniffi_pman_lib_checksum_func_lib_init(
     ): Short
+    fun uniffi_pman_lib_checksum_func_modify_entity(
+    ): Short
     fun uniffi_pman_lib_checksum_func_open(
     ): Short
     fun uniffi_pman_lib_checksum_func_pre_open(
     ): Short
     fun uniffi_pman_lib_checksum_func_prepare(
+    ): Short
+    fun uniffi_pman_lib_checksum_func_remove_entity(
+    ): Short
+    fun uniffi_pman_lib_checksum_func_remove_group(
+    ): Short
+    fun uniffi_pman_lib_checksum_func_remove_user(
+    ): Short
+    fun uniffi_pman_lib_checksum_func_rename_entity(
     ): Short
     fun uniffi_pman_lib_checksum_func_rename_group(
     ): Short
@@ -601,7 +611,11 @@ internal interface _UniFFILib : Library {
     ): Short
     fun uniffi_pman_lib_checksum_func_set_argon2(
     ): Short
+    fun uniffi_pman_lib_checksum_method_databaseentity_get_created_at(
+    ): Short
     fun uniffi_pman_lib_checksum_method_databaseentity_get_group_id(
+    ): Short
+    fun uniffi_pman_lib_checksum_method_databaseentity_get_max_version(
     ): Short
     fun uniffi_pman_lib_checksum_method_databaseentity_get_name(
     ): Short
@@ -614,8 +628,6 @@ internal interface _UniFFILib : Library {
     fun uniffi_pman_lib_checksum_method_databaseentity_get_url(
     ): Short
     fun uniffi_pman_lib_checksum_method_databaseentity_get_user_id(
-    ): Short
-    fun uniffi_pman_lib_checksum_method_databaseentity_modify(
     ): Short
     fun uniffi_pman_lib_checksum_method_databasegroup_get_entities_count(
     ): Short
@@ -659,15 +671,6 @@ private fun uniffiCheckApiChecksums(lib: _UniFFILib) {
     if (lib.uniffi_pman_lib_checksum_func_create() != 32896.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_pman_lib_checksum_func_delete_entity() != 16680.toShort()) {
-        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
-    }
-    if (lib.uniffi_pman_lib_checksum_func_delete_group() != 63180.toShort()) {
-        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
-    }
-    if (lib.uniffi_pman_lib_checksum_func_delete_user() != 5615.toShort()) {
-        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
-    }
     if (lib.uniffi_pman_lib_checksum_func_get_entities() != 64141.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -683,6 +686,9 @@ private fun uniffiCheckApiChecksums(lib: _UniFFILib) {
     if (lib.uniffi_pman_lib_checksum_func_lib_init() != 48264.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_pman_lib_checksum_func_modify_entity() != 51183.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_pman_lib_checksum_func_open() != 17607.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -690,6 +696,18 @@ private fun uniffiCheckApiChecksums(lib: _UniFFILib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_pman_lib_checksum_func_prepare() != 43921.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_pman_lib_checksum_func_remove_entity() != 46671.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_pman_lib_checksum_func_remove_group() != 42780.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_pman_lib_checksum_func_remove_user() != 24445.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_pman_lib_checksum_func_rename_entity() != 37483.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_pman_lib_checksum_func_rename_group() != 37906.toShort()) {
@@ -704,28 +722,31 @@ private fun uniffiCheckApiChecksums(lib: _UniFFILib) {
     if (lib.uniffi_pman_lib_checksum_func_set_argon2() != 13956.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_pman_lib_checksum_method_databaseentity_get_group_id() != 6675.toShort()) {
+    if (lib.uniffi_pman_lib_checksum_method_databaseentity_get_created_at() != 25075.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_pman_lib_checksum_method_databaseentity_get_group_id() != 55072.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_pman_lib_checksum_method_databaseentity_get_max_version() != 36769.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_pman_lib_checksum_method_databaseentity_get_name() != 15454.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_pman_lib_checksum_method_databaseentity_get_password() != 28831.toShort()) {
+    if (lib.uniffi_pman_lib_checksum_method_databaseentity_get_password() != 34637.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_pman_lib_checksum_method_databaseentity_get_property_names() != 34655.toShort()) {
+    if (lib.uniffi_pman_lib_checksum_method_databaseentity_get_property_names() != 37718.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_pman_lib_checksum_method_databaseentity_get_property_value() != 162.toShort()) {
+    if (lib.uniffi_pman_lib_checksum_method_databaseentity_get_property_value() != 53055.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_pman_lib_checksum_method_databaseentity_get_url() != 29513.toShort()) {
+    if (lib.uniffi_pman_lib_checksum_method_databaseentity_get_url() != 59540.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_pman_lib_checksum_method_databaseentity_get_user_id() != 57652.toShort()) {
-        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
-    }
-    if (lib.uniffi_pman_lib_checksum_method_databaseentity_modify() != 30968.toShort()) {
+    if (lib.uniffi_pman_lib_checksum_method_databaseentity_get_user_id() != 37031.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_pman_lib_checksum_method_databasegroup_get_entities_count() != 14862.toShort()) {
@@ -1044,15 +1065,16 @@ abstract class FFIObject(
 }
 
 public interface DatabaseEntityInterface {
-    
-    fun `getGroupId`(): UInt@Throws(PmanException::class)
+    @Throws(PmanException::class)
+    fun `getCreatedAt`(`version`: UInt): ULong@Throws(PmanException::class)
+    fun `getGroupId`(`version`: UInt): UInt
+    fun `getMaxVersion`(): UInt@Throws(PmanException::class)
     fun `getName`(): String@Throws(PmanException::class)
-    fun `getPassword`(): String@Throws(PmanException::class)
-    fun `getPropertyNames`(): Map<String, UInt>@Throws(PmanException::class)
-    fun `getPropertyValue`(`id`: UInt): String@Throws(PmanException::class)
-    fun `getUrl`(): String?
-    fun `getUserId`(): UInt@Throws(PmanException::class)
-    fun `modify`(`newName`: String?, `newGroupId`: UInt?, `newUserId`: UInt?, `newPassword`: String?, `newUrl`: String?, `newProperties`: Map<String, String>, `modifiedProperties`: Map<UInt, String?>)
+    fun `getPassword`(`version`: UInt): String@Throws(PmanException::class)
+    fun `getPropertyNames`(`version`: UInt): Map<String, UInt>@Throws(PmanException::class)
+    fun `getPropertyValue`(`version`: UInt, `id`: UInt): String@Throws(PmanException::class)
+    fun `getUrl`(`version`: UInt): String?@Throws(PmanException::class)
+    fun `getUserId`(`version`: UInt): UInt
     companion object
 }
 
@@ -1074,10 +1096,34 @@ class DatabaseEntity(
         }
     }
 
-    override fun `getGroupId`(): UInt =
+    
+    @Throws(PmanException::class)override fun `getCreatedAt`(`version`: UInt): ULong =
+        callWithPointer {
+    rustCallWithError(PmanException) { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_method_databaseentity_get_created_at(it,
+        FfiConverterUInt.lower(`version`),
+        _status)
+}
+        }.let {
+            FfiConverterULong.lift(it)
+        }
+    
+    
+    @Throws(PmanException::class)override fun `getGroupId`(`version`: UInt): UInt =
+        callWithPointer {
+    rustCallWithError(PmanException) { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_method_databaseentity_get_group_id(it,
+        FfiConverterUInt.lower(`version`),
+        _status)
+}
+        }.let {
+            FfiConverterUInt.lift(it)
+        }
+    
+    override fun `getMaxVersion`(): UInt =
         callWithPointer {
     rustCall() { _status ->
-    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_method_databaseentity_get_group_id(it,
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_method_databaseentity_get_max_version(it,
         
         _status)
 }
@@ -1098,11 +1144,11 @@ class DatabaseEntity(
         }
     
     
-    @Throws(PmanException::class)override fun `getPassword`(): String =
+    @Throws(PmanException::class)override fun `getPassword`(`version`: UInt): String =
         callWithPointer {
     rustCallWithError(PmanException) { _status ->
     _UniFFILib.INSTANCE.uniffi_pman_lib_fn_method_databaseentity_get_password(it,
-        
+        FfiConverterUInt.lower(`version`),
         _status)
 }
         }.let {
@@ -1110,11 +1156,11 @@ class DatabaseEntity(
         }
     
     
-    @Throws(PmanException::class)override fun `getPropertyNames`(): Map<String, UInt> =
+    @Throws(PmanException::class)override fun `getPropertyNames`(`version`: UInt): Map<String, UInt> =
         callWithPointer {
     rustCallWithError(PmanException) { _status ->
     _UniFFILib.INSTANCE.uniffi_pman_lib_fn_method_databaseentity_get_property_names(it,
-        
+        FfiConverterUInt.lower(`version`),
         _status)
 }
         }.let {
@@ -1122,11 +1168,11 @@ class DatabaseEntity(
         }
     
     
-    @Throws(PmanException::class)override fun `getPropertyValue`(`id`: UInt): String =
+    @Throws(PmanException::class)override fun `getPropertyValue`(`version`: UInt, `id`: UInt): String =
         callWithPointer {
     rustCallWithError(PmanException) { _status ->
     _UniFFILib.INSTANCE.uniffi_pman_lib_fn_method_databaseentity_get_property_value(it,
-        FfiConverterUInt.lower(`id`),
+        FfiConverterUInt.lower(`version`),FfiConverterUInt.lower(`id`),
         _status)
 }
         }.let {
@@ -1134,38 +1180,28 @@ class DatabaseEntity(
         }
     
     
-    @Throws(PmanException::class)override fun `getUrl`(): String? =
+    @Throws(PmanException::class)override fun `getUrl`(`version`: UInt): String? =
         callWithPointer {
     rustCallWithError(PmanException) { _status ->
     _UniFFILib.INSTANCE.uniffi_pman_lib_fn_method_databaseentity_get_url(it,
-        
+        FfiConverterUInt.lower(`version`),
         _status)
 }
         }.let {
             FfiConverterOptionalString.lift(it)
         }
     
-    override fun `getUserId`(): UInt =
+    
+    @Throws(PmanException::class)override fun `getUserId`(`version`: UInt): UInt =
         callWithPointer {
-    rustCall() { _status ->
+    rustCallWithError(PmanException) { _status ->
     _UniFFILib.INSTANCE.uniffi_pman_lib_fn_method_databaseentity_get_user_id(it,
-        
+        FfiConverterUInt.lower(`version`),
         _status)
 }
         }.let {
             FfiConverterUInt.lift(it)
         }
-    
-    
-    @Throws(PmanException::class)override fun `modify`(`newName`: String?, `newGroupId`: UInt?, `newUserId`: UInt?, `newPassword`: String?, `newUrl`: String?, `newProperties`: Map<String, String>, `modifiedProperties`: Map<UInt, String?>) =
-        callWithPointer {
-    rustCallWithError(PmanException) { _status ->
-    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_method_databaseentity_modify(it,
-        FfiConverterOptionalString.lower(`newName`),FfiConverterOptionalUInt.lower(`newGroupId`),FfiConverterOptionalUInt.lower(`newUserId`),FfiConverterOptionalString.lower(`newPassword`),FfiConverterOptionalString.lower(`newUrl`),FfiConverterMapStringString.lower(`newProperties`),FfiConverterMapUIntOptionalString.lower(`modifiedProperties`),
-        _status)
-}
-        }
-    
     
     
 
@@ -1937,33 +1973,6 @@ fun `create`(`databaseType`: PasswordDatabaseType, `passwordHash`: ByteArray, `p
 
 @Throws(PmanException::class)
 
-fun `deleteEntity`(`databaseId`: ULong, `id`: UInt) =
-    
-    rustCallWithError(PmanException) { _status ->
-    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_delete_entity(FfiConverterULong.lower(`databaseId`),FfiConverterUInt.lower(`id`),_status)
-}
-
-
-@Throws(PmanException::class)
-
-fun `deleteGroup`(`databaseId`: ULong, `id`: UInt) =
-    
-    rustCallWithError(PmanException) { _status ->
-    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_delete_group(FfiConverterULong.lower(`databaseId`),FfiConverterUInt.lower(`id`),_status)
-}
-
-
-@Throws(PmanException::class)
-
-fun `deleteUser`(`databaseId`: ULong, `id`: UInt) =
-    
-    rustCallWithError(PmanException) { _status ->
-    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_delete_user(FfiConverterULong.lower(`databaseId`),FfiConverterUInt.lower(`id`),_status)
-}
-
-
-@Throws(PmanException::class)
-
 fun `getEntities`(`databaseId`: ULong, `groupId`: UInt): Map<UInt, DatabaseEntity> {
     return FfiConverterMapUIntTypeDatabaseEntity.lift(
     rustCallWithError(PmanException) { _status ->
@@ -2008,6 +2017,15 @@ fun `libInit`() =
 
 @Throws(PmanException::class)
 
+fun `modifyEntity`(`databaseId`: ULong, `entityId`: UInt, `newGroupId`: UInt?, `newUserId`: UInt?, `newPassword`: String?, `newUrl`: String?, `newProperties`: Map<String, String>, `modifiedProperties`: Map<UInt, String?>) =
+    
+    rustCallWithError(PmanException) { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_modify_entity(FfiConverterULong.lower(`databaseId`),FfiConverterUInt.lower(`entityId`),FfiConverterOptionalUInt.lower(`newGroupId`),FfiConverterOptionalUInt.lower(`newUserId`),FfiConverterOptionalString.lower(`newPassword`),FfiConverterOptionalString.lower(`newUrl`),FfiConverterMapStringString.lower(`newProperties`),FfiConverterMapUIntOptionalString.lower(`modifiedProperties`),_status)
+}
+
+
+@Throws(PmanException::class)
+
 fun `open`(`databaseId`: ULong, `data`: List<ByteArray>) =
     
     rustCallWithError(PmanException) { _status ->
@@ -2032,6 +2050,42 @@ fun `prepare`(`data`: ByteArray, `fileName`: String): ULong {
     _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_prepare(FfiConverterByteArray.lower(`data`),FfiConverterString.lower(`fileName`),_status)
 })
 }
+
+@Throws(PmanException::class)
+
+fun `removeEntity`(`databaseId`: ULong, `id`: UInt) =
+    
+    rustCallWithError(PmanException) { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_remove_entity(FfiConverterULong.lower(`databaseId`),FfiConverterUInt.lower(`id`),_status)
+}
+
+
+@Throws(PmanException::class)
+
+fun `removeGroup`(`databaseId`: ULong, `id`: UInt) =
+    
+    rustCallWithError(PmanException) { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_remove_group(FfiConverterULong.lower(`databaseId`),FfiConverterUInt.lower(`id`),_status)
+}
+
+
+@Throws(PmanException::class)
+
+fun `removeUser`(`databaseId`: ULong, `id`: UInt) =
+    
+    rustCallWithError(PmanException) { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_remove_user(FfiConverterULong.lower(`databaseId`),FfiConverterUInt.lower(`id`),_status)
+}
+
+
+@Throws(PmanException::class)
+
+fun `renameEntity`(`databaseId`: ULong, `entityId`: UInt, `newName`: String) =
+    
+    rustCallWithError(PmanException) { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_rename_entity(FfiConverterULong.lower(`databaseId`),FfiConverterUInt.lower(`entityId`),FfiConverterString.lower(`newName`),_status)
+}
+
 
 @Throws(PmanException::class)
 

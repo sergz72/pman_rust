@@ -126,7 +126,7 @@ impl PasswordDatabase for PmanDatabase {
     }
 
     fn remove_entity(&self, entity_id: u32) -> Result<(), Error> {
-        self.check_exists(ENTITIES_ID, entity_id, "entity not found")?;
+        self.check_entity_exists(entity_id)?;
         let mut file = self.file.lock().unwrap();
         let entity: PmanDatabaseEntity = file.get_from_names_file(entity_id)?;
         let names_ids = entity.collect_names_ids();
@@ -146,11 +146,7 @@ impl PasswordDatabase for PmanDatabase {
                   url: Option<String>, properties: HashMap<String, String>) -> Result<u32, Error> {
         self.check_group_exists(group_id)?;
         self.check_user_exists(user_id)?;
-        for (_key, value) in self.get_entities(group_id)? {
-            if value.get_name()? == name {
-                return Err(Error::new(ErrorKind::AlreadyExists, "entity with given name already exists"));
-            }
-        }
+        self.check_entity_name(group_id, name.clone())?;
         let mut file = self.file.lock().unwrap();
         let name_id = file.add_to_names_file(name)?;
         let password_id = file.add_to_passwords_file(password)?;
@@ -170,14 +166,51 @@ impl PasswordDatabase for PmanDatabase {
     }
 
     fn rename_entity(&self, entity_id: u32, new_name: String) -> Result<(), Error> {
-        todo!()
+        let entity = self.get_entity(entity_id)?;
+        self.check_entity_name(entity.get_group_id(ENTITY_VERSION_LATEST)?, new_name.clone())?;
+        self.file.lock().unwrap().set_in_names_file(entity.get_name_id(), new_name)
     }
 
     fn modify_entity(&self, entity_id: u32, new_group_id: Option<u32>,
                      new_user_id: Option<u32>, new_password: Option<String>, new_url: Option<String>,
                      new_properties: HashMap<String, String>,
                      modified_properties: HashMap<u32, Option<String>>) -> Result<(), Error> {
-        todo!()
+        let mut entity = self.get_entity(entity_id)?;
+        let new_gid = if let Some(gid) = new_group_id {
+            self.check_group_exists(gid)?;
+            gid
+        } else { entity.get_group_id(ENTITY_VERSION_LATEST)? };
+        let new_uid = if let Some(uid) = new_user_id {
+            self.check_user_exists(uid)?;
+            uid
+        } else { entity.get_user_id(ENTITY_VERSION_LATEST)? };
+        let mut file = self.file.lock().unwrap();
+        let new_pid = if let Some(password) = new_password {
+            file.add_to_passwords_file(password)?
+        } else { entity.get_password_id() };
+        let new_url_id = if let Some(url) = new_url {
+            Some(file.add_to_names_file(url)?)
+        } else { None };
+        let mut new_props= entity.get_properties();
+        for (k, v) in modified_properties {
+            if !new_props.contains_key(&k) {
+                return Err(Error::new(ErrorKind::NotFound, "invalid property id"));
+            }
+            if let Some(value) = v {
+                let id = file.add_to_passwords_file(value)?;
+                new_props.insert(k, id);
+            } else {
+                new_props.remove(&k);
+            }
+        }
+        for (k, v) in new_properties {
+            self.check_property_name(&new_props, k.clone())?;
+            let key_id = file.add_to_names_file(k)?;
+            let value_id = file.add_to_passwords_file(v)?;
+            new_props.insert(key_id, value_id);
+        }
+        entity.update(new_pid, new_gid, new_uid, new_url_id, new_props);
+        file.set_in_names_file(entity_id, entity)
     }
 
     fn save(&self, file_name: String) -> Result<Vec<FileAction>, Error> {
@@ -248,6 +281,10 @@ impl PmanDatabase {
         self.check_exists(USERS_ID, user_id, "user not found")
     }
 
+    fn check_entity_exists(&self, entity_id: u32) -> Result<(), Error> {
+        self.check_exists(ENTITIES_ID, entity_id, "entity not found")
+    }
+
     fn remove_from_list(&self, list_id: u32, id: u32) -> Result<(), Error> {
         let mut file = self.file.lock().unwrap();
         let mut indexes: Vec<u32> = file.get_from_names_file(list_id)?;
@@ -271,6 +308,31 @@ impl PmanDatabase {
 
     fn get_passwords_file_records_count(&self) -> Result<usize, Error> {
         self.file.lock().unwrap().get_passwords_file_records_count()
+    }
+
+    fn check_entity_name(&self, group_id: u32, name: String) -> Result<(), Error> {
+        for (_key, value) in self.get_entities(group_id)? {
+            if value.get_name()? == name {
+                return Err(Error::new(ErrorKind::AlreadyExists, "entity with given name already exists"));
+            }
+        }
+        Ok(())
+    }
+
+    fn get_entity(&self, entity_id: u32) -> Result<PmanDatabaseEntity, Error> {
+        self.check_entity_exists(entity_id)?;
+        self.file.lock().unwrap().get_from_names_file(entity_id)
+    }
+
+    fn check_property_name(&self, properties: &HashMap<u32, u32>, name: String) -> Result<(), Error> {
+        let mut file = self.file.lock().unwrap();
+        for (k, _v) in properties {
+            let n: String = file.get_from_names_file(*k)?;
+            if n == name {
+                return Err(Error::new(ErrorKind::AlreadyExists, "duplicate property name"));
+            }
+        }
+        Ok(())
     }
 }
 
