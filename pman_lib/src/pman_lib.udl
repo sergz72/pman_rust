@@ -35,6 +35,11 @@ namespace pman_lib {
   [Throws=PmanError]
   u32 add_entity(u64 database_id, string name, u32 group_id, u32 user_id, string password, string? url, record<string, string> properties);
   [Throws=PmanError]
+  void rename_entity(u64 database_id, u32 entity_id, string new_name);
+  [Throws=PmanError]
+  void modify_entity(u64 database_id, u32 entity_id, u32? new_group_id, u32? new_user_id, string? new_password, string? new_url,
+                     record<string, string> new_properties, record<u32, string?> modified_properties);
+  [Throws=PmanError]
   void remove_entity(u64 database_id, u32 id);
   [Throws=PmanError]
   record<u32, record<u32, DatabaseEntity>> search(u64 database_id, string search_string);
@@ -88,9 +93,4 @@ interface DatabaseEntity {
   string get_property_value(u32 version, u32 id);
   [Throws=PmanError]
   u64 get_created_at(u32 version);
-  [Throws=PmanError]
-  void rename(string new_name);
-  [Throws=PmanError]
-  void modify(u32? new_group_id, u32? new_user_id, string? new_password, string? new_url,
-              record<string, string> new_properties, record<u32, string?> modified_properties);
 };

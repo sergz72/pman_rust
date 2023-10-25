@@ -32,13 +32,6 @@ pub trait PasswordDatabaseEntity {
     fn get_property_value(&self, version: u32, index: u32) -> Result<String, Error>;
 
     fn get_created_at(&self, version: u32) -> Result<u64, Error>;
-
-    fn rename(&self, new_name: String) -> Result<(), Error>;
-
-    fn modify(&mut self, new_group_id: Option<u32>, new_user_id: Option<u32>,
-              new_password: Option<String>, new_url: Option<String>, new_properties: HashMap<String, String>,
-              modified_properties: HashMap<u32, Option<String>>)
-        -> Result<(), Error>;
 }
 
 pub struct DatabaseGroup {
@@ -81,12 +74,14 @@ pub trait PasswordDatabase {
     fn rename_group(&self, group_id: u32, new_name: String) -> Result<(), Error>;
     fn remove_group(&self, id: u32) -> Result<(), Error>;
     fn remove_entity(&self, entity_id: u32) -> Result<(), Error>;
+    fn rename_entity(&self, entity_id: u32, new_name: String) -> Result<(), Error>;
     fn add_entity(&self, group_id: u32, name: String, user_id: u32, password: String,
                   url: Option<String>, properties: HashMap<String, String>) -> Result<u32, Error>;
-    /*fn modify_entity(&self, entity_id: u32, new_group_id: Option<u32>, new_name: Option<String>,
+
+    fn modify_entity(&self, entity_id: u32, new_group_id: Option<u32>,
                      new_user_id: Option<u32>, new_password: Option<String>, new_url: Option<String>,
                      new_properties: HashMap<String, String>,
-                     modified_properties: HashMap<u32, Option<String>>) -> Result<(), Error>;*/
+                     modified_properties: HashMap<u32, Option<String>>) -> Result<(), Error>;
     fn save(&self, file_name: String) -> Result<Vec<FileAction>, Error>;
 
     fn as_any(&self) -> &dyn Any;

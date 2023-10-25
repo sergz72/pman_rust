@@ -72,12 +72,16 @@ impl PasswordDatabase for KeePassDatabase {
         Err(build_read_only_db_error())
     }
 
-    /*fn modify_entity(&mut self, _entity_id: u32, _new_group_id: Option<u32>, _new_name: Option<String>,
+    fn rename_entity(&self, _entity_id: u32, _new_name: String) -> Result<(), Error> {
+        Err(build_read_only_db_error())
+    }
+
+    fn modify_entity(&self, _entity_id: u32, _new_group_id: Option<u32>,
                      _new_user_id: Option<u32>, _new_password: Option<String>, _new_url: Option<String>,
                      _new_properties: HashMap<String, String>,
                      _modified_properties: HashMap<u32, Option<String>>) -> Result<(), Error> {
         Err(build_read_only_db_error())
-    }*/
+    }
 
     fn save(&self, _file_name: String) -> Result<Vec<FileAction>, Error> {
         Err(build_read_only_db_error())

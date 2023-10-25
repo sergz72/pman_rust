@@ -169,12 +169,16 @@ impl PasswordDatabase for PmanDatabase {
         self.add_to_entity_list(entity)
     }
 
-    /*fn modify_entity(&self, entity_id: u32, new_group_id: Option<u32>, new_name: Option<String>,
+    fn rename_entity(&self, entity_id: u32, new_name: String) -> Result<(), Error> {
+        todo!()
+    }
+
+    fn modify_entity(&self, entity_id: u32, new_group_id: Option<u32>,
                      new_user_id: Option<u32>, new_password: Option<String>, new_url: Option<String>,
                      new_properties: HashMap<String, String>,
                      modified_properties: HashMap<u32, Option<String>>) -> Result<(), Error> {
         todo!()
-    }*/
+    }
 
     fn save(&self, file_name: String) -> Result<Vec<FileAction>, Error> {
         self.file.lock().unwrap().save(file_name)

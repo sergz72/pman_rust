@@ -152,7 +152,7 @@ impl IdValueMap {
     }
 
     pub fn get_records_count(&self)  -> usize {
-        self.map.iter().filter(|(k, v)|v.is_some()).count()
+        self.map.iter().filter(|(_k, v)|v.is_some()).count()
     }
 }
 

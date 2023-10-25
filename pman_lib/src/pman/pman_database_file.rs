@@ -225,11 +225,11 @@ impl PmanDatabaseProperties {
         };
 
         self.names_file = Some(DataFile::load(names_file_data,
-                                              &mut self.names_files_info, self.names_file_encryption_key2,
+                                              &mut self.names_files_info, self.names_file_encryption_key1,
                                               self.alg1, self.processor12.clone())?);
         self.passwords_file = Some(DataFile::load(passwords_file_data,
                                                   &mut self.passwords_files_info,
-                                                  self.passwords_file_encryption_key2, self.alg21,
+                                                  self.passwords_file_encryption_key1, self.alg21,
                                                   self.processor22.clone())?);
 
         Ok(())
@@ -280,10 +280,10 @@ impl PmanDatabaseProperties {
             v.push(FileAction::new(file_name.clone(), output));
         }
         let action1 =
-            self.names_file.as_mut().unwrap().save(self.names_file_encryption_key2,
+            self.names_file.as_mut().unwrap().save(self.names_file_encryption_key1,
                                                    self.alg1, self.processor12.clone())?;
         let action2 =
-            self.passwords_file.as_mut().unwrap().save(self.passwords_file_encryption_key2,
+            self.passwords_file.as_mut().unwrap().save(self.passwords_file_encryption_key1,
                                                        self.alg21, self.processor22.clone())?;
         if let Some(a) = action1 {
             v.push(FileAction{ file_name: file_name.clone() +  ".names", data: a })
