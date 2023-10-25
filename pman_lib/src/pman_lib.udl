@@ -89,6 +89,8 @@ interface DatabaseEntity {
   [Throws=PmanError]
   u64 get_created_at(u32 version);
   [Throws=PmanError]
-  void modify(string? new_name, u32? new_group_id, u32? new_user_id, string? new_password, string? new_url,
+  void rename(string new_name);
+  [Throws=PmanError]
+  void modify(u32? new_group_id, u32? new_user_id, string? new_password, string? new_url,
               record<string, string> new_properties, record<u32, string?> modified_properties);
 };

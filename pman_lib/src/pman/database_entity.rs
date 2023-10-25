@@ -201,7 +201,11 @@ impl PasswordDatabaseEntity for PmanDatabaseEntity {
         Ok(self.history.get(version as usize).unwrap().created_at)
     }
 
-    fn modify(&mut self, new_group_id: Option<u32>, new_name: Option<String>, new_user_id: Option<u32>,
+    fn rename(&self, new_name: String) -> Result<(), Error> {
+        todo!()
+    }
+
+    fn modify(&mut self, new_group_id: Option<u32>, new_user_id: Option<u32>,
               new_password: Option<String>, new_url: Option<String>,
               new_properties: HashMap<String, String>,
               modified_properties: HashMap<u32, Option<String>>) -> Result<(), Error> {

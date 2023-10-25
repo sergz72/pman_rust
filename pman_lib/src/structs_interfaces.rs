@@ -33,7 +33,9 @@ pub trait PasswordDatabaseEntity {
 
     fn get_created_at(&self, version: u32) -> Result<u64, Error>;
 
-    fn modify(&mut self, new_group_id: Option<u32>, new_name: Option<String>, new_user_id: Option<u32>,
+    fn rename(&self, new_name: String) -> Result<(), Error>;
+
+    fn modify(&mut self, new_group_id: Option<u32>, new_user_id: Option<u32>,
               new_password: Option<String>, new_url: Option<String>, new_properties: HashMap<String, String>,
               modified_properties: HashMap<u32, Option<String>>)
         -> Result<(), Error>;

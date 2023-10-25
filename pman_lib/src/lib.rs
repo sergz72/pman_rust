@@ -286,11 +286,15 @@ impl DatabaseEntity {
         self.entity.lock().unwrap().get_max_version()
     }
 
-    fn modify(&self, new_name: Option<String>, new_group_id: Option<u32>, new_user_id: Option<u32>,
+    fn rename(&self, new_name: String) -> Result<(), PmanError> {
+        self.entity.lock().unwrap().rename(new_name).map_err(|e|PmanError::message(e.to_string()))
+    }
+
+    fn modify(&self, new_group_id: Option<u32>, new_user_id: Option<u32>,
               new_password: Option<String>, new_url: Option<String>, new_properties: HashMap<String, String>,
               modified_properties: HashMap<u32, Option<String>>)
               -> Result<(), PmanError> {
-        self.entity.lock().unwrap().modify(new_group_id, new_name, new_user_id, new_password, new_url,
+        self.entity.lock().unwrap().modify(new_group_id, new_user_id, new_password, new_url,
                            new_properties, modified_properties)
             .map_err(|e|PmanError::message(e.to_string()))
     }

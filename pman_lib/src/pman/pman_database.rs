@@ -290,62 +290,177 @@ mod tests {
     use rand::rngs::OsRng;
     use crate::pman::database_entity::ENTITY_VERSION_LATEST;
     use crate::pman::pman_database::PmanDatabase;
+    use crate::structs_interfaces::PasswordDatabase;
 
-    #[test]
-    fn test_database() -> Result<(), Error> {
+    struct TestEntity {
+        name: String,
+        password: String,
+        url: Option<String>,
+        group_index: usize,
+        user_index: usize,
+        properties: HashMap<String, String>
+    }
+    struct TestData {
+        hash1_vec: Vec<u8>,
+        hash2_vec: Vec<u8>,
+        group_names: Vec<String>,
+        user_names: Vec<String>,
+        entities: Vec<TestEntity>
+    }
+
+    struct TestDatabase {
+        test_data: TestData,
+        database: Box<dyn PasswordDatabase>,
+        group_ids: Vec<u32>,
+        user_ids: Vec<u32>,
+        entity_ids: Vec<u32>
+    }
+
+    fn build_test_data() -> TestData {
         let mut hash1 = [0u8; 32];
         OsRng.fill_bytes(&mut hash1);
         let mut hash2 = [0u8; 32];
         OsRng.fill_bytes(&mut hash2);
         let hash1_vec = Vec::from(hash1);
         let hash2_vec = Vec::from(hash2);
-        let database = PmanDatabase::new(hash1_vec, hash2_vec)?;
-        let internet_group = database.add_group("Internet".to_string())?;
-        let banks_group = database.add_group("Banks".to_string())?;
-        let others_group = database.add_group("Others".to_string())?;
-        let user1 = database.add_user("user1@a.com".to_string())?;
-        let user2 = database.add_user("user2@b.com".to_string())?;
-        let user3 = database.add_user("user3@c.com".to_string())?;
-        let name1 = "Amazon".to_string();
-        let password1 = "some password".to_string();
-        let url1 = Some("amazon.com".to_string());
-        let p1 = "PIN".to_string();
-        let pv1 = "12345".to_string();
-        let entity = database.add_entity(internet_group, name1.clone(),
-                                         user1, password1.clone(),
-                                         url1.clone(),
-                                         HashMap::from([(p1.clone(), pv1.clone())]))?;
-        let entities = database.get_entities(internet_group)?;
-        assert_eq!(entities.len(), 1);
-        let e = entities.get(&entity);
-        assert!(e.is_some());
-        let en = e.unwrap();
-        assert_eq!(en.get_name()?, name1);
-        assert_eq!(en.get_group_id(ENTITY_VERSION_LATEST)?, internet_group);
-        assert_eq!(en.get_user_id(ENTITY_VERSION_LATEST)?, user1);
-        assert_eq!(en.get_password(ENTITY_VERSION_LATEST)?, password1);
-        let names = en.get_property_names(ENTITY_VERSION_LATEST)?;
-        assert_eq!(names.len(), 1);
-        let p1value = names.get(&p1);
-        assert!(p1value.is_some());
-        let p1value_string = en.get_property_value(ENTITY_VERSION_LATEST, *p1value.unwrap())?;
-        assert_eq!(p1value_string, pv1);
-        let search_result = database.search("ama".to_string())?;
+
+        let group_names = vec!["Internet".to_string(), "Banks".to_string(), "Others".to_string()];
+        let user_names = vec!["user1@a.com".to_string(), "user2@b.com".to_string(), "user3@c.com".to_string()];
+        let entities = vec![TestEntity{
+            name: "Amazon".to_string(),
+            password: "some password".to_string(),
+            url: Some("amazon.com".to_string()),
+            group_index: 0,
+            user_index: 0,
+            properties: HashMap::from([
+                ("PIN".to_string(), "12345".to_string())
+            ]),
+        }];
+
+        TestData{
+            hash1_vec,
+            hash2_vec,
+            group_names,
+            user_names,
+            entities
+        }
+    }
+
+    fn build_database(test_data: TestData) -> Result<TestDatabase, Error> {
+        let database = PmanDatabase::new(test_data.hash1_vec.clone(),
+                                         test_data.hash2_vec.clone())?;
+        let mut group_ids = Vec::new();
+        for group_name in &test_data.group_names {
+            group_ids.push(database.add_group(group_name.clone())?);
+        }
+        let mut user_ids = Vec::new();
+        for user_name in &test_data.user_names {
+            user_ids.push(database.add_user(user_name.clone())?);
+        }
+        let mut entity_ids = Vec::new();
+        for e in &test_data.entities {
+            let entity_id = database.add_entity(group_ids[e.group_index], e.name.clone(),
+                                                user_ids[e.user_index], e.password.clone(),
+                                                e.url.clone(), e.properties.clone())?;
+            entity_ids.push(entity_id);
+        }
+        Ok(TestDatabase{
+            test_data,
+            database,
+            group_ids,
+            user_ids,
+            entity_ids
+        })
+    }
+
+    #[test]
+    fn test_database() -> Result<(), Error> {
+        let test_data = build_test_data();
+        let test_database = build_database(test_data)?;
+        check_database(&test_database)?;
+        test_search(&test_database)?;
+        cleanup_database(test_database)
+    }
+
+    #[test]
+    fn test_database_with_save() -> Result<(), Error> {
+        let test_data = build_test_data();
+        let mut test_database = build_database(test_data)?;
+        let file_name = "some_file.pdbf".to_string();
+        let data = test_database.database.save(file_name.clone())?;
+        assert_eq!(data.len(), 3);
+        assert_eq!(data[0].file_name, file_name.clone());
+        assert_eq!(data[1].file_name, file_name.clone() + ".names");
+        assert_eq!(data[2].file_name, file_name.clone() + ".passwords");
+        let database = PmanDatabase::new_from_file(data[0].data.clone())?;
+        let files = database.pre_open(&file_name, test_database.test_data.hash1_vec.clone(),
+                          Some(test_database.test_data.hash2_vec.clone()), None)?;
+        assert_eq!(files.len(), 2);
+        assert_eq!(files[0], file_name.clone() + ".names");
+        assert_eq!(files[1], file_name.clone() + ".passwords");
+        let open_data = data.into_iter().skip(1).map(|d|d.data).collect();
+        database.open(open_data)?;
+        test_database.database = database;
+        check_database(&test_database)?;
+        test_search(&test_database)?;
+        cleanup_database(test_database)
+    }
+
+    fn check_database(database: &TestDatabase) -> Result<(), Error> {
+        let mut entity_map = HashMap::new();
+        for i in 0..database.test_data.entities.len() {
+            let entity = &database.test_data.entities[i];
+            let v = entity_map.entry(database.group_ids[entity.group_index]).or_insert(Vec::new());
+            v.push((database.entity_ids[i], i));
+        }
+        for (group_id, group_entities) in entity_map {
+            let entities = database.database.get_entities(group_id)?;
+            assert_eq!(entities.len(), group_entities.len());
+            for (entity_id, entity_index) in group_entities {
+                let e = entities.get(&entity_id);
+                assert!(e.is_some());
+                let en = e.unwrap();
+                let ten = &database.test_data.entities[entity_index];
+                assert_eq!(en.get_name()?, ten.name);
+                assert_eq!(en.get_group_id(ENTITY_VERSION_LATEST)?, database.group_ids[ten.group_index]);
+                assert_eq!(en.get_user_id(ENTITY_VERSION_LATEST)?, database.user_ids[ten.user_index]);
+                assert_eq!(en.get_password(ENTITY_VERSION_LATEST)?, ten.password);
+                let names = en.get_property_names(ENTITY_VERSION_LATEST)?;
+                assert_eq!(names.len(), ten.properties.len());
+                for (name, id) in names {
+                    let value = ten.properties.get(&name);
+                    assert!(value.is_some());
+                    let pvalue = en.get_property_value(ENTITY_VERSION_LATEST, id)?;
+                    assert_eq!(value.unwrap().clone(), pvalue);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn test_search(database: &TestDatabase) -> Result<(), Error> {
+        let search_result = database.database.search("ama".to_string())?;
         assert_eq!(search_result.len(), 1);
-        let group_result_option = search_result.get(&internet_group);
+        let group_result_option = search_result.get(&database.group_ids[0]);
         assert!(group_result_option.is_some());
         let group_result = group_result_option.unwrap();
         assert_eq!(group_result.len(), 1);
-        let entity_option = group_result.get(&entity);
+        let entity_option = group_result.get(&database.entity_ids[0]);
         assert!(entity_option.is_some());
-        database.remove_entity(entity)?;
-        database.remove_user(user1)?;
-        database.remove_user(user2)?;
-        database.remove_user(user3)?;
-        database.remove_group(internet_group)?;
-        database.remove_group(banks_group)?;
-        database.remove_group(others_group)?;
-        let db: &PmanDatabase = database.as_any().downcast_ref().unwrap();
+        Ok(())
+    }
+
+    fn cleanup_database(database: TestDatabase) -> Result<(), Error> {
+        for entity_id in database.entity_ids {
+            database.database.remove_entity(entity_id)?;
+        }
+        for group_id in database.group_ids {
+            database.database.remove_group(group_id)?;
+        }
+        for user_id in database.user_ids {
+            database.database.remove_user(user_id)?;
+        }
+        let db: &PmanDatabase = database.database.as_any().downcast_ref().unwrap();
         assert_eq!(db.get_passwords_file_records_count()?, 0);
         assert_eq!(db.get_names_file_records_count()?, 0);
         Ok(())
