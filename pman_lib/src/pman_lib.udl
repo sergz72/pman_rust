@@ -38,7 +38,7 @@ namespace pman_lib {
   void rename_entity(u64 database_id, u32 entity_id, string new_name);
   [Throws=PmanError]
   void modify_entity(u64 database_id, u32 entity_id, u32? new_group_id, u32? new_user_id, string? new_password, string? new_url,
-                     record<string, string> new_properties, record<u32, string?> modified_properties);
+                     boolean change_url, record<string, string> new_properties, record<u32, string?> modified_properties);
   [Throws=PmanError]
   void remove_entity(u64 database_id, u32 id);
   [Throws=PmanError]

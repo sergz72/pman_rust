@@ -80,7 +80,7 @@ pub trait PasswordDatabase {
 
     fn modify_entity(&self, entity_id: u32, new_group_id: Option<u32>,
                      new_user_id: Option<u32>, new_password: Option<String>, new_url: Option<String>,
-                     new_properties: HashMap<String, String>,
+                     change_url: bool, new_properties: HashMap<String, String>,
                      modified_properties: HashMap<u32, Option<String>>) -> Result<(), Error>;
     fn save(&self, file_name: String) -> Result<Vec<FileAction>, Error>;
 

@@ -173,7 +173,7 @@ impl PasswordDatabase for PmanDatabase {
 
     fn modify_entity(&self, entity_id: u32, new_group_id: Option<u32>,
                      new_user_id: Option<u32>, new_password: Option<String>, new_url: Option<String>,
-                     new_properties: HashMap<String, String>,
+                     change_url: bool, new_properties: HashMap<String, String>,
                      modified_properties: HashMap<u32, Option<String>>) -> Result<(), Error> {
         let mut entity = self.get_entity(entity_id)?;
         let new_gid = if let Some(gid) = new_group_id {
@@ -188,9 +188,8 @@ impl PasswordDatabase for PmanDatabase {
         let new_pid = if let Some(password) = new_password {
             file.add_to_passwords_file(password)?
         } else { entity.get_password_id() };
-        let new_url_id = if let Some(url) = new_url {
-            Some(file.add_to_names_file(url)?)
-        } else { None };
+        let new_url_id =
+            build_new_url_id(&mut file, new_url, change_url, entity.get_url_id())?;
         let mut new_props= entity.get_properties();
         for (k, v) in modified_properties {
             if !new_props.contains_key(&k) {
@@ -204,7 +203,7 @@ impl PasswordDatabase for PmanDatabase {
             }
         }
         for (k, v) in new_properties {
-            self.check_property_name(&new_props, k.clone())?;
+            check_property_name(&mut file,&new_props, k.clone())?;
             let key_id = file.add_to_names_file(k)?;
             let value_id = file.add_to_passwords_file(v)?;
             new_props.insert(key_id, value_id);
@@ -225,12 +224,12 @@ impl PasswordDatabase for PmanDatabase {
 impl PmanDatabase {
     pub fn new_from_file(contents: Vec<u8>) -> Result<Box<dyn PasswordDatabase>, Error> {
         let file = Arc::new(Mutex::new(PmanDatabaseFile::prepare(contents)?));
-        Ok(Box::new(PmanDatabase{file}))
+        Ok(Box::new(PmanDatabase { file }))
     }
 
     pub fn new(password_hash: Vec<u8>, password2_hash: Vec<u8>) -> Result<Box<dyn PasswordDatabase>, Error> {
         let file = Arc::new(Mutex::new(PmanDatabaseFile::new(password_hash, password2_hash)?));
-        Ok(Box::new(PmanDatabase{file}))
+        Ok(Box::new(PmanDatabase { file }))
     }
 
     fn get_all_entities(&self) -> Result<HashMap<u32, PmanDatabaseEntity>, Error> {
@@ -267,7 +266,7 @@ impl PmanDatabase {
 
     fn check_exists(&self, list_id: u32, id: u32, error_message: &str) -> Result<(), Error> {
         let items: Vec<u32> = self.file.lock().unwrap().get_from_names_file(list_id)?;
-        if items.into_iter().find(|i|*i == id).is_none() {
+        if items.into_iter().find(|i| *i == id).is_none() {
             return Err(Error::new(ErrorKind::NotFound, error_message));
         }
         Ok(())
@@ -321,19 +320,32 @@ impl PmanDatabase {
 
     fn get_entity(&self, entity_id: u32) -> Result<PmanDatabaseEntity, Error> {
         self.check_entity_exists(entity_id)?;
-        self.file.lock().unwrap().get_from_names_file(entity_id)
+        let mut entity: PmanDatabaseEntity = self.file.lock().unwrap().get_from_names_file(entity_id)?;
+        entity.set_database_file(self.file.clone());
+        Ok(entity)
     }
+}
 
-    fn check_property_name(&self, properties: &HashMap<u32, u32>, name: String) -> Result<(), Error> {
-        let mut file = self.file.lock().unwrap();
-        for (k, _v) in properties {
-            let n: String = file.get_from_names_file(*k)?;
-            if n == name {
-                return Err(Error::new(ErrorKind::AlreadyExists, "duplicate property name"));
-            }
+fn check_property_name(file: &mut MutexGuard<PmanDatabaseFile>, properties: &HashMap<u32, u32>,
+                       name: String) -> Result<(), Error> {
+    for (k, _v) in properties {
+        let n: String = file.get_from_names_file(*k)?;
+        if n == name {
+            return Err(Error::new(ErrorKind::AlreadyExists, "duplicate property name"));
         }
-        Ok(())
     }
+    Ok(())
+}
+
+fn build_new_url_id(file: &mut MutexGuard<PmanDatabaseFile>, new_url: Option<String>, change_url: bool,
+                    current_url_id: Option<u32>) -> Result<Option<u32>, Error> {
+    if !change_url {
+        return Ok(current_url_id);
+    }
+    let new_url_id = if let Some(url) = new_url {
+        Some(file.add_to_names_file(url)?)
+    } else { None };
+    Ok(new_url_id)
 }
 
 fn string_validator(indexes: &Vec<u32>, file: &mut MutexGuard<PmanDatabaseFile>, value: &String) -> Result<(), Error> {
@@ -351,12 +363,13 @@ fn no_validator<T: ByteValue>(_indexes: &Vec<u32>, _file: &mut MutexGuard<PmanDa
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
-    use std::io::Error;
-    use rand::RngCore;
-    use rand::rngs::OsRng;
+    use std::io::{Error, ErrorKind};
+    use rand::{Rng, RngCore};
+    use rand::distributions::{Alphanumeric, DistString};
+    use rand::rngs::{OsRng, ThreadRng};
     use crate::pman::database_entity::ENTITY_VERSION_LATEST;
     use crate::pman::pman_database::PmanDatabase;
-    use crate::structs_interfaces::PasswordDatabase;
+    use crate::structs_interfaces::{PasswordDatabase, PasswordDatabaseEntity};
 
     struct TestEntity {
         name: String,
@@ -530,5 +543,326 @@ mod tests {
         assert_eq!(db.get_passwords_file_records_count()?, 0);
         assert_eq!(db.get_names_file_records_count()?, 0);
         Ok(())
+    }
+
+    fn build_database_with_ops() -> Result<TestDatabase, Error> {
+        let test_data = build_test_data();
+        let mut test_database = build_database(test_data)?;
+        let mut rng = rand::thread_rng();
+        let mut l = 1;
+        let db: &PmanDatabase = test_database.database.as_any().downcast_ref().unwrap();
+        let entities = db.get_all_entities()?;
+        let mut entity_ids: Vec<u32> = entities.iter()
+            .map(|(k, _v)|*k)
+            .collect();
+        while l < 150 {
+            let op = rng.gen_range(0..18);
+
+            match op {
+                0 => {
+                    if l > 1 {
+                        let id = get_random_entity_id(&entity_ids, &mut rng)?;
+                        remove_entity(&mut test_database, id)?;
+                        for i in 0..entity_ids.len() {
+                            if entity_ids[i] == id {
+                                entity_ids.remove(i);
+                                break;
+                            }
+                        }
+                        l -= 1
+                    }
+                },
+                1 => add_group(&mut test_database, &mut rng)?,
+                2 => add_user(&mut test_database, &mut rng)?,
+                3 => rename_entity(&mut test_database, get_random_entity_id(&entity_ids, &mut rng)?, &mut rng)?,
+                4 => set_entity_password(&mut test_database, get_random_entity_id(&entity_ids, &mut rng)?, &mut rng)?,
+                5 => set_entity_url(&mut test_database, get_random_entity_id(&entity_ids, &mut rng)?, &mut rng)?,
+                6 => set_entity_group(&mut test_database, get_random_entity_id(&entity_ids, &mut rng)?, &mut rng)?,
+                7 => set_entity_user(&mut test_database, get_random_entity_id(&entity_ids, &mut rng)?, &mut rng)?,
+                8 => set_entity_property(&mut test_database, get_random_entity_id(&entity_ids, &mut rng)?, &mut rng)?,
+                9..=10 => add_entity_property(&mut test_database, get_random_entity_id(&entity_ids, &mut rng)?, &mut rng)?,
+                11 => remove_entity_property(&mut test_database, get_random_entity_id(&entity_ids, &mut rng)?, &mut rng)?,
+                _ => {
+                    entity_ids.push(add_entity(&mut test_database, &mut rng)?);
+                    l += 1
+                }
+            }
+        }
+        Ok(test_database)
+    }
+
+    #[test]
+    fn test_database_with_ops() -> Result<(), Error> {
+        let test_database = build_database_with_ops()?;
+        check_database(&test_database)?;
+        //test_search(&test_database)?;
+        cleanup_database(test_database)
+    }
+
+    #[test]
+    fn test_database_with_ops_and_save() -> Result<(), Error> {
+        let mut test_database = build_database_with_ops()?;
+        let file_name = "some_file.pdbf".to_string();
+        let data = test_database.database.save(file_name.clone())?;
+        let database = PmanDatabase::new_from_file(data[0].data.clone())?;
+        let files = database.pre_open(&file_name, test_database.test_data.hash1_vec.clone(),
+                                      Some(test_database.test_data.hash2_vec.clone()), None)?;
+        let open_data = data.into_iter().skip(1).map(|d|d.data).collect();
+        database.open(open_data)?;
+        test_database.database = database;
+        check_database(&test_database)?;
+        //test_search(&test_database)?;
+        cleanup_database(test_database)
+    }
+
+    fn get_test_entity_index(ids: &Vec<u32>, id: u32) -> Result<usize, Error> {
+        for i in 0..ids.len() {
+            if ids[i] == id {
+                return Ok(i);
+            }
+        }
+        Err(Error::new(ErrorKind::NotFound, "entity not found"))
+    }
+
+    fn rename_entity(db: &mut TestDatabase, id: u32, rng: &mut ThreadRng) -> Result<(), Error> {
+        let name = generate_random_string(20, rng);
+        db.test_data.entities[get_test_entity_index(&db.entity_ids, id)?].name = name.clone();
+        db.database.rename_entity(id, name)
+    }
+
+    fn set_entity_password(db: &mut TestDatabase, id: u32, rng: &mut ThreadRng) -> Result<(), Error> {
+        let password = generate_random_string(20, rng);
+        db.test_data.entities[get_test_entity_index(&db.entity_ids, id)?].password = password.clone();
+        db.database.modify_entity(id,
+                         None,
+        None,
+        Some(password),
+        None,
+            false,
+            HashMap::new(),
+            HashMap::new()
+        )
+    }
+
+    fn set_entity_url(db: &mut TestDatabase, id: u32, rng: &mut ThreadRng) -> Result<(), Error> {
+        let url = generate_random_url(rng);
+        db.test_data.entities[get_test_entity_index(&db.entity_ids, id)?].url = url.clone();
+        db.database.modify_entity(id,
+                         None,
+                         None,
+                         None,
+                         url,
+                         true,
+                         HashMap::new(),
+                         HashMap::new()
+        )
+    }
+
+    fn get_group_index(db: &TestDatabase, group_id: u32) -> Result<usize, Error> {
+        for i in 0..db.group_ids.len() {
+            if db.group_ids[i] == group_id {
+                return Ok(i);
+            }
+        }
+        Err(Error::new(ErrorKind::NotFound, "group not found"))
+    }
+
+    fn get_user_index(db: &TestDatabase, user_id: u32) -> Result<usize, Error> {
+        for i in 0..db.user_ids.len() {
+            if db.user_ids[i] == user_id {
+                return Ok(i);
+            }
+        }
+        Err(Error::new(ErrorKind::NotFound, "user not found"))
+    }
+
+    fn set_entity_group(db: &mut TestDatabase, id: u32, rng: &mut ThreadRng) -> Result<(), Error> {
+        let group_id = select_random_group_id(&db.database, rng)?;
+        let group_index = get_group_index(db, group_id)?;
+        db.test_data.entities[get_test_entity_index(&db.entity_ids, id)?].group_index = group_index;
+        db.database.modify_entity(id,
+                         Some(group_id),
+                         None,
+                         None,
+                         None,
+                         false,
+                         HashMap::new(),
+                         HashMap::new()
+        )
+    }
+
+    fn set_entity_user(db: &mut TestDatabase, id: u32, rng: &mut ThreadRng) -> Result<(), Error> {
+        let user_id = select_random_user_id(&db.database, rng)?;
+        let user_index = get_user_index(db, user_id)?;
+        db.test_data.entities[get_test_entity_index(&db.entity_ids, id)?].user_index = user_index;
+        db.database.modify_entity(id,
+                         None,
+                         Some(user_id),
+                         None,
+                         None,
+                         false,
+                         HashMap::new(),
+                         HashMap::new()
+        )
+    }
+
+    fn set_entity_property(db: &mut TestDatabase, id: u32, rng: &mut ThreadRng) -> Result<(), Error> {
+        let pdb: &PmanDatabase = db.database.as_any().downcast_ref().unwrap();
+        let property_names: HashMap<u32, String> = pdb.get_entity(id)?
+            .get_property_names(ENTITY_VERSION_LATEST)?
+            .into_iter().map(|(k, v)|(v, k)).collect();
+        let property_ids: Vec<u32> = property_names.iter()
+            .map(|(k, _v)|*k)
+            .collect();
+        let l = property_ids.len();
+        if l > 0 {
+            let random_property_index = rng.gen_range(0..l);
+            let property_id = property_ids[random_property_index];
+            let name = generate_random_string(20, rng);
+            db.test_data.entities[get_test_entity_index(&db.entity_ids, id)?].properties
+                .insert(property_names.get(&property_id).unwrap().clone(), name.clone());
+            let modified_properties =
+                HashMap::from([(property_id, Some(name))]);
+            db.database.modify_entity(id,
+                             None,
+                             None,
+                             None,
+                             None,
+                             false,
+                             HashMap::new(),
+                             modified_properties
+            )
+        } else { Ok(()) }
+    }
+
+    fn add_entity_property(db: &mut TestDatabase, id: u32, rng: &mut ThreadRng) -> Result<(), Error> {
+        let name = generate_random_string(20, rng);
+        let value = generate_random_string(20, rng);
+        db.test_data.entities[get_test_entity_index(&db.entity_ids, id)?].properties
+            .insert(name.clone(), value.clone());
+        db.database.modify_entity(id,
+                         None,
+                         None,
+                         None,
+                         None,
+                         false,
+                         HashMap::from([(name, value)]),
+                         HashMap::new()
+        )
+    }
+
+    fn remove_entity_property(db: &mut TestDatabase, id: u32, rng: &mut ThreadRng) -> Result<(), Error> {
+        let pdb: &PmanDatabase = db.database.as_any().downcast_ref().unwrap();
+        let property_names: HashMap<u32, String> = pdb.get_entity(id)?
+            .get_property_names(ENTITY_VERSION_LATEST)?
+            .into_iter().map(|(k, v)|(v, k)).collect();
+        let property_ids: Vec<u32> = property_names.iter()
+            .map(|(k, _v)|*k)
+            .collect();
+        let l = property_ids.len();
+        if l > 0 {
+            let random_property_index = rng.gen_range(0..l);
+            let property_id = property_ids[random_property_index];
+            db.test_data.entities[get_test_entity_index(&db.entity_ids, id)?].properties
+                .remove(property_names.get(&property_id).unwrap());
+            let modified_properties =
+                HashMap::from([(property_id, None)]);
+            db.database.modify_entity(id,
+                             None,
+                             None,
+                             None,
+                             None,
+                             false,
+                             HashMap::new(),
+                             modified_properties
+            )
+        } else { Ok(()) }
+    }
+
+    fn get_random_entity_id(entity_ids: &Vec<u32>, rng: &mut ThreadRng) -> Result<u32, Error> {
+        let random_entity_index = rng.gen_range(0..entity_ids.len());
+        let random_entity_id = entity_ids[random_entity_index];
+        Ok(random_entity_id)
+    }
+
+    fn remove_entity(db: &mut TestDatabase, id: u32) -> Result<(), Error> {
+        for i in 0..db.entity_ids.len() {
+            if db.entity_ids[i] == id {
+                db.entity_ids.remove(i);
+                db.test_data.entities.remove(i);
+                break;
+            }
+        }
+        db.database.remove_entity(id)
+    }
+
+    fn generate_random_string(length: usize, rng: &mut ThreadRng) -> String {
+        Alphanumeric.sample_string(rng, length)
+    }
+
+    fn add_group(db: &mut TestDatabase, rng: &mut ThreadRng) -> Result<(), Error> {
+        let name = generate_random_string(20, rng);
+        let id = db.database.add_group(name.clone())?;
+        db.test_data.group_names.push(name);
+        db.group_ids.push(id);
+        Ok(())
+    }
+
+    fn add_user(db: &mut TestDatabase, rng: &mut ThreadRng) -> Result<(), Error> {
+        let name = generate_random_string(20, rng);
+        let id = db.database.add_user(name.clone())?;
+        db.test_data.user_names.push(name);
+        db.user_ids.push(id);
+        Ok(())
+    }
+
+    fn add_entity(db: &mut TestDatabase, rng: &mut ThreadRng) -> Result<u32, Error> {
+        let group_id = select_random_group_id(&db.database, rng)?;
+        let name = generate_random_string(20, rng);
+        let user_id = select_random_user_id(&db.database, rng)?;
+        let password = generate_random_string(20, rng);
+        let url = generate_random_url(rng);
+        let properties = generate_random_properties(rng);
+        let id = db.database.add_entity(group_id,
+                               name.clone(),
+                               user_id,
+                               password.clone(),
+                               url.clone(),
+                               properties.clone())?;
+        db.entity_ids.push(id);
+        db.test_data.entities.push(TestEntity{
+            name,
+            password,
+            url,
+            group_index: get_group_index(db, group_id)?,
+            user_index: get_user_index(db, user_id)?,
+            properties,
+        });
+        Ok(id)
+    }
+
+    fn generate_random_properties(rng: &mut ThreadRng) -> HashMap<String, String> {
+        let count = rng.gen_range(0..10);
+        (0..count)
+            .map(|_v|(generate_random_string(20, rng), generate_random_string(20, rng)))
+            .collect()
+    }
+
+    fn generate_random_url(rng: &mut ThreadRng) -> Option<String> {
+        if rng.gen_bool(0.5) {
+            Some(generate_random_string(20, rng))
+        } else { None }
+    }
+
+    fn select_random_user_id(db: &Box<dyn PasswordDatabase>, rng: &mut ThreadRng) -> Result<u32, Error> {
+        let user_ids: Vec<u32> = db.get_users()?.into_iter().map(|(id, _name)|id).collect();
+        let random_index = rng.gen_range(0..user_ids.len());
+        Ok(user_ids[random_index])
+    }
+
+    fn select_random_group_id(db: &Box<dyn PasswordDatabase>, rng: &mut ThreadRng) -> Result<u32, Error> {
+        let group_ids: Vec<u32> = db.get_groups()?.iter().map(|g|g.id).collect();
+        let random_index = rng.gen_range(0..group_ids.len());
+        Ok(group_ids[random_index])
     }
 }

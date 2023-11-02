@@ -429,7 +429,7 @@ internal interface _UniFFILib : Library {
     ): Byte
     fun uniffi_pman_lib_fn_func_lib_init(_uniffi_out_err: RustCallStatus, 
     ): Unit
-    fun uniffi_pman_lib_fn_func_modify_entity(`databaseId`: Long,`entityId`: Int,`newGroupId`: RustBuffer.ByValue,`newUserId`: RustBuffer.ByValue,`newPassword`: RustBuffer.ByValue,`newUrl`: RustBuffer.ByValue,`newProperties`: RustBuffer.ByValue,`modifiedProperties`: RustBuffer.ByValue,_uniffi_out_err: RustCallStatus, 
+    fun uniffi_pman_lib_fn_func_modify_entity(`databaseId`: Long,`entityId`: Int,`newGroupId`: RustBuffer.ByValue,`newUserId`: RustBuffer.ByValue,`newPassword`: RustBuffer.ByValue,`newUrl`: RustBuffer.ByValue,`changeUrl`: Byte,`newProperties`: RustBuffer.ByValue,`modifiedProperties`: RustBuffer.ByValue,_uniffi_out_err: RustCallStatus, 
     ): Unit
     fun uniffi_pman_lib_fn_func_open(`databaseId`: Long,`data`: RustBuffer.ByValue,_uniffi_out_err: RustCallStatus, 
     ): Unit
@@ -686,7 +686,7 @@ private fun uniffiCheckApiChecksums(lib: _UniFFILib) {
     if (lib.uniffi_pman_lib_checksum_func_lib_init() != 48264.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_pman_lib_checksum_func_modify_entity() != 51183.toShort()) {
+    if (lib.uniffi_pman_lib_checksum_func_modify_entity() != 49681.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_pman_lib_checksum_func_open() != 17607.toShort()) {
@@ -2017,10 +2017,10 @@ fun `libInit`() =
 
 @Throws(PmanException::class)
 
-fun `modifyEntity`(`databaseId`: ULong, `entityId`: UInt, `newGroupId`: UInt?, `newUserId`: UInt?, `newPassword`: String?, `newUrl`: String?, `newProperties`: Map<String, String>, `modifiedProperties`: Map<UInt, String?>) =
+fun `modifyEntity`(`databaseId`: ULong, `entityId`: UInt, `newGroupId`: UInt?, `newUserId`: UInt?, `newPassword`: String?, `newUrl`: String?, `changeUrl`: Boolean, `newProperties`: Map<String, String>, `modifiedProperties`: Map<UInt, String?>) =
     
     rustCallWithError(PmanException) { _status ->
-    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_modify_entity(FfiConverterULong.lower(`databaseId`),FfiConverterUInt.lower(`entityId`),FfiConverterOptionalUInt.lower(`newGroupId`),FfiConverterOptionalUInt.lower(`newUserId`),FfiConverterOptionalString.lower(`newPassword`),FfiConverterOptionalString.lower(`newUrl`),FfiConverterMapStringString.lower(`newProperties`),FfiConverterMapUIntOptionalString.lower(`modifiedProperties`),_status)
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_modify_entity(FfiConverterULong.lower(`databaseId`),FfiConverterUInt.lower(`entityId`),FfiConverterOptionalUInt.lower(`newGroupId`),FfiConverterOptionalUInt.lower(`newUserId`),FfiConverterOptionalString.lower(`newPassword`),FfiConverterOptionalString.lower(`newUrl`),FfiConverterBoolean.lower(`changeUrl`),FfiConverterMapStringString.lower(`newProperties`),FfiConverterMapUIntOptionalString.lower(`modifiedProperties`),_status)
 }
 
 

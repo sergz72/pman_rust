@@ -274,6 +274,10 @@ impl PmanDatabaseEntity {
     pub fn get_properties(&self) -> HashMap<u32, u32> {
         self.history.get(0).unwrap().properties.clone()
     }
+
+    pub fn get_url_id(&self) -> Option<u32> {
+        self.history.get(0).unwrap().url_id
+    }
 }
 
 fn get_current_timestamp() -> u64 {

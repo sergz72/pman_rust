@@ -228,12 +228,12 @@ pub fn rename_entity(database_id: u64, entity_id: u32, new_name: String) -> Resu
 }
 
 pub fn modify_entity(database_id: u64, entity_id: u32, new_group_id: Option<u32>, new_user_id: Option<u32>,
-          new_password: Option<String>, new_url: Option<String>, new_properties: HashMap<String, String>,
+          new_password: Option<String>, new_url: Option<String>, change_url: bool, new_properties: HashMap<String, String>,
           modified_properties: HashMap<u32, Option<String>>)
           -> Result<(), PmanError> {
     let db = get_database(database_id)?;
     db.database.modify_entity(entity_id, new_group_id, new_user_id, new_password, new_url,
-                                       new_properties, modified_properties)
+                                       change_url, new_properties, modified_properties)
         .map_err(|e|PmanError::message(e.to_string()))
 }
 
