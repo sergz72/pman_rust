@@ -208,7 +208,7 @@ impl PasswordDatabase for PmanDatabase {
             let value_id = file.add_to_passwords_file(v)?;
             new_props.insert(key_id, value_id);
         }
-        entity.update(new_pid, new_gid, new_uid, new_url_id, new_props);
+        entity.update(&mut file, new_pid, new_gid, new_uid, new_url_id, new_props);
         file.set_in_names_file(entity_id, entity)
     }
 
@@ -486,6 +486,39 @@ mod tests {
     }
 
     fn check_database(database: &TestDatabase) -> Result<(), Error> {
+        // groups
+        let groups = database.database.get_groups()?;
+        assert_eq!(groups.len(), database.group_ids.len());
+        assert_eq!(groups.len(), database.test_data.group_names.len());
+        for group in groups {
+            let mut found = false;
+            for i in 0..database.group_ids.len() {
+                if group.id == database.group_ids[i] {
+                    found = true;
+                    assert_eq!(group.name, database.test_data.group_names[i]);
+                    break;
+                }
+            }
+            assert!(found);
+        }
+
+        // users
+        let users = database.database.get_users()?;
+        assert_eq!(users.len(), database.user_ids.len());
+        assert_eq!(users.len(), database.test_data.user_names.len());
+        for (id, name) in users {
+            let mut found = false;
+            for i in 0..database.user_ids.len() {
+                if id == database.user_ids[i] {
+                    found = true;
+                    assert_eq!(name, database.test_data.user_names[i]);
+                    break;
+                }
+            }
+            assert!(found);
+        }
+
+        // entities
         let mut entity_map = HashMap::new();
         for i in 0..database.test_data.entities.len() {
             let entity = &database.test_data.entities[i];
@@ -504,13 +537,14 @@ mod tests {
                 assert_eq!(en.get_group_id(ENTITY_VERSION_LATEST)?, database.group_ids[ten.group_index]);
                 assert_eq!(en.get_user_id(ENTITY_VERSION_LATEST)?, database.user_ids[ten.user_index]);
                 assert_eq!(en.get_password(ENTITY_VERSION_LATEST)?, ten.password);
+                assert_eq!(en.get_url(ENTITY_VERSION_LATEST)?, ten.url);
                 let names = en.get_property_names(ENTITY_VERSION_LATEST)?;
                 assert_eq!(names.len(), ten.properties.len());
                 for (name, id) in names {
                     let value = ten.properties.get(&name);
                     assert!(value.is_some());
                     let pvalue = en.get_property_value(ENTITY_VERSION_LATEST, id)?;
-                    assert_eq!(value.unwrap().clone(), pvalue);
+                    assert_eq!(*value.unwrap(), pvalue);
                 }
             }
         }
@@ -556,7 +590,7 @@ mod tests {
             .map(|(k, _v)|*k)
             .collect();
         while l < 150 {
-            let op = rng.gen_range(0..18);
+            let op = rng.gen_range(0..19);
 
             match op {
                 0 => {
@@ -582,6 +616,7 @@ mod tests {
                 8 => set_entity_property(&mut test_database, get_random_entity_id(&entity_ids, &mut rng)?, &mut rng)?,
                 9..=10 => add_entity_property(&mut test_database, get_random_entity_id(&entity_ids, &mut rng)?, &mut rng)?,
                 11 => remove_entity_property(&mut test_database, get_random_entity_id(&entity_ids, &mut rng)?, &mut rng)?,
+                12 => rename_group(&mut test_database, &mut rng)?,
                 _ => {
                     entity_ids.push(add_entity(&mut test_database, &mut rng)?);
                     l += 1
@@ -806,6 +841,14 @@ mod tests {
         db.test_data.group_names.push(name);
         db.group_ids.push(id);
         Ok(())
+    }
+
+    fn rename_group(db: &mut TestDatabase, rng: &mut ThreadRng) -> Result<(), Error> {
+        let name = generate_random_string(20, rng);
+        let id = select_random_group_id(&db.database, rng)?;
+        let index = get_group_index(db, id)?;
+        db.test_data.group_names[index] = name.clone();
+        db.database.rename_group(id, name)
     }
 
     fn add_user(db: &mut TestDatabase, rng: &mut ThreadRng) -> Result<(), Error> {

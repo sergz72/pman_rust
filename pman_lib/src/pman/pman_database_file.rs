@@ -48,8 +48,7 @@ use sha2::{Sha256, Digest};
 use crate::crypto::{AesProcessor, ChachaProcessor, CryptoProcessor, NoEncryptionProcessor};
 use crate::error_builders::build_corrupted_data_error;
 use crate::pman::id_value_map::id_value_map::{ByteValue, IdValueMap};
-use crate::pman::ids::{DATABASE_VERSION_ID, ENCRYPTION_ALGORITHM1_PROPERTIES_ID,
-                       ENCRYPTION_ALGORITHM2_PROPERTIES_ID, HASH_ALGORITHM_PROPERTIES_ID};
+use crate::pman::ids::{DATABASE_VERSION_ID, ENCRYPTION_ALGORITHM1_PROPERTIES_ID, ENCRYPTION_ALGORITHM2_PROPERTIES_ID, HASH_ALGORITHM_PROPERTIES_ID, HISTORY_LENGTH_ID};
 use crate::pman::data_file::DataFile;
 use crate::pman::id_value_map::id_value_map_local_data_handler::IdValueMapLocalDataHandler;
 use crate::structs_interfaces::FileAction;
@@ -57,6 +56,7 @@ use crate::structs_interfaces::FileAction;
 const DATABASE_VERSION_MIN: u16 = 0x100; // 1.0
 const DATABASE_VERSION_MAX: u16 = 0x100; // 1.0
 const DATABASE_VERSION_1: u16 = 0x100; // 1.0
+const DEFAULT_HISTORY_LENGTH: u8 = 5;
 pub const HASH_ALGORITHM_ARGON2: u8 = 1;
 pub const DEFAULT_ARGON2_ITERATIONS: u8 = 2;
 pub const DEFAULT_ARGON2_MEMORY: u16 = 64;
@@ -84,7 +84,8 @@ pub struct PmanDatabaseProperties {
     alg1: u8,
     alg21: u8,
     processor12: Arc<dyn CryptoProcessor + Send + Sync>,
-    processor22: Arc<dyn CryptoProcessor + Send + Sync>
+    processor22: Arc<dyn CryptoProcessor + Send + Sync>,
+    history_length: usize
 }
 
 pub struct PmanDatabaseFile {
@@ -102,6 +103,7 @@ impl PmanDatabaseProperties {
         h.add_with_id(HASH_ALGORITHM_PROPERTIES_ID, default_argon2_properties()).unwrap();
         h.add_with_id(ENCRYPTION_ALGORITHM1_PROPERTIES_ID, default_chacha_properties()).unwrap();
         h.add_with_id(ENCRYPTION_ALGORITHM2_PROPERTIES_ID, default_aes_properties()).unwrap();
+        h.add_with_id(HISTORY_LENGTH_ID, vec![DEFAULT_HISTORY_LENGTH]).unwrap();
 
         let (alg1, alg2) = get_encryption_algorithms(&mut h)?;
         let a1 = alg1[0];
@@ -142,7 +144,8 @@ impl PmanDatabaseProperties {
             alg1: a1,
             alg21: a2,
             processor12,
-            processor22
+            processor22,
+            history_length: DEFAULT_HISTORY_LENGTH as usize
         })
     }
 
@@ -151,6 +154,7 @@ impl PmanDatabaseProperties {
         let (handler, offset) = IdValueMapLocalDataHandler::load(data, 0)?;
         let mut h = IdValueMap::new(NoEncryptionProcessor::new(), vec![Box::new(handler)])?;
         let _v = validate_database_version(&mut h)?;
+        let history_length = get_history_length(&mut h)?;
         let (alg1, alg2) = get_encryption_algorithms(&mut h)?;
         let a1 = alg1[0];
         let (names_file_encryption_key1, names_file_encryption_key2) = build_encryption_keys(&mut h, &password_hash, &password2_hash)?;
@@ -203,7 +207,8 @@ impl PmanDatabaseProperties {
             alg1: a1,
             alg21: a2,
             processor12,
-            processor22
+            processor22,
+            history_length
         };
 
         Ok((properties, files_to_load))
@@ -380,6 +385,10 @@ impl PmanDatabaseProperties {
         }
         Err(build_passwords_file_not_initialized_error())
     }
+
+    fn get_history_length(&self) -> usize {
+        self.history_length
+    }
 }
 
 impl PmanDatabaseFile {
@@ -517,6 +526,13 @@ impl PmanDatabaseFile {
         }
         Err(build_properties_not_initialized_error())
     }
+
+    pub fn get_history_length(&self) -> Result<usize, Error> {
+        if let Some(p) = &self.properties {
+            return Ok(p.get_history_length())
+        }
+        Err(build_properties_not_initialized_error())
+    }
 }
 
 pub fn build_properties_not_initialized_error() -> Error {
@@ -595,6 +611,14 @@ fn encrypt_data(processor: Arc<dyn CryptoProcessor>, data: &mut Vec<u8>, offset:
 
 pub fn decrypt_data(processor: Arc<dyn CryptoProcessor>, data: &mut Vec<u8>, offset: usize, length: usize) -> Result<(), Error> {
     processor.decode_bytes(&mut data[offset..length])
+}
+
+fn get_history_length(header: &mut IdValueMap) -> Result<usize, Error> {
+    let l: Vec<u8> = header.get(HISTORY_LENGTH_ID)?;
+    if l.len() != 1 {
+        return Err(build_corrupted_data_error());
+    }
+    Ok(l[0] as usize)
 }
 
 pub fn get_encryption_algorithms(header: &mut IdValueMap) -> Result<(Vec<u8>, Vec<u8>), Error> {

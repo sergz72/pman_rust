@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::io::{Error, ErrorKind};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::SystemTime;
 use crate::error_builders::{build_corrupted_data_error, build_not_found_error};
 use crate::pman::id_value_map::id_value_map::ByteValue;
@@ -215,8 +215,8 @@ impl PmanDatabaseEntity {
         }]}
     }
 
-    pub fn update(&mut self, password_id: u32, group_id: u32, user_id: u32,
-                  url_id: Option<u32>, properties: HashMap<u32, u32>) {
+    pub fn update(&mut self, file: &mut MutexGuard<PmanDatabaseFile>, password_id: u32, group_id: u32, user_id: u32,
+                  url_id: Option<u32>, properties: HashMap<u32, u32>) -> Result<(), Error> {
         self.history.insert(0, PmanDatabaseEntityFields{
             password_id,
             group_id,
@@ -225,6 +225,27 @@ impl PmanDatabaseEntity {
             created_at: get_current_timestamp(),
             properties,
         });
+        let max_length = file.get_history_length()?;
+        if self.history.len() > max_length {
+            let deleted = self.history.remove(max_length - 1);
+            let mut deleted_names_ids = HashSet::new();
+            deleted.collect_names_ids(&mut deleted_names_ids);
+            let mut deleted_passwords_ids = HashSet::new();
+            deleted.collect_passwords_ids(&mut deleted_passwords_ids);
+            let active_names_ids = self.collect_names_ids();
+            let active_passwords_ids = self.collect_passwords_ids();
+            let to_be_deleled_names_ids =
+                get_unused_ids(active_names_ids, deleted_names_ids);
+            let to_be_deleled_passwords_ids =
+                get_unused_ids(active_passwords_ids, deleted_passwords_ids);
+            for id in to_be_deleled_names_ids {
+                file.remove_from_names_file(id)?;
+            }
+            for id in to_be_deleled_passwords_ids {
+                file.remove_from_passwords_file(id)?;
+            }
+        }
+        Ok(())
     }
     
     pub fn set_database_file(&mut self, database_file: Arc<Mutex<PmanDatabaseFile>>) {
@@ -280,6 +301,11 @@ impl PmanDatabaseEntity {
     }
 }
 
+fn get_unused_ids(active_ids: Vec<u32>, deleted_ids: HashSet<u32>) -> Vec<u32> {
+    let active: HashSet<u32> = active_ids.into_iter().collect();
+    deleted_ids.into_iter().filter(|i|!active.contains(i)).collect()
+}
+
 fn get_current_timestamp() -> u64 {
     SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs()
 }
@@ -305,8 +331,8 @@ mod tests {
         let hash2_vec = Vec::from(hash2);
         let db = Arc::new(Mutex::new(PmanDatabaseFile::new(hash1_vec.clone(), hash2_vec.clone())?));
         let mut entity1 = PmanDatabaseEntity::new(db.clone(), 1, 2, 3, 4, None, HashMap::new());
-        entity1.update(66, 77, 88, Some(99),
-                       HashMap::from([(110, 111), (112, 113)]));
+        entity1.update(&mut db.lock().unwrap(),66, 77, 88, Some(99),
+                       HashMap::from([(110, 111), (112, 113)]))?;
         let entity2 = PmanDatabaseEntity::new(db, 5, 6, 7, 8, Some(9),
                                               HashMap::from([(10, 11), (12, 13)]));
         let e1 = PmanDatabaseEntity::from_bytes(entity1.to_bytes())?;
