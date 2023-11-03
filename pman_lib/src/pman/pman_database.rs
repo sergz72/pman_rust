@@ -699,6 +699,11 @@ mod tests {
     fn build_database_with_ops() -> Result<TestDatabase, Error> {
         let test_data = build_test_data();
         let mut test_database = build_database(test_data)?;
+        modify_database_with_ops(&mut test_database, 150)?;
+        Ok(test_database)
+    }
+
+    fn modify_database_with_ops(test_database: &mut TestDatabase, limit: usize) -> Result<(), Error> {
         let mut rng = rand::thread_rng();
         let mut l = 1;
         let db: &PmanDatabase = test_database.database.as_any().downcast_ref().unwrap();
@@ -706,14 +711,14 @@ mod tests {
         let mut entity_ids: Vec<u32> = entities.iter()
             .map(|(k, _v)|*k)
             .collect();
-        while l < 150 {
+        while l < limit {
             let op = rng.gen_range(0..19);
 
             match op {
                 0 => {
                     if l > 1 {
                         let id = get_random_entity_id(&entity_ids, &mut rng)?;
-                        remove_entity(&mut test_database, id)?;
+                        remove_entity(test_database, id)?;
                         for i in 0..entity_ids.len() {
                             if entity_ids[i] == id {
                                 entity_ids.remove(i);
@@ -723,24 +728,24 @@ mod tests {
                         l -= 1
                     }
                 },
-                1 => add_group(&mut test_database, &mut rng)?,
-                2 => add_user(&mut test_database, &mut rng)?,
-                3 => rename_entity(&mut test_database, get_random_entity_id(&entity_ids, &mut rng)?, &mut rng)?,
-                4 => set_entity_password(&mut test_database, get_random_entity_id(&entity_ids, &mut rng)?, &mut rng)?,
-                5 => set_entity_url(&mut test_database, get_random_entity_id(&entity_ids, &mut rng)?, &mut rng)?,
-                6 => set_entity_group(&mut test_database, get_random_entity_id(&entity_ids, &mut rng)?, &mut rng)?,
-                7 => set_entity_user(&mut test_database, get_random_entity_id(&entity_ids, &mut rng)?, &mut rng)?,
-                8 => set_entity_property(&mut test_database, get_random_entity_id(&entity_ids, &mut rng)?, &mut rng)?,
-                9..=10 => add_entity_property(&mut test_database, get_random_entity_id(&entity_ids, &mut rng)?, &mut rng)?,
-                11 => remove_entity_property(&mut test_database, get_random_entity_id(&entity_ids, &mut rng)?, &mut rng)?,
-                12 => rename_group(&mut test_database, &mut rng)?,
+                1 => add_group(test_database, &mut rng)?,
+                2 => add_user(test_database, &mut rng)?,
+                3 => rename_entity(test_database, get_random_entity_id(&entity_ids, &mut rng)?, &mut rng)?,
+                4 => set_entity_password(test_database, get_random_entity_id(&entity_ids, &mut rng)?, &mut rng)?,
+                5 => set_entity_url(test_database, get_random_entity_id(&entity_ids, &mut rng)?, &mut rng)?,
+                6 => set_entity_group(test_database, get_random_entity_id(&entity_ids, &mut rng)?, &mut rng)?,
+                7 => set_entity_user(test_database, get_random_entity_id(&entity_ids, &mut rng)?, &mut rng)?,
+                8 => set_entity_property(test_database, get_random_entity_id(&entity_ids, &mut rng)?, &mut rng)?,
+                9..=10 => add_entity_property(test_database, get_random_entity_id(&entity_ids, &mut rng)?, &mut rng)?,
+                11 => remove_entity_property(test_database, get_random_entity_id(&entity_ids, &mut rng)?, &mut rng)?,
+                12 => rename_group(test_database, &mut rng)?,
                 _ => {
-                    entity_ids.push(add_entity(&mut test_database, &mut rng)?);
+                    entity_ids.push(add_entity(test_database, &mut rng)?);
                     l += 1
                 }
             }
         }
-        Ok(test_database)
+        Ok(())
     }
 
     #[test]
@@ -763,7 +768,17 @@ mod tests {
         database.open(open_data)?;
         test_database.database = database;
         check_database(&test_database)?;
-        //test_search(&test_database)?;
+
+        modify_database_with_ops(&mut test_database, 200)?;
+        check_database(&test_database)?;
+        let data = test_database.database.save(file_name.clone())?;
+        let database = PmanDatabase::new_from_file(data[0].data.clone())?;
+        database.pre_open(&file_name, test_database.test_data.hash1_vec.clone(),
+                          Some(test_database.test_data.hash2_vec.clone()), None)?;
+        let open_data = data.into_iter().skip(1).map(|d|d.data).collect();
+        database.open(open_data)?;
+        test_database.database = database;
+        check_database(&test_database)?;
         cleanup_database(test_database)
     }
 
