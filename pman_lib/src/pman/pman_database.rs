@@ -760,24 +760,27 @@ mod tests {
     fn test_database_with_ops_and_save() -> Result<(), Error> {
         let mut test_database = build_database_with_ops()?;
         let file_name = "some_file.pdbf".to_string();
-        let data = test_database.database.save(file_name.clone())?;
+        let mut data = test_database.database.save(file_name.clone())?;
+        assert_eq!(data.len(), 3);
         let database = PmanDatabase::new_from_file(data[0].data.clone())?;
         database.pre_open(&file_name, test_database.test_data.hash1_vec.clone(),
                                       Some(test_database.test_data.hash2_vec.clone()), None)?;
-        let open_data = data.into_iter().skip(1).map(|d|d.data).collect();
+        let data0 = data.remove(0);
+        let open_data = data.into_iter().map(|d|d.data).collect();
         database.open(open_data)?;
         test_database.database = database;
         check_database(&test_database)?;
 
         modify_database_with_ops(&mut test_database, 200)?;
         check_database(&test_database)?;
-        let data = test_database.database.save(file_name.clone())?;
-        let database = PmanDatabase::new_from_file(data[0].data.clone())?;
-        database.pre_open(&file_name, test_database.test_data.hash1_vec.clone(),
+        let new_data = test_database.database.save(file_name.clone())?;
+        assert_eq!(new_data.len(), 2);
+        let new_database = PmanDatabase::new_from_file(data0.data)?;
+        new_database.pre_open(&file_name, test_database.test_data.hash1_vec.clone(),
                           Some(test_database.test_data.hash2_vec.clone()), None)?;
-        let open_data = data.into_iter().skip(1).map(|d|d.data).collect();
-        database.open(open_data)?;
-        test_database.database = database;
+        let new_open_data = new_data.into_iter().map(|d|d.data).collect();
+        new_database.open(new_open_data)?;
+        test_database.database = new_database;
         check_database(&test_database)?;
         cleanup_database(test_database)
     }
