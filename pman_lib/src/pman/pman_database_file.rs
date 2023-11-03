@@ -389,6 +389,25 @@ impl PmanDatabaseProperties {
     fn get_history_length(&self) -> usize {
         self.history_length
     }
+
+    fn set_argon2(&mut self, hash_id: usize, iterations: u8, parallelism: u8, memory: u16) -> Result<(), Error> {
+        if let Some(p) = &mut self.names_file {
+            p.set_updated();
+        } else {
+            return Err(build_names_file_not_initialized_error());
+        }
+        if let Some(p) = &mut self.passwords_file {
+            p.set_updated();
+        } else {
+            return Err(build_passwords_file_not_initialized_error());
+        }
+        self.is_updated = true;
+        match hash_id {
+            0 => set_argon2_in_header(&mut self.header, iterations, parallelism, memory),
+            1 => set_argon2_in_header(&mut self.names_files_info, iterations, parallelism, memory),
+            _ => Err(Error::new(ErrorKind::InvalidInput, "wrong hash id"))
+        }
+    }
 }
 
 impl PmanDatabaseFile {
@@ -440,7 +459,10 @@ impl PmanDatabaseFile {
     }
 
     pub fn set_argon2(&mut self, hash_id: usize, iterations: u8, parallelism: u8, memory: u16) -> Result<(), Error> {
-        todo!()
+        if let Some(p) = &mut self.properties {
+            return p.set_argon2(hash_id, iterations, parallelism, memory);
+        }
+        Err(build_properties_not_initialized_error())
     }
 
     pub fn get_from_names_file<T: ByteValue>(&mut self, id: u32) -> Result<T, Error> {
@@ -549,6 +571,11 @@ pub fn build_passwords_file_not_initialized_error() -> Error {
 
 pub fn build_unsupported_algorithm_error() -> Error {
     Error::new(ErrorKind::Unsupported, "unsupported encryption algorithm")
+}
+
+fn set_argon2_in_header(header: &mut IdValueMap, iterations: u8, parallelism: u8, memory: u16) -> Result<(), Error> {
+    let salt = build_argon2_salt();
+    header.set(HASH_ALGORITHM_PROPERTIES_ID, build_argon2_properties(iterations, parallelism, memory, salt))
 }
 
 fn build_encryption_processor(algorithm_parameters: Vec<u8>, encryption_key: [u8; 32]) -> Result<Arc<dyn CryptoProcessor + Send + Sync>, Error> {

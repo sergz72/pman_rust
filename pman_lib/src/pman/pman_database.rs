@@ -538,6 +538,8 @@ mod tests {
     fn build_database(test_data: TestData) -> Result<TestDatabase, Error> {
         let database = PmanDatabase::new(test_data.hash1_vec.clone(),
                                          test_data.hash2_vec.clone())?;
+        database.set_argon2(0, 1, 6, 1)?;
+        database.set_argon2(1, 1, 6, 1)?;
         let mut group_ids = Vec::new();
         for group_name in &test_data.group_names {
             group_ids.push(database.add_group(group_name.clone())?);

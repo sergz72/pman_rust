@@ -30,6 +30,10 @@ impl DataFile {
         Ok(DataFile {is_updated: false, data: IdValueMap::new(processor2, handlers)?})
     }
 
+    pub fn set_updated(&mut self) {
+        self.is_updated = true;
+    }
+
     pub fn save(&mut self, encryption_key: [u8; 32], alg1: u8,
                 processor2: Arc<dyn CryptoProcessor + Send + Sync>) -> Result<Option<Vec<u8>>, Error> {
         if !self.is_updated {
