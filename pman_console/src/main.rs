@@ -4,7 +4,8 @@ use std::env::args;
 use std::fs::File;
 use std::time::Instant;
 use arguments_parser::{Arguments, IntParameter, BoolParameter, Switch, StringParameter, EnumParameter};
-use pman_lib::{build_argon2_hash, create, get_database_type, prepare};
+use pman_lib::{build_argon2_hash, create, get_database_type, open, pre_open, prepare};
+use sha2::{Sha256, Digest};
 
 const TIME_DEFAULT: isize = 1000;
 const PARALLELISM_DEFAULT: isize = 6;
@@ -100,22 +101,42 @@ fn main() -> Result<(), Error> {
             return Ok(());
         }
         let database_type = get_database_type(&file_name)?;
-        let passsword2 = if database_type.requires_second_password() {
+        let password2 = if database_type.requires_second_password() {
             Some(get_password("password2", &password2_parameter)?)
         } else { None };
         let verbose = verbose_parameter.get_value();
+        let password_hash = create_hash(password);
+        let password2_hash = password2.map(|p|create_hash(p));
         let database = if create_parameter.get_value() {
-            create(database_type, password, passsword2, None)
+            create(database_type, password_hash, password2_hash, None)
                 .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?
         } else {
             let mut f = File::open(file_name.clone())?;
             let mut data = Vec::new();
             f.read_to_end(&mut data)?;
-            prepare(&data, file_name)
-                .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?
+            let id = prepare(data, file_name)
+                .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+            let files =
+                pre_open(id, password_hash, password2_hash, None)
+                    .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+            let data = load_files(files)?;
+            open(id, data)
+                .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+            id
         };
         Ok(())
     }
+}
+
+fn load_files(file_names: Vec<String>) -> Result<Vec<Vec<u8>>, Error> {
+    let mut result = Vec::new();
+    for file_name in file_names {
+        let mut f = File::open(file_name)?;
+        let mut data = Vec::new();
+        f.read_to_end(&mut data)?;
+        result.push(data);
+    }
+    Ok(result)
 }
 
 fn test_argon2(password: String, iterations: isize, parallelism: isize, memory: isize, salt: &[u8]) -> Result<(), Error> {
@@ -135,9 +156,17 @@ fn get_password(prompt: &str, password_parameter: &StringParameter) -> Result<St
         return Ok(password);
     }
     let mut buffer = String::new();
+    print!("{}: ", prompt);
     stdin().read_line(&mut buffer)?;
     if buffer.is_empty() {
         return Err(Error::new(ErrorKind::InvalidInput, "empty password"));
     }
     Ok(buffer)
+}
+
+fn create_hash(password: String) -> Vec<u8> {
+    let mut hasher = Sha256::new();
+    hasher.update(password);
+    let hash = hasher.finalize();
+    Vec::from(hash.as_slice())
 }

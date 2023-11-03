@@ -208,7 +208,7 @@ impl PasswordDatabase for PmanDatabase {
             let value_id = file.add_to_passwords_file(v)?;
             new_props.insert(key_id, value_id);
         }
-        entity.update(&mut file, new_pid, new_gid, new_uid, new_url_id, new_props);
+        entity.update(&mut file, new_pid, new_gid, new_uid, new_url_id, new_props)?;
         file.set_in_names_file(entity_id, entity)
     }
 

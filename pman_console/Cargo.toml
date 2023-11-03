@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 arguments_parser = { git = "https://github.com/sergz72/arguments_parser.git"}
 pman_lib = { path = "../pman_lib" }
+sha2 = "0.10.8"
