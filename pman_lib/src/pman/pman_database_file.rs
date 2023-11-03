@@ -56,7 +56,7 @@ use crate::structs_interfaces::FileAction;
 const DATABASE_VERSION_MIN: u16 = 0x100; // 1.0
 const DATABASE_VERSION_MAX: u16 = 0x100; // 1.0
 const DATABASE_VERSION_1: u16 = 0x100; // 1.0
-const DEFAULT_HISTORY_LENGTH: u8 = 5;
+pub const DEFAULT_HISTORY_LENGTH: u8 = 5;
 pub const HASH_ALGORITHM_ARGON2: u8 = 1;
 pub const DEFAULT_ARGON2_ITERATIONS: u8 = 2;
 pub const DEFAULT_ARGON2_MEMORY: u16 = 64;

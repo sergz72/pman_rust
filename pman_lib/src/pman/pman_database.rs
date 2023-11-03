@@ -369,16 +369,126 @@ mod tests {
     use rand::rngs::{OsRng, ThreadRng};
     use crate::pman::database_entity::ENTITY_VERSION_LATEST;
     use crate::pman::pman_database::PmanDatabase;
+    use crate::pman::pman_database_file::DEFAULT_HISTORY_LENGTH;
     use crate::structs_interfaces::{PasswordDatabase, PasswordDatabaseEntity};
 
-    struct TestEntity {
-        name: String,
+    #[derive(Clone)]
+    struct TestEntityHistory {
         password: String,
         url: Option<String>,
         group_index: usize,
         user_index: usize,
         properties: HashMap<String, String>
     }
+
+    struct TestEntity {
+        name: String,
+        history: Vec<TestEntityHistory>
+    }
+
+    impl TestEntity {
+        fn new(name: String, password: String, url: Option<String>, group_index: usize,
+               user_index: usize, properties: HashMap<String, String>) -> TestEntity {
+            TestEntity{name, history: vec![TestEntityHistory{
+                password,
+                url,
+                group_index,
+                user_index,
+                properties,
+            }]}
+        }
+
+        fn get_group_index(&self, version: u32) -> usize {
+            self.history[version as usize].group_index
+        }
+
+        fn get_latest_group_index(&self) -> usize {
+            self.history[0].group_index
+        }
+
+        fn get_user_index(&self, version: u32) -> usize {
+            self.history[version as usize].user_index
+        }
+
+        fn get_latest_user_index(&self) -> usize {
+            self.history[0].user_index
+        }
+
+        fn get_name(&self) -> String {
+            self.name.clone()
+        }
+
+        fn get_password(&self, version: u32) -> String {
+            self.history[version as usize].password.clone()
+        }
+
+        fn get_latest_password(&self) -> String {
+            self.history[0].password.clone()
+        }
+
+        fn get_url(&self, version: u32) -> Option<String> {
+            self.history[version as usize].url.clone()
+        }
+
+        fn get_latest_url(&self) -> Option<String> {
+            self.history[0].url.clone()
+        }
+
+        fn get_properties(&self, version: u32) -> HashMap<String, String> {
+            self.history[version as usize].properties.clone()
+        }
+
+        fn get_latest_properties(&self) -> HashMap<String, String> {
+            self.history[0].properties.clone()
+        }
+
+        fn set_property(&mut self, f: impl Fn(&mut TestEntityHistory)) {
+            let mut item = self.history[0].clone();
+            f(&mut item);
+            self.history.insert(0, item);
+            let l = DEFAULT_HISTORY_LENGTH as usize;
+            if self.history.len() > l {
+                self.history.remove(l - 1);
+            }
+        }
+
+        fn set_password(&mut self, password: String) {
+            self.set_property(|item|item.password = password.clone());
+        }
+
+        fn set_name(&mut self, name: String) {
+            self.name = name;
+        }
+
+        fn set_url(&mut self, url: Option<String>) {
+            self.set_property(|item|item.url = url.clone());
+        }
+
+        fn set_group_index(&mut self, index: usize) {
+            self.set_property(|item|item.group_index = index);
+        }
+
+        fn set_user_index(&mut self, index: usize) {
+            self.set_property(|item|item.user_index = index);
+        }
+
+        fn set_property_value(&mut self, name: String, value: String) {
+            self.set_property(|item|{let _ = item.properties.insert(name.clone(), value.clone());});
+        }
+
+        fn add_property(&mut self, name: String, value: String) {
+            self.set_property(|item|{let _ = item.properties.insert(name.clone(), value.clone());});
+        }
+
+        fn remove_property(&mut self, name: &String) {
+            self.set_property(|item|{let _ = item.properties.remove(name);});
+        }
+
+        fn get_max_version(&self) -> u32 {
+            self.history.len() as u32 - 1
+        }
+    }
+
     struct TestData {
         hash1_vec: Vec<u8>,
         hash2_vec: Vec<u8>,
@@ -405,16 +515,16 @@ mod tests {
 
         let group_names = vec!["Internet".to_string(), "Banks".to_string(), "Others".to_string()];
         let user_names = vec!["user1@a.com".to_string(), "user2@b.com".to_string(), "user3@c.com".to_string()];
-        let entities = vec![TestEntity{
-            name: "Amazon".to_string(),
-            password: "some password".to_string(),
-            url: Some("amazon.com".to_string()),
-            group_index: 0,
-            user_index: 0,
-            properties: HashMap::from([
+        let entities = vec![TestEntity::new(
+            "Amazon".to_string(),
+            "some password".to_string(),
+            Some("amazon.com".to_string()),
+            0,
+            0,
+            HashMap::from([
                 ("PIN".to_string(), "12345".to_string())
-            ]),
-        }];
+            ]))
+        ];
 
         TestData{
             hash1_vec,
@@ -438,9 +548,12 @@ mod tests {
         }
         let mut entity_ids = Vec::new();
         for e in &test_data.entities {
-            let entity_id = database.add_entity(group_ids[e.group_index], e.name.clone(),
-                                                user_ids[e.user_index], e.password.clone(),
-                                                e.url.clone(), e.properties.clone())?;
+            let entity_id = database.add_entity(group_ids[e.get_latest_group_index()],
+                                                e.get_name(),
+                                                user_ids[e.get_latest_user_index()],
+                                                e.get_latest_password(),
+                                                e.get_latest_url(),
+                                                e.get_latest_properties())?;
             entity_ids.push(entity_id);
         }
         Ok(TestDatabase{
@@ -522,7 +635,7 @@ mod tests {
         let mut entity_map = HashMap::new();
         for i in 0..database.test_data.entities.len() {
             let entity = &database.test_data.entities[i];
-            let v = entity_map.entry(database.group_ids[entity.group_index]).or_insert(Vec::new());
+            let v = entity_map.entry(database.group_ids[entity.get_latest_group_index()]).or_insert(Vec::new());
             v.push((database.entity_ids[i], i));
         }
         for (group_id, group_entities) in entity_map {
@@ -533,18 +646,22 @@ mod tests {
                 assert!(e.is_some());
                 let en = e.unwrap();
                 let ten = &database.test_data.entities[entity_index];
-                assert_eq!(en.get_name()?, ten.name);
-                assert_eq!(en.get_group_id(ENTITY_VERSION_LATEST)?, database.group_ids[ten.group_index]);
-                assert_eq!(en.get_user_id(ENTITY_VERSION_LATEST)?, database.user_ids[ten.user_index]);
-                assert_eq!(en.get_password(ENTITY_VERSION_LATEST)?, ten.password);
-                assert_eq!(en.get_url(ENTITY_VERSION_LATEST)?, ten.url);
-                let names = en.get_property_names(ENTITY_VERSION_LATEST)?;
-                assert_eq!(names.len(), ten.properties.len());
-                for (name, id) in names {
-                    let value = ten.properties.get(&name);
-                    assert!(value.is_some());
-                    let pvalue = en.get_property_value(ENTITY_VERSION_LATEST, id)?;
-                    assert_eq!(*value.unwrap(), pvalue);
+                assert_eq!(en.get_max_version(), ten.get_max_version());
+                assert_eq!(en.get_name()?, ten.get_name());
+                for i in 0..=ten.get_max_version() {
+                    assert_eq!(en.get_group_id(i)?, database.group_ids[ten.get_group_index(i)]);
+                    assert_eq!(en.get_user_id(i)?, database.user_ids[ten.get_user_index(i)]);
+                    assert_eq!(en.get_password(i)?, ten.get_password(i));
+                    assert_eq!(en.get_url(i)?, ten.get_url(i));
+                    let names = en.get_property_names(i)?;
+                    let props = ten.get_properties(i);
+                    assert_eq!(names.len(), props.len());
+                    for (name, id) in names {
+                        let value = props.get(&name);
+                        assert!(value.is_some());
+                        let pvalue = en.get_property_value(i, id)?;
+                        assert_eq!(*value.unwrap(), pvalue);
+                    }
                 }
             }
         }
@@ -640,7 +757,7 @@ mod tests {
         let file_name = "some_file.pdbf".to_string();
         let data = test_database.database.save(file_name.clone())?;
         let database = PmanDatabase::new_from_file(data[0].data.clone())?;
-        let files = database.pre_open(&file_name, test_database.test_data.hash1_vec.clone(),
+        database.pre_open(&file_name, test_database.test_data.hash1_vec.clone(),
                                       Some(test_database.test_data.hash2_vec.clone()), None)?;
         let open_data = data.into_iter().skip(1).map(|d|d.data).collect();
         database.open(open_data)?;
@@ -661,13 +778,13 @@ mod tests {
 
     fn rename_entity(db: &mut TestDatabase, id: u32, rng: &mut ThreadRng) -> Result<(), Error> {
         let name = generate_random_string(20, rng);
-        db.test_data.entities[get_test_entity_index(&db.entity_ids, id)?].name = name.clone();
+        db.test_data.entities[get_test_entity_index(&db.entity_ids, id)?].set_name(name.clone());
         db.database.rename_entity(id, name)
     }
 
     fn set_entity_password(db: &mut TestDatabase, id: u32, rng: &mut ThreadRng) -> Result<(), Error> {
         let password = generate_random_string(20, rng);
-        db.test_data.entities[get_test_entity_index(&db.entity_ids, id)?].password = password.clone();
+        db.test_data.entities[get_test_entity_index(&db.entity_ids, id)?].set_password(password.clone());
         db.database.modify_entity(id,
                          None,
         None,
@@ -681,7 +798,7 @@ mod tests {
 
     fn set_entity_url(db: &mut TestDatabase, id: u32, rng: &mut ThreadRng) -> Result<(), Error> {
         let url = generate_random_url(rng);
-        db.test_data.entities[get_test_entity_index(&db.entity_ids, id)?].url = url.clone();
+        db.test_data.entities[get_test_entity_index(&db.entity_ids, id)?].set_url(url.clone());
         db.database.modify_entity(id,
                          None,
                          None,
@@ -714,7 +831,7 @@ mod tests {
     fn set_entity_group(db: &mut TestDatabase, id: u32, rng: &mut ThreadRng) -> Result<(), Error> {
         let group_id = select_random_group_id(&db.database, rng)?;
         let group_index = get_group_index(db, group_id)?;
-        db.test_data.entities[get_test_entity_index(&db.entity_ids, id)?].group_index = group_index;
+        db.test_data.entities[get_test_entity_index(&db.entity_ids, id)?].set_group_index(group_index);
         db.database.modify_entity(id,
                          Some(group_id),
                          None,
@@ -729,7 +846,7 @@ mod tests {
     fn set_entity_user(db: &mut TestDatabase, id: u32, rng: &mut ThreadRng) -> Result<(), Error> {
         let user_id = select_random_user_id(&db.database, rng)?;
         let user_index = get_user_index(db, user_id)?;
-        db.test_data.entities[get_test_entity_index(&db.entity_ids, id)?].user_index = user_index;
+        db.test_data.entities[get_test_entity_index(&db.entity_ids, id)?].set_user_index(user_index);
         db.database.modify_entity(id,
                          None,
                          Some(user_id),
@@ -754,8 +871,8 @@ mod tests {
             let random_property_index = rng.gen_range(0..l);
             let property_id = property_ids[random_property_index];
             let name = generate_random_string(20, rng);
-            db.test_data.entities[get_test_entity_index(&db.entity_ids, id)?].properties
-                .insert(property_names.get(&property_id).unwrap().clone(), name.clone());
+            db.test_data.entities[get_test_entity_index(&db.entity_ids, id)?]
+                .set_property_value(property_names.get(&property_id).unwrap().clone(), name.clone());
             let modified_properties =
                 HashMap::from([(property_id, Some(name))]);
             db.database.modify_entity(id,
@@ -773,8 +890,8 @@ mod tests {
     fn add_entity_property(db: &mut TestDatabase, id: u32, rng: &mut ThreadRng) -> Result<(), Error> {
         let name = generate_random_string(20, rng);
         let value = generate_random_string(20, rng);
-        db.test_data.entities[get_test_entity_index(&db.entity_ids, id)?].properties
-            .insert(name.clone(), value.clone());
+        db.test_data.entities[get_test_entity_index(&db.entity_ids, id)?]
+            .add_property(name.clone(), value.clone());
         db.database.modify_entity(id,
                          None,
                          None,
@@ -798,8 +915,8 @@ mod tests {
         if l > 0 {
             let random_property_index = rng.gen_range(0..l);
             let property_id = property_ids[random_property_index];
-            db.test_data.entities[get_test_entity_index(&db.entity_ids, id)?].properties
-                .remove(property_names.get(&property_id).unwrap());
+            db.test_data.entities[get_test_entity_index(&db.entity_ids, id)?]
+                .remove_property(property_names.get(&property_id).unwrap());
             let modified_properties =
                 HashMap::from([(property_id, None)]);
             db.database.modify_entity(id,
@@ -873,14 +990,14 @@ mod tests {
                                url.clone(),
                                properties.clone())?;
         db.entity_ids.push(id);
-        db.test_data.entities.push(TestEntity{
+        db.test_data.entities.push(TestEntity::new(
             name,
             password,
             url,
-            group_index: get_group_index(db, group_id)?,
-            user_index: get_user_index(db, user_id)?,
+            get_group_index(db, group_id)?,
+            get_user_index(db, user_id)?,
             properties,
-        });
+        ));
         Ok(id)
     }
 
