@@ -324,6 +324,14 @@ impl PmanDatabase {
         entity.set_database_file(self.file.clone());
         Ok(entity)
     }
+
+    pub fn load_names_file(&self, data: Vec<Vec<u8>>) -> Result<Option<Vec<u8>>, Error> {
+        self.file.lock().unwrap().load_names_file(data)
+    }
+
+    pub fn load_passwords_file(&self, data: Option<Vec<u8>>) -> Result<(), Error> {
+        self.file.lock().unwrap().load_passwords_file(data)
+    }
 }
 
 fn check_property_name(file: &mut MutexGuard<PmanDatabaseFile>, properties: &HashMap<u32, u32>,

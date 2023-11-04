@@ -214,9 +214,9 @@ impl PmanDatabaseProperties {
         Ok((properties, files_to_load))
     }
 
-    fn open(&mut self, mut data: Vec<Vec<u8>>) -> Result<(), Error> {
-        if self.names_file.is_some() || self.passwords_file.is_some() {
-            return Err(Error::new(ErrorKind::AlreadyExists, "names and passwords file must be None"));
+    fn load_names_file(&mut self,  mut data: Vec<Vec<u8>>) -> Result<Option<Vec<u8>>, Error> {
+        if self.names_file.is_some() {
+            return Err(Error::new(ErrorKind::AlreadyExists, "names file must be None"));
         }
         let l = data.len();
         let (names_file_data, passwords_file_data) = match l {
@@ -228,16 +228,23 @@ impl PmanDatabaseProperties {
                 (Some(data0), Some(data1))
             }
         };
-
         self.names_file = Some(DataFile::load(names_file_data,
                                               &mut self.names_files_info, self.names_file_encryption_key1,
                                               self.alg1, self.processor12.clone())?);
+        Ok(passwords_file_data)
+    }
+
+    fn load_passwords_file(&mut self,  passwords_file_data: Option<Vec<u8>>) -> Result<(), Error> {
         self.passwords_file = Some(DataFile::load(passwords_file_data,
                                                   &mut self.passwords_files_info,
                                                   self.passwords_file_encryption_key1, self.alg21,
                                                   self.processor22.clone())?);
-
         Ok(())
+    }
+
+    fn open(&mut self, mut data: Vec<Vec<u8>>) -> Result<(), Error> {
+        let passwords_file_data = self.load_names_file(data)?;
+        self.load_passwords_file(passwords_file_data)
     }
 
     fn save(&mut self, file_name: String) -> Result<Vec<FileAction>, Error> {
@@ -442,6 +449,20 @@ impl PmanDatabaseFile {
                                              self.data_length, password_hash, password2_hash)?;
         self.properties = Some(properties);
         Ok(actions)
+    }
+
+    pub fn load_names_file(&mut self, data: Vec<Vec<u8>>) -> Result<Option<Vec<u8>>, Error> {
+        if self.properties.is_none() {
+            return Err(build_properties_not_initialized_error())
+        }
+        self.properties.as_mut().unwrap().load_names_file(data)
+    }
+
+    pub fn load_passwords_file(&mut self, data: Option<Vec<u8>>) -> Result<(), Error> {
+        if self.properties.is_none() {
+            return Err(build_properties_not_initialized_error())
+        }
+        self.properties.as_mut().unwrap().load_passwords_file(data)
     }
 
     pub fn open(&mut self, data: Vec<Vec<u8>>) -> Result<(), Error> {
