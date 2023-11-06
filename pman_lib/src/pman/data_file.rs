@@ -6,8 +6,12 @@ use crate::error_builders::build_corrupted_data_error;
 use crate::pman::id_value_map::id_value_map::{ByteValue, IdValueMap, IdValueMapDataHandler};
 use crate::pman::id_value_map::id_value_map_data_file_handler::IdValueMapDataFileHandler;
 use crate::pman::id_value_map::id_value_map_local_data_handler::IdValueMapLocalDataHandler;
-use crate::pman::ids::{ENCRYPTION_ALGORITHM1_PROPERTIES_ID, ENCRYPTION_ALGORITHM2_PROPERTIES_ID, FILES_LOCATIONS_ID, HASH_ALGORITHM_PROPERTIES_ID};
-use crate::pman::pman_database_file::{default_aes_properties, default_argon2_properties, default_chacha_properties, FILE_LOCATION_LOCAL};
+use crate::pman::id_value_map::id_value_map_s3_handler::IdValueMapS3Handler;
+use crate::pman::ids::{ENCRYPTION_ALGORITHM1_PROPERTIES_ID, ENCRYPTION_ALGORITHM2_PROPERTIES_ID,
+                       FILES_LOCATIONS_ID, HASH_ALGORITHM_PROPERTIES_ID};
+use crate::pman::pman_database_file::{default_aes_properties, default_argon2_properties,
+                                      default_chacha_properties, FILE_LOCATION_LOCAL,
+                                      FILE_LOCATION_S3};
 
 pub struct DataFile {
     is_updated: bool,
@@ -139,7 +143,12 @@ fn build_data_file_handlers(file_info: &mut IdValueMap, local_file_data: Option<
                 if local_file_data.is_none() {
                     return Err(build_corrupted_data_error());
                 }
-                let handler = IdValueMapDataFileHandler::load(local_file_data.clone().unwrap(), encryption_key, alg1)?;
+                let handler =
+                    IdValueMapDataFileHandler::load(local_file_data.clone().unwrap(), encryption_key, alg1)?;
+                result.push(Box::new(handler));
+            },
+            FILE_LOCATION_S3 => {
+                let handler = IdValueMapS3Handler::load(location_data[1..].to_vec(), encryption_key, alg1)?;
                 result.push(Box::new(handler));
             },
             _ => return Err(build_corrupted_data_error())

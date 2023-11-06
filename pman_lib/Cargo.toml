@@ -15,7 +15,8 @@ sha2 = "0.10.8"
 hmac = "0.12.1"
 chacha20 = "0.9.1"
 argon2 = "0.5.2"
-#minreq = { version = "2.10", features = [ "https" ] }
+s3cli_lib = { git = "https://github.com/sergz72/s3cli_lib.git"}
+chrono = "0.4.31"
 
 [build-dependencies]
 uniffi_build = "0.25"
