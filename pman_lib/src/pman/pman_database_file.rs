@@ -242,7 +242,7 @@ impl PmanDatabaseProperties {
         Ok(())
     }
 
-    fn open(&mut self, mut data: Vec<Vec<u8>>) -> Result<(), Error> {
+    fn open(&mut self, data: Vec<Vec<u8>>) -> Result<(), Error> {
         let passwords_file_data = self.load_names_file(data)?;
         self.load_passwords_file(passwords_file_data)
     }

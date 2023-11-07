@@ -3,4 +3,4 @@ pub mod pman_database_file;
 mod database_entity;
 mod data_file;
 mod ids;
-mod id_value_map;
+pub mod id_value_map;

@@ -11,8 +11,8 @@ use crate::structs_interfaces::HashAlgorithm;
 
 mod structs_interfaces;
 mod keepass;
-mod pman;
-mod crypto;
+pub mod pman;
+pub mod crypto;
 mod error_builders;
 
 uniffi::include_scaffolding!("pman_lib");

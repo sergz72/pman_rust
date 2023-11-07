@@ -1,9 +1,9 @@
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::{Error, Read};
+use std::io::{Error, ErrorKind};
 use std::sync::Arc;
 use s3cli_lib::{build_key_info, KeyInfo};
 use crate::crypto::CryptoProcessor;
+use crate::error_builders::build_corrupted_data_error;
 use crate::pman::id_value_map::id_value_map::{IdValueMapDataHandler, IdValueMapValue};
 use crate::pman::id_value_map::id_value_map_data_file_handler::IdValueMapDataFileHandler;
 
@@ -48,26 +48,43 @@ impl IdValueMapDataHandler for IdValueMapS3Handler {
 impl IdValueMapS3Handler {
     fn save_to_s3(&self, data: Vec<u8>) -> Result<(), Error> {
         let request_info = self.key_info.build_request_info("PUT",
-                                                       chrono::Utc::now(), &Vec::new(),
+                                                       chrono::Utc::now(), &data,
                                                             &self.path)?;
         let _ = request_info.make_request(Some(data))?;
         Ok(())
     }
 
     pub fn new(location_data: Vec<u8>) -> Result<IdValueMapS3Handler, Error> {
-        let path = ???;
-        let key_info = build_key_info(location_data)?;
+        let (path, key_data) = decode_location_data(location_data)?;
+        let key_info = build_key_info(key_data)?;
         Ok(IdValueMapS3Handler { key_info, path, handler: IdValueMapDataFileHandler::new() })
     }
 
     pub fn load(location_data: Vec<u8>, encryption_key: [u8; 32], alg1: u8) -> Result<IdValueMapS3Handler, Error> {
-        let path = ???;
-        let key_info = build_key_info(location_data)?;
+        let (path, key_data) = decode_location_data(location_data)?;
+        let key_info = build_key_info(key_data)?;
         let data = load_from_s3(&key_info, &path)?;
         let handler =
             IdValueMapDataFileHandler::load(data, encryption_key, alg1)?;
         Ok(IdValueMapS3Handler { key_info, path, handler })
     }
+}
+
+fn decode_location_data(location_data: Vec<u8>) -> Result<(String, Vec<u8>), Error> {
+    if location_data.is_empty() {
+        return Err(build_corrupted_data_error());
+    }
+    let l = location_data[0] as usize;
+    if location_data.len() < l + 2 {
+        return Err(build_corrupted_data_error());
+    }
+    let path = String::from_utf8(location_data[1..=l].to_vec())
+        .map_err(|e|Error::new(ErrorKind::InvalidData, e.to_string()))?;
+    let l2 = location_data[l + 1] as usize;
+    if location_data.len() != l + 2 + l2 {
+        return Err(build_corrupted_data_error());
+    }
+    Ok((path, location_data[l+2..].to_vec()))
 }
 
 fn load_from_s3(key_info: &KeyInfo, path: &String) -> Result<Vec<u8>, Error> {
