@@ -261,39 +261,39 @@ impl DatabaseEntity {
         DatabaseEntity{entity: Mutex::new(entity)}
     }
 
-    fn get_name(&self) -> Result<String, PmanError> {
+    pub fn get_name(&self) -> Result<String, PmanError> {
         self.entity.lock().unwrap().get_name().map_err(|e|PmanError::message(e.to_string()))
     }
 
-    fn get_user_id(&self, version: u32) -> Result<u32, PmanError> {
+    pub fn get_user_id(&self, version: u32) -> Result<u32, PmanError> {
         self.entity.lock().unwrap().get_user_id(version).map_err(|e|PmanError::message(e.to_string()))
     }
 
-    fn get_group_id(&self, version: u32) -> Result<u32, PmanError> {
+    pub fn get_group_id(&self, version: u32) -> Result<u32, PmanError> {
         self.entity.lock().unwrap().get_group_id(version).map_err(|e|PmanError::message(e.to_string()))
     }
 
-    fn get_password(&self, version: u32) -> Result<String, PmanError> {
+    pub fn get_password(&self, version: u32) -> Result<String, PmanError> {
         self.entity.lock().unwrap().get_password(version).map_err(|e|PmanError::message(e.to_string()))
     }
 
-    fn get_url(&self, version: u32) -> Result<Option<String>, PmanError> {
+    pub fn get_url(&self, version: u32) -> Result<Option<String>, PmanError> {
         self.entity.lock().unwrap().get_url(version).map_err(|e|PmanError::message(e.to_string()))
     }
 
-    fn get_property_names(&self, version: u32) -> Result<HashMap<String, u32>, PmanError> {
+    pub fn get_property_names(&self, version: u32) -> Result<HashMap<String, u32>, PmanError> {
         self.entity.lock().unwrap().get_property_names(version).map_err(|e|PmanError::message(e.to_string()))
     }
 
-    fn get_property_value(&self, version: u32, index: u32) -> Result<String, PmanError> {
+    pub fn get_property_value(&self, version: u32, index: u32) -> Result<String, PmanError> {
         self.entity.lock().unwrap().get_property_value(version, index).map_err(|e|PmanError::message(e.to_string()))
     }
 
-    fn get_created_at(&self, version: u32) -> Result<u64, PmanError> {
+    pub fn get_created_at(&self, version: u32) -> Result<u64, PmanError> {
         self.entity.lock().unwrap().get_created_at(version).map_err(|e|PmanError::message(e.to_string()))
     }
 
-    fn get_max_version(&self) -> u32 {
+    pub fn get_max_version(&self) -> u32 {
         self.entity.lock().unwrap().get_max_version()
     }
 }

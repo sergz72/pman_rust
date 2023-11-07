@@ -586,6 +586,7 @@ mod tests {
 
     #[test]
     fn test_database_with_save() -> Result<(), Error> {
+        // create and save
         let test_data = build_test_data();
         let mut test_database = build_database(test_data)?;
         let file_name = "some_file.pdbf".to_string();
@@ -594,15 +595,37 @@ mod tests {
         assert_eq!(data[0].file_name, file_name.clone());
         assert_eq!(data[1].file_name, file_name.clone() + ".names");
         assert_eq!(data[2].file_name, file_name.clone() + ".passwords");
-        let database = PmanDatabase::new_from_file(data[0].data.clone())?;
+
+        // open again
+        let main_data = data[0].data.clone();
+        let database = PmanDatabase::new_from_file(main_data.clone())?;
         let files = database.pre_open(&file_name, test_database.test_data.hash1_vec.clone(),
                           Some(test_database.test_data.hash2_vec.clone()), None)?;
         assert_eq!(files.len(), 2);
         assert_eq!(files[0], file_name.clone() + ".names");
         assert_eq!(files[1], file_name.clone() + ".passwords");
-        let open_data = data.into_iter().skip(1).map(|d|d.data).collect();
-        database.open(open_data)?;
+        let open_data: Vec<Vec<u8>> = data.into_iter().skip(1).map(|d|d.data).collect();
+        database.open(open_data.clone())?;
         test_database.database = database;
+
+        // add group
+        let mut rng = rand::thread_rng();
+        add_group(&mut test_database, &mut rng)?;
+
+        // save
+        let save_data = test_database.database.save(&file_name)?;
+        assert_eq!(save_data.len(), 1);
+        assert_eq!(save_data[0].file_name, file_name.clone() + ".names");
+
+        // open again
+        let database = PmanDatabase::new_from_file(main_data)?;
+        let files = database.pre_open(&file_name, test_database.test_data.hash1_vec.clone(),
+                                      Some(test_database.test_data.hash2_vec.clone()), None)?;
+        assert_eq!(files.len(), 2);
+        let open_data: Vec<Vec<u8>> = vec![save_data[0].data.clone(), open_data[1].clone()];
+        database.open(open_data)?;
+
+        // test
         check_database(&test_database)?;
         test_search(&test_database)?;
         cleanup_database(test_database)

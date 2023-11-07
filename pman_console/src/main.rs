@@ -4,8 +4,9 @@ use std::fs::File;
 use std::sync::Arc;
 use std::time::Instant;
 use arguments_parser::{Arguments, IntParameter, BoolParameter, Switch, StringParameter, EnumParameter};
-use pman_lib::{add_group, add_user, build_argon2_hash, create, get_database_type, get_groups, get_users, lib_init, open, pre_open, prepare, save};
+use pman_lib::{add_group, add_user, build_argon2_hash, create, get_database_type, get_entities, get_groups, get_users, lib_init, open, pre_open, prepare, save};
 use pman_lib::crypto::AesProcessor;
+use pman_lib::pman::database_entity::ENTITY_VERSION_LATEST;
 use pman_lib::pman::id_value_map::id_value_map::IdValueMap;
 use pman_lib::pman::id_value_map::id_value_map_s3_handler::IdValueMapS3Handler;
 use pman_lib::pman::pman_database_file::ENCRYPTION_ALGORITHM_CHACHA20;
@@ -279,8 +280,42 @@ fn execute_action(database: u64, action: &str, parameters: &Parameters, verbose:
         "get_groups" => select_groups(database),
         "get_users" => select_users(database),
         "add_users" => add_users(database, parameters.user_names_parameter.get_value()),
+        "add_entities" => add_entities(database, parameters),
+        "get_entities" => select_entities(database, parameters.group_names_parameter.get_value()),
         _ => Err(Error::new(ErrorKind::Unsupported, "unknown action"))
     }
+}
+
+fn add_entities(database: u64, parameters: &Parameters) -> Result<bool, Error> {
+    todo!()
+}
+
+fn select_entities(database: u64, group_names: String) -> Result<bool, Error> {
+    for name in parse_string_array(group_names, "group names expected")? {
+        let groups = get_groups(database)
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+        let group = groups.iter()
+            .find(|g|g.name == name).ok_or(Error::new(ErrorKind::NotFound, "group not found"))?;
+        let users = get_users(database)
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+        for (_, entity) in get_entities(database, group.id)
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))? {
+            println!("Name: {}", entity.get_name().map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?);
+            let group_id = entity.get_group_id(ENTITY_VERSION_LATEST)
+                .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+            let group = groups.iter().find(|g|g.id == group_id).unwrap().name.clone();
+            println!("Group: {}", group);
+            let user_id = entity.get_user_id(ENTITY_VERSION_LATEST)
+                .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+            println!("User: {}", users.get(&user_id).unwrap().clone());
+            if let Some(url) = entity.get_url(ENTITY_VERSION_LATEST).map_err(|e| Error::new(ErrorKind::Other, e.to_string()))? {
+                println!("Url: {}", url);
+            }
+            println!("Password: {}", entity.get_password(ENTITY_VERSION_LATEST).map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?);
+            println!("-------------------------------------");
+        }
+    }
+    Ok(false)
 }
 
 fn select_users(database: u64) -> Result<bool, Error> {

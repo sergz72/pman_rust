@@ -68,7 +68,7 @@ impl IdValueMapLocalDataHandler {
         let mut l = u32::from_le_bytes(buffer32);
         idx += 4;
         let mut map = HashMap::new();
-        let mut next_id = 1;
+        let mut next_id = 100;
         while l > 0 {
             if idx + 8 > sl { // 4 for key + 4 for value length
                 return Err(build_corrupted_data_error());
