@@ -247,7 +247,7 @@ impl PmanDatabaseProperties {
         self.load_passwords_file(passwords_file_data)
     }
 
-    fn save(&mut self, file_name: String) -> Result<Vec<FileAction>, Error> {
+    fn save(&mut self, file_name: &String) -> Result<Vec<FileAction>, Error> {
         let mut v = Vec::new();
         if self.is_updated {
             let mut output = Vec::new();
@@ -301,7 +301,7 @@ impl PmanDatabaseProperties {
             v.push(FileAction{ file_name: file_name.clone() +  ".names", data: a })
         }
         if let Some(a) = action2 {
-            v.push(FileAction{ file_name: file_name +  ".passwords", data: a })
+            v.push(FileAction{ file_name: file_name.clone() +  ".passwords", data: a })
         }
         self.is_updated = false;
         Ok(v)
@@ -472,7 +472,7 @@ impl PmanDatabaseFile {
         self.properties.as_mut().unwrap().open(data)
     }
 
-    pub fn save(&mut self, file_name: String) -> Result<Vec<FileAction>, Error> {
+    pub fn save(&mut self, file_name: &String) -> Result<Vec<FileAction>, Error> {
         if self.properties.is_none() {
             return Err(build_properties_not_initialized_error())
         }
@@ -864,7 +864,7 @@ mod tests {
         let hash2_vec = Vec::from(hash2);
         let mut db = PmanDatabaseFile::new(hash1_vec.clone(), hash2_vec.clone())?;
         let file_name = "test_file.pdbf".to_string();
-        let actions = db.save(file_name.clone())?;
+        let actions = db.save(&file_name)?;
         assert_eq!(actions.len(), 3);
         let mut db2 = PmanDatabaseFile::prepare(actions[0].get_data())?;
         let file_names = db2.pre_open(&file_name, hash1_vec, hash2_vec)?;

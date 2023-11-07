@@ -83,7 +83,7 @@ impl PasswordDatabase for KeePassDatabase {
         Err(build_read_only_db_error())
     }
 
-    fn save(&self, _file_name: String) -> Result<Vec<FileAction>, Error> {
+    fn save(&self, _file_name: &String) -> Result<Vec<FileAction>, Error> {
         Err(build_read_only_db_error())
     }
 

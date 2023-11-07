@@ -1,13 +1,15 @@
 use std::io::{Error, ErrorKind, Read, stdin, stdout, Write};
 use std::env::args;
 use std::fs::File;
+use std::sync::Arc;
 use std::time::Instant;
 use arguments_parser::{Arguments, IntParameter, BoolParameter, Switch, StringParameter, EnumParameter};
-use pman_lib::{build_argon2_hash, create, get_database_type, open, pre_open, prepare, save};
+use pman_lib::{add_group, add_user, build_argon2_hash, create, get_database_type, get_groups, get_users, lib_init, open, pre_open, prepare, save};
 use pman_lib::crypto::AesProcessor;
 use pman_lib::pman::id_value_map::id_value_map::IdValueMap;
 use pman_lib::pman::id_value_map::id_value_map_s3_handler::IdValueMapS3Handler;
 use pman_lib::pman::pman_database_file::ENCRYPTION_ALGORITHM_CHACHA20;
+use pman_lib::structs_interfaces::FileAction;
 use rand::RngCore;
 use rand::rngs::OsRng;
 use sha2::{Sha256, Digest};
@@ -44,7 +46,14 @@ struct Parameters {
     s3_key_parameter1: StringParameter,
     s3_path_parameter2: StringParameter,
     s3_key_parameter2: StringParameter,
-    action_parameter: EnumParameter
+    actions_parameter: StringParameter,
+    group_names_parameter: StringParameter,
+    user_names_parameter: StringParameter,
+    entity_names_parameter: StringParameter,
+    entity_passwords_parameter: StringParameter,
+    entity_groups_parameter: StringParameter,
+    entity_users_parameter: StringParameter,
+    entity_urls_parameter: StringParameter
 }
 
 fn main() -> Result<(), Error> {
@@ -77,12 +86,14 @@ fn main() -> Result<(), Error> {
     let s3_key_parameter1 = StringParameter::new("");
     let s3_path_parameter2 = StringParameter::new("");
     let s3_key_parameter2 = StringParameter::new("");
-    let action_values = vec!["none".to_string(), "set_hash1".to_string(),
-                             "set_hash2".to_string(), "set_names_file_encryption".to_string(),
-                             "set_passwords_file_encryption".to_string(),
-                             "set_names_file_location".to_string(),
-                             "set_passwords_file_location".to_string()];
-    let action_parameter = EnumParameter::new(action_values, "none");
+    let actions_parameter = StringParameter::new("none");
+    let group_names_parameter = StringParameter::new("");
+    let user_names_parameter = StringParameter::new("");
+    let entity_names_parameter = StringParameter::new("");
+    let entity_passwords_parameter = StringParameter::new("");
+    let entity_groups_parameter = StringParameter::new("");
+    let entity_users_parameter = StringParameter::new("");
+    let entity_urls_parameter = StringParameter::new("");
     let parameters = Parameters{
         names_file_parameter,
         passwords_file_parameter,
@@ -111,11 +122,18 @@ fn main() -> Result<(), Error> {
         s3_key_parameter1,
         s3_path_parameter2,
         s3_key_parameter2,
-        action_parameter,
+        actions_parameter,
+        group_names_parameter,
+        user_names_parameter,
+        entity_names_parameter,
+        entity_passwords_parameter,
+        entity_groups_parameter,
+        entity_users_parameter,
+        entity_urls_parameter
     };
     let switches = [
-        Switch::new("action", None, Some("action"),
-                    &parameters.action_parameter),
+        Switch::new("action", None, Some("actions"),
+                    &parameters.actions_parameter),
         Switch::new("first password", None, Some("pw"),
                     &parameters.password_parameter),
         Switch::new("second password", None, Some("pw2"),
@@ -161,6 +179,20 @@ fn main() -> Result<(), Error> {
                     &parameters.file_name_parameter),
         Switch::new("salt for hash algorithm test", None, Some("salt"),
                     &parameters.salt_parameter),
+        Switch::new("group names", None, Some("group-names"),
+                    &parameters.group_names_parameter),
+        Switch::new("user names", None, Some("user-names"),
+                    &parameters.user_names_parameter),
+        Switch::new("entity names", None, Some("entity-names"),
+                    &parameters.entity_names_parameter),
+        Switch::new("entity passwords", None, Some("entity-passwords"),
+                    &parameters.entity_passwords_parameter),
+        Switch::new("entity groups", None, Some("entity-groups"),
+                    &parameters.entity_groups_parameter),
+        Switch::new("entity users", None, Some("entity-users"),
+                    &parameters.entity_users_parameter),
+        Switch::new("entity urls", None, Some("entity-urls"),
+                    &parameters.entity_urls_parameter)
     ];
     let mut arguments = Arguments::new("pman_console", &switches, None);
     if let Err(e) = arguments.build(args().skip(1).collect()) {
@@ -201,8 +233,9 @@ fn execute_database_operations(parameters: Parameters) -> Result<(), Error> {
     let verbose = parameters.verbose_parameter.get_value();
     let password_hash = create_hash(password);
     let password2_hash = password2.map(|p|create_hash(p));
+    lib_init();
     let database = if parameters.create_parameter.get_value() {
-        create(database_type, password_hash, password2_hash, None)
+        create(database_type, password_hash, password2_hash, None, file_name)
             .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?
     } else {
         let mut f = File::open(file_name.clone())?;
@@ -218,15 +251,75 @@ fn execute_database_operations(parameters: Parameters) -> Result<(), Error> {
             .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
         id
     };
-    if perform_action(parameters)? {
-        save(database)
-            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+    let mut save_database = false;
+    for action in parameters.actions_parameter.get_value().split(',') {
+        if execute_action(database, action, &parameters, verbose)? {
+            save_database = true;
+        }
+    }
+    if save_database {
+        for action in save(database)
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))? {
+            create_file(action)?;
+        }
     }
     Ok(())
 }
 
-fn perform_action(parameters: Parameters) -> Result<bool, Error> {
-    todo!()
+fn create_file(action: Arc<FileAction>) -> Result<(), Error> {
+    let mut f = File::create(&action.file_name)?;
+    f.write_all(action.data.as_slice())
+}
+
+fn execute_action(database: u64, action: &str, parameters: &Parameters, verbose: bool) -> Result<bool, Error> {
+    match action {
+        "none" => Ok(false),
+        "save" => Ok(true),
+        "add_groups" => add_groups(database, parameters.group_names_parameter.get_value()),
+        "get_groups" => select_groups(database),
+        "get_users" => select_users(database),
+        "add_users" => add_users(database, parameters.user_names_parameter.get_value()),
+        _ => Err(Error::new(ErrorKind::Unsupported, "unknown action"))
+    }
+}
+
+fn select_users(database: u64) -> Result<bool, Error> {
+    for (_, name) in get_users(database)
+        .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))? {
+        println!("{}", name);
+    }
+    Ok(false)
+}
+
+fn select_groups(database: u64) -> Result<bool, Error> {
+    for group in get_groups(database)
+        .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))? {
+        println!("{} {}", group.name, group.entities_count);
+    }
+    Ok(false)
+}
+
+fn add_groups(database: u64, group_names: String) -> Result<bool, Error> {
+    for name in parse_string_array(group_names, "group names expected")? {
+        add_group(database, name)
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+    }
+    Ok(true)
+}
+
+fn add_users(database: u64, user_names: String) -> Result<bool, Error> {
+    for name in parse_string_array(user_names, "user names expected")? {
+        add_user(database, name)
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+    }
+    Ok(true)
+}
+
+fn parse_string_array(array: String, error_message: &str) -> Result<Vec<String>, Error> {
+    if array.is_empty() {
+        return Err(Error::new(ErrorKind::InvalidInput, error_message));
+    }
+    Ok(array.split(',').map(|v|v.to_string()).collect())
 }
 
 fn s3_test(s3_path: String, s3_key: String) -> Result<bool, Error> {

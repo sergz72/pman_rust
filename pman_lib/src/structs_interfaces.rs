@@ -82,7 +82,7 @@ pub trait PasswordDatabase {
                      new_user_id: Option<u32>, new_password: Option<String>, new_url: Option<String>,
                      change_url: bool, new_properties: HashMap<String, String>,
                      modified_properties: HashMap<u32, Option<String>>) -> Result<(), Error>;
-    fn save(&self, file_name: String) -> Result<Vec<FileAction>, Error>;
+    fn save(&self, file_name: &String) -> Result<Vec<FileAction>, Error>;
 
     fn as_any(&self) -> &dyn Any;
 }

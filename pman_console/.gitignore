@@ -2,3 +2,5 @@
 /Cargo.lock
 /bindings
 /.idea
+*.pdbf*
+*.kdbx*

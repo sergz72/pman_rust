@@ -212,7 +212,7 @@ impl PasswordDatabase for PmanDatabase {
         file.set_in_names_file(entity_id, entity)
     }
 
-    fn save(&self, file_name: String) -> Result<Vec<FileAction>, Error> {
+    fn save(&self, file_name: &String) -> Result<Vec<FileAction>, Error> {
         self.file.lock().unwrap().save(file_name)
     }
 
@@ -589,7 +589,7 @@ mod tests {
         let test_data = build_test_data();
         let mut test_database = build_database(test_data)?;
         let file_name = "some_file.pdbf".to_string();
-        let data = test_database.database.save(file_name.clone())?;
+        let data = test_database.database.save(&file_name)?;
         assert_eq!(data.len(), 3);
         assert_eq!(data[0].file_name, file_name.clone());
         assert_eq!(data[1].file_name, file_name.clone() + ".names");
@@ -770,7 +770,7 @@ mod tests {
     fn test_database_with_ops_and_save() -> Result<(), Error> {
         let mut test_database = build_database_with_ops()?;
         let file_name = "some_file.pdbf".to_string();
-        let mut data = test_database.database.save(file_name.clone())?;
+        let mut data = test_database.database.save(&file_name)?;
         assert_eq!(data.len(), 3);
         let database = PmanDatabase::new_from_file(data[0].data.clone())?;
         database.pre_open(&file_name, test_database.test_data.hash1_vec.clone(),
@@ -783,7 +783,7 @@ mod tests {
 
         modify_database_with_ops(&mut test_database, 200)?;
         check_database(&test_database)?;
-        let new_data = test_database.database.save(file_name.clone())?;
+        let new_data = test_database.database.save(&file_name)?;
         assert_eq!(new_data.len(), 2);
         let new_database = PmanDatabase::new_from_file(data0.data)?;
         new_database.pre_open(&file_name, test_database.test_data.hash1_vec.clone(),
