@@ -1,10 +1,9 @@
-use std::collections::HashMap;
-use std::io::{Error, ErrorKind, Read, stdin};
+use std::io::{Error, ErrorKind, Read, stdin, stdout, Write};
 use std::env::args;
 use std::fs::File;
 use std::time::Instant;
 use arguments_parser::{Arguments, IntParameter, BoolParameter, Switch, StringParameter, EnumParameter};
-use pman_lib::{build_argon2_hash, create, get_database_type, open, pre_open, prepare};
+use pman_lib::{build_argon2_hash, create, get_database_type, open, pre_open, prepare, save};
 use pman_lib::crypto::AesProcessor;
 use pman_lib::pman::id_value_map::id_value_map::IdValueMap;
 use pman_lib::pman::id_value_map::id_value_map_s3_handler::IdValueMapS3Handler;
@@ -17,11 +16,40 @@ const TIME_DEFAULT: isize = 1000;
 const PARALLELISM_DEFAULT: isize = 6;
 const MEMORY_DEFAULT: isize = 128;
 
+struct Parameters {
+    names_file_parameter: StringParameter,
+    passwords_file_parameter: StringParameter,
+    password_parameter: StringParameter,
+    password2_parameter: StringParameter,
+    file_name_parameter: StringParameter,
+    salt_parameter: StringParameter,
+    hash_parameter: EnumParameter,
+    hash2_parameter: EnumParameter,
+    encryption_parameter: EnumParameter,
+    encryption2_parameter: EnumParameter,
+    verbose_parameter: BoolParameter,
+    create_parameter: BoolParameter,
+    argon2_test_parameter: BoolParameter,
+    time_parameter: IntParameter,
+    parallelism_parameter: IntParameter,
+    time2_parameter: IntParameter,
+    parallelism2_parameter: IntParameter,
+    memory_parameter: IntParameter,
+    memory2_parameter: IntParameter,
+    iterations_parameter: IntParameter,
+    iterations2_parameter: IntParameter,
+    s3_path_parameter: StringParameter,
+    s3_key_parameter: StringParameter,
+    s3_path_parameter1: StringParameter,
+    s3_key_parameter1: StringParameter,
+    s3_path_parameter2: StringParameter,
+    s3_key_parameter2: StringParameter,
+    action_parameter: EnumParameter
+}
+
 fn main() -> Result<(), Error> {
-    let location_values = HashMap::from([(0, "local".to_string())]);
-    let locations: Vec<String> = location_values.values().map(|v|v.clone()).collect();
-    let names_file_parameter = EnumParameter::new(locations.clone(), "local");
-    let passwords_file_parameter = EnumParameter::new(locations, "local");
+    let names_file_parameter = StringParameter::new("local");
+    let passwords_file_parameter = StringParameter::new("local");
     let password_parameter = StringParameter::new("");
     let password2_parameter = StringParameter::new("");
     let file_name_parameter = StringParameter::new("");
@@ -45,48 +73,94 @@ fn main() -> Result<(), Error> {
     let iterations2_parameter = IntParameter::new(0, |v|v>=0);
     let s3_path_parameter = StringParameter::new("");
     let s3_key_parameter = StringParameter::new("");
+    let s3_path_parameter1 = StringParameter::new("");
+    let s3_key_parameter1 = StringParameter::new("");
+    let s3_path_parameter2 = StringParameter::new("");
+    let s3_key_parameter2 = StringParameter::new("");
+    let action_values = vec!["none".to_string(), "set_hash1".to_string(),
+                             "set_hash2".to_string(), "set_names_file_encryption".to_string(),
+                             "set_passwords_file_encryption".to_string(),
+                             "set_names_file_location".to_string(),
+                             "set_passwords_file_location".to_string()];
+    let action_parameter = EnumParameter::new(action_values, "none");
+    let parameters = Parameters{
+        names_file_parameter,
+        passwords_file_parameter,
+        password_parameter,
+        password2_parameter,
+        file_name_parameter,
+        salt_parameter,
+        hash_parameter,
+        hash2_parameter,
+        encryption_parameter,
+        encryption2_parameter,
+        verbose_parameter,
+        create_parameter,
+        argon2_test_parameter,
+        time_parameter,
+        parallelism_parameter,
+        time2_parameter,
+        parallelism2_parameter,
+        memory_parameter,
+        memory2_parameter,
+        iterations_parameter,
+        iterations2_parameter,
+        s3_path_parameter,
+        s3_key_parameter,
+        s3_path_parameter1,
+        s3_key_parameter1,
+        s3_path_parameter2,
+        s3_key_parameter2,
+        action_parameter,
+    };
     let switches = [
+        Switch::new("action", None, Some("action"),
+                    &parameters.action_parameter),
         Switch::new("first password", None, Some("pw"),
-                    &password_parameter),
+                    &parameters.password_parameter),
         Switch::new("second password", None, Some("pw2"),
-                    &password2_parameter),
+                    &parameters.password2_parameter),
         Switch::new("password hash algorithm", Some('h'), None,
-                    &hash_parameter),
+                    &parameters.hash_parameter),
         Switch::new("second password hash algorithm", None, Some("h2"),
-                    &hash2_parameter),
-        Switch::new("verbose", Some('v'), None, &verbose_parameter),
-        Switch::new("create mode", Some('c'), None, &create_parameter),
-        Switch::new("argon2 test mode", None, Some("argon2-test"), &argon2_test_parameter),
-        Switch::new("s3 path for s3 test", None, Some("s3-path"), &s3_path_parameter),
-        Switch::new("s3 key file for s3 test", None, Some("s3-key"), &s3_key_parameter),
+                    &parameters.hash2_parameter),
+        Switch::new("verbose", Some('v'), None, &parameters.verbose_parameter),
+        Switch::new("create mode", Some('c'), None, &parameters.create_parameter),
+        Switch::new("argon2 test mode", None, Some("argon2-test"), &parameters.argon2_test_parameter),
+        Switch::new("s3 path for s3 test", None, Some("s3-path"), &parameters.s3_path_parameter),
+        Switch::new("s3 key file for s3 test", None, Some("s3-key"), &parameters.s3_key_parameter),
+        Switch::new("s3 path for names file", None, Some("s3-path1"), &parameters.s3_path_parameter1),
+        Switch::new("s3 key file for names file", None, Some("s3-key1"), &parameters.s3_key_parameter1),
+        Switch::new("s3 path for passwords file", None, Some("s3-path1"), &parameters.s3_path_parameter2),
+        Switch::new("s3 key file for passwords file", None, Some("s3-key1"), &parameters.s3_key_parameter2),
         Switch::new("encryption algorithm for names file", Some('e'), None,
-                    &encryption_parameter),
+                    &parameters.encryption_parameter),
         Switch::new("encryption algorithm for passwords file", None, Some("e2"),
-                    &encryption2_parameter),
+                    &parameters.encryption2_parameter),
         Switch::new("hash build time in ms for first hash algorithm", Some('t'),
-                    None, &time_parameter),
+                    None, &parameters.time_parameter),
         Switch::new("hash build time in ms of iterations for second hash algorithm", None,
-                    Some("t2"), &time2_parameter),
+                    Some("t2"), &parameters.time2_parameter),
         Switch::new("parallelism for first hash algorithm", Some('p'),
-                    None, &parallelism_parameter),
+                    None, &parameters.parallelism_parameter),
         Switch::new("parallelism for second hash algorithm", None,
-                    Some("p2"), &parallelism2_parameter),
+                    Some("p2"), &parameters.parallelism2_parameter),
         Switch::new("iterations for first hash algorithm", Some('i'),
-                    None, &iterations_parameter),
+                    None, &parameters.iterations_parameter),
         Switch::new("iterations for second hash algorithm", None,
-                    Some("i2"), &iterations2_parameter),
+                    Some("i2"), &parameters.iterations2_parameter),
         Switch::new("memory size in Mb for first hash algorithm", Some('m'),
-                    None, &memory_parameter),
+                    None, &parameters.memory_parameter),
         Switch::new("memory size in Mb for second hash algorithm", None,
-                    Some("m2"), &memory2_parameter),
+                    Some("m2"), &parameters.memory2_parameter),
         Switch::new("names file location", None, Some("nf"),
-                    &names_file_parameter),
+                    &parameters.names_file_parameter),
         Switch::new("passwords_file_location", None, Some("pf"),
-                    &passwords_file_parameter),
+                    &parameters.passwords_file_parameter),
         Switch::new("file name", Some('f'), None,
-                    &file_name_parameter),
+                    &parameters.file_name_parameter),
         Switch::new("salt for hash algorithm test", None, Some("salt"),
-                    &salt_parameter),
+                    &parameters.salt_parameter),
     ];
     let mut arguments = Arguments::new("pman_console", &switches, None);
     if let Err(e) = arguments.build(args().skip(1).collect()) {
@@ -94,51 +168,65 @@ fn main() -> Result<(), Error> {
         arguments.usage();
         return Ok(());
     }
-    if argon2_test_parameter.get_value() {
-        let password = get_password("password", &password_parameter)?;
-        let salt_string = salt_parameter.get_value();
+    if parameters.argon2_test_parameter.get_value() {
+        let password = get_password("password", &parameters.password_parameter)?;
+        let salt_string = parameters.salt_parameter.get_value();
         let salt = salt_string.as_bytes();
         if salt.len() != 16 {
             println!("salt should have 16 bytes length");
             return Ok(());
         }
-        test_argon2(password, iterations_parameter.get_value(), parallelism_parameter.get_value(),
-                    memory_parameter.get_value(), salt)
-    } else if s3_test(s3_path_parameter.get_value(), s3_key_parameter.get_value())? {
+        test_argon2(password, parameters.iterations_parameter.get_value(),
+                    parameters.parallelism_parameter.get_value(),
+                    parameters.memory_parameter.get_value(), salt)
+    } else if s3_test(parameters.s3_path_parameter.get_value(),
+                      parameters.s3_key_parameter.get_value())? {
         Ok(())
     } else {
-        let password = get_password("password", &password_parameter)?;
-        let file_name = file_name_parameter.get_value();
-        if file_name == "" {
-            println!("file name expected");
-            return Ok(());
-        }
-        let database_type = get_database_type(&file_name)?;
-        let password2 = if database_type.requires_second_password() {
-            Some(get_password("password2", &password2_parameter)?)
-        } else { None };
-        let verbose = verbose_parameter.get_value();
-        let password_hash = create_hash(password);
-        let password2_hash = password2.map(|p|create_hash(p));
-        let database = if create_parameter.get_value() {
-            create(database_type, password_hash, password2_hash, None)
-                .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?
-        } else {
-            let mut f = File::open(file_name.clone())?;
-            let mut data = Vec::new();
-            f.read_to_end(&mut data)?;
-            let id = prepare(data, file_name)
-                .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
-            let files =
-                pre_open(id, password_hash, password2_hash, None)
-                    .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
-            let data = load_files(files)?;
-            open(id, data)
-                .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
-            id
-        };
-        Ok(())
+        execute_database_operations(parameters)
     }
+}
+
+fn execute_database_operations(parameters: Parameters) -> Result<(), Error> {
+    let file_name = parameters.file_name_parameter.get_value();
+    if file_name == "" {
+        println!("file name expected");
+        return Ok(());
+    }
+    let password = get_password("password", &parameters.password_parameter)?;
+    let database_type = get_database_type(&file_name)?;
+    let password2 = if database_type.requires_second_password() {
+        Some(get_password("password2", &parameters.password2_parameter)?)
+    } else { None };
+    let verbose = parameters.verbose_parameter.get_value();
+    let password_hash = create_hash(password);
+    let password2_hash = password2.map(|p|create_hash(p));
+    let database = if parameters.create_parameter.get_value() {
+        create(database_type, password_hash, password2_hash, None)
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?
+    } else {
+        let mut f = File::open(file_name.clone())?;
+        let mut data = Vec::new();
+        f.read_to_end(&mut data)?;
+        let id = prepare(data, file_name)
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+        let files =
+            pre_open(id, password_hash, password2_hash, None)
+                .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+        let data = load_files(files)?;
+        open(id, data)
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+        id
+    };
+    if perform_action(parameters)? {
+        save(database)
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+    }
+    Ok(())
+}
+
+fn perform_action(parameters: Parameters) -> Result<bool, Error> {
+    todo!()
 }
 
 fn s3_test(s3_path: String, s3_key: String) -> Result<bool, Error> {
@@ -209,6 +297,7 @@ fn get_password(prompt: &str, password_parameter: &StringParameter) -> Result<St
     }
     let mut buffer = String::new();
     print!("{}: ", prompt);
+    stdout().flush()?;
     stdin().read_line(&mut buffer)?;
     if buffer.is_empty() {
         return Err(Error::new(ErrorKind::InvalidInput, "empty password"));
