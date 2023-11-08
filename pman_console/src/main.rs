@@ -5,7 +5,7 @@ use std::fs::File;
 use std::sync::Arc;
 use std::time::Instant;
 use arguments_parser::{Arguments, IntParameter, BoolParameter, Switch, StringParameter, EnumParameter};
-use pman_lib::{add_entity, add_group, add_user, build_argon2_hash, create, get_database_type, get_entities, get_groups, get_users, lib_init, open, pre_open, prepare, save};
+use pman_lib::{add_entity, add_group, add_user, build_argon2_hash, create, get_database_type, get_entities, get_groups, get_users, lib_init, modify_entity, open, pre_open, prepare, remove_entity, save};
 use pman_lib::crypto::AesProcessor;
 use pman_lib::pman::database_entity::ENTITY_VERSION_LATEST;
 use pman_lib::pman::id_value_map::id_value_map::IdValueMap;
@@ -283,23 +283,106 @@ fn execute_action(database: u64, action: &str, parameters: &Parameters, verbose:
         "add_users" => add_users(database, parameters.user_names_parameter.get_value()),
         "add_entities" => add_entities(database, parameters),
         "get_entities" => select_entities(database, parameters.group_names_parameter.get_value()),
+        "remove_entities" => remove_entities(database, parameters),
+        "set_passwords" => set_passwords(database, parameters),
+        "set_urls" => set_urls(database, parameters),
+        "set_hash1" => set_hash1(database, parameters),
+        "set_hash2" => set_hash2(database, parameters),
+        "names_location" => set_names_file_location(database, parameters),
+        "passwords_location" => set_passwords_file_location(database, parameters),
         _ => Err(Error::new(ErrorKind::Unsupported, "unknown action"))
     }
 }
 
+fn set_passwords_file_location(database: u64, parameters: &Parameters) -> Result<bool, Error> {
+    todo!()
+}
+
+fn set_names_file_location(database: u64, parameters: &Parameters) -> Result<bool, Error> {
+    todo!()
+}
+
+fn set_hash2(database: u64, parameters: &Parameters) -> Result<bool, Error> {
+    todo!()
+}
+
+fn set_hash1(database: u64, parameters: &Parameters) -> Result<bool, Error> {
+    todo!()
+}
+
+fn set_urls(database: u64, parameters: &Parameters) -> Result<bool, Error> {
+    let entity_names = get_entity_names(parameters)?;
+    let entity_ids = get_entity_ids(database, entity_names)?;
+    let l = entity_ids.len();
+    let urls = get_entity_urls(parameters, Some(l))?;
+    for i in 0..l {
+        modify_entity(database, entity_ids[i], None, None,
+                      None, urls[i].clone(), true,
+                      HashMap::new(), HashMap::new())
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+    }
+    Ok(true)
+}
+
+fn set_passwords(database: u64, parameters: &Parameters) -> Result<bool, Error> {
+    let entity_names = get_entity_names(parameters)?;
+    let entity_ids = get_entity_ids(database, entity_names)?;
+    let l = entity_ids.len();
+    let passwords = get_entity_passwords(parameters, Some(l))?;
+    for i in 0..l {
+        let password = get_entity_password(passwords[i].clone(), i)?;
+        modify_entity(database, entity_ids[i], None, None,
+                      Some(password), None, false,
+        HashMap::new(), HashMap::new())
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+    }
+    Ok(true)
+}
+
+fn remove_entities(database: u64, parameters: &Parameters) -> Result<bool, Error> {
+    let entity_names = get_entity_names(parameters)?;
+    for entity_id in get_entity_ids(database, entity_names)? {
+        remove_entity(database, entity_id)
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+    }
+    Ok(true)
+}
+
+fn get_entity_ids(database: u64, entity_names: Vec<String>) -> Result<Vec<u32>, Error> {
+    todo!()
+}
+
+fn get_entity_names(parameters: &Parameters) -> Result<Vec<String>, Error> {
+    parse_string_array(parameters.entity_names_parameter.get_value(),
+                       "entity names expected", None)
+}
+
+fn get_entity_passwords(parameters: &Parameters, l: Option<usize>) -> Result<Vec<String>, Error> {
+    parse_string_array(parameters.entity_passwords_parameter.get_value(),
+                       "entity passwords expected", l)
+}
+
+fn get_entity_urls(parameters: &Parameters, l: Option<usize>) -> Result<Vec<Option<String>>, Error> {
+    let urls = parse_string_array(parameters.entity_urls_parameter.get_value(),
+                                  "entity urls expected", l)?;
+    Ok(urls.into_iter().map(|u|if u == "None" {None} else {Some(u)}).collect())
+}
+
+fn get_entity_password(password: String, i: usize) -> Result<String, Error> {
+    if password == "Ask" {
+        get_password(format!("password for entity {}", i).as_str(), "".to_string())
+    } else {Ok(password)}
+}
+
 fn add_entities(database: u64, parameters: &Parameters) -> Result<bool, Error> {
-    let entity_names =
-        parse_string_array(parameters.entity_names_parameter.get_value(),
-                           "entity names expected", None)?;
+    let entity_names = get_entity_names(parameters)?;
     let l = Some(entity_names.len());
     let entity_groups =
         parse_string_array(parameters.entity_groups_parameter.get_value(), "entity groups expected", l)?;
     let entity_users =
         parse_string_array(parameters.entity_users_parameter.get_value(), "entity users expected", l)?;
-    let entity_passwords =
-        parse_string_array(parameters.entity_passwords_parameter.get_value(), "entity passwords expected", l)?;
-    let entity_urls =
-        parse_string_array(parameters.entity_urls_parameter.get_value(), "entity urls expected", l)?;
+    let entity_passwords = get_entity_passwords(parameters, l)?;
+    let entity_urls = get_entity_urls(parameters, l)?;
     let groups: HashMap<String, u32> = get_groups(database)
         .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?
         .into_iter()
@@ -319,12 +402,9 @@ fn add_entities(database: u64, parameters: &Parameters) -> Result<bool, Error> {
         entity_user_ids.push(user_id);
     }
     for i in 0..l.unwrap() {
-        let url = if entity_urls[i] == "None" { None } else { Some(entity_urls[i].clone()) };
-        let password = if entity_passwords[i] == "Ask" {
-            get_password(format!("password for entity {}", i).as_str(), "".to_string())?
-        } else {entity_passwords[i].clone()};
+        let password = get_entity_password(entity_passwords[i].clone(), i)?;
         add_entity(database, entity_names[i].clone(), entity_group_ids[i],
-                   entity_user_ids[i], password, url, HashMap::new())
+                   entity_user_ids[i], password, entity_urls[i].clone(), HashMap::new())
             .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
     }
     Ok(true)
