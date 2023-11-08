@@ -1,10 +1,11 @@
+use std::collections::HashMap;
 use std::io::{Error, ErrorKind, Read, stdin, stdout, Write};
 use std::env::args;
 use std::fs::File;
 use std::sync::Arc;
 use std::time::Instant;
 use arguments_parser::{Arguments, IntParameter, BoolParameter, Switch, StringParameter, EnumParameter};
-use pman_lib::{add_group, add_user, build_argon2_hash, create, get_database_type, get_entities, get_groups, get_users, lib_init, open, pre_open, prepare, save};
+use pman_lib::{add_entity, add_group, add_user, build_argon2_hash, create, get_database_type, get_entities, get_groups, get_users, lib_init, open, pre_open, prepare, save};
 use pman_lib::crypto::AesProcessor;
 use pman_lib::pman::database_entity::ENTITY_VERSION_LATEST;
 use pman_lib::pman::id_value_map::id_value_map::IdValueMap;
@@ -202,7 +203,7 @@ fn main() -> Result<(), Error> {
         return Ok(());
     }
     if parameters.argon2_test_parameter.get_value() {
-        let password = get_password("password", &parameters.password_parameter)?;
+        let password = get_password("password", parameters.password_parameter.get_value())?;
         let salt_string = parameters.salt_parameter.get_value();
         let salt = salt_string.as_bytes();
         if salt.len() != 16 {
@@ -226,10 +227,10 @@ fn execute_database_operations(parameters: Parameters) -> Result<(), Error> {
         println!("file name expected");
         return Ok(());
     }
-    let password = get_password("password", &parameters.password_parameter)?;
+    let password = get_password("password", parameters.password_parameter.get_value())?;
     let database_type = get_database_type(&file_name)?;
     let password2 = if database_type.requires_second_password() {
-        Some(get_password("password2", &parameters.password2_parameter)?)
+        Some(get_password("password2", parameters.password2_parameter.get_value())?)
     } else { None };
     let verbose = parameters.verbose_parameter.get_value();
     let password_hash = create_hash(password);
@@ -287,31 +288,75 @@ fn execute_action(database: u64, action: &str, parameters: &Parameters, verbose:
 }
 
 fn add_entities(database: u64, parameters: &Parameters) -> Result<bool, Error> {
-    todo!()
+    let entity_names =
+        parse_string_array(parameters.entity_names_parameter.get_value(),
+                           "entity names expected", None)?;
+    let l = Some(entity_names.len());
+    let entity_groups =
+        parse_string_array(parameters.entity_groups_parameter.get_value(), "entity groups expected", l)?;
+    let entity_users =
+        parse_string_array(parameters.entity_users_parameter.get_value(), "entity users expected", l)?;
+    let entity_passwords =
+        parse_string_array(parameters.entity_passwords_parameter.get_value(), "entity passwords expected", l)?;
+    let entity_urls =
+        parse_string_array(parameters.entity_urls_parameter.get_value(), "entity urls expected", l)?;
+    let groups: HashMap<String, u32> = get_groups(database)
+        .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?
+        .into_iter()
+        .map(|g|(g.name.clone(), g.id))
+        .collect();
+    let users: HashMap<String, u32> = get_users(database)
+        .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?
+        .into_iter()
+        .map(|(k, v)|(v, k))
+        .collect();
+    let mut entity_group_ids = Vec::new();
+    let mut entity_user_ids = Vec::new();
+    for i in 0..l.unwrap() {
+        let group_id = *groups.get(&entity_groups[i]).ok_or(Error::new(ErrorKind::NotFound, "group not found"))?;
+        let user_id = *users.get(&entity_users[i]).ok_or(Error::new(ErrorKind::NotFound, "user not found"))?;
+        entity_group_ids.push(group_id);
+        entity_user_ids.push(user_id);
+    }
+    for i in 0..l.unwrap() {
+        let url = if entity_urls[i] == "None" { None } else { Some(entity_urls[i].clone()) };
+        let password = if entity_passwords[i] == "Ask" {
+            get_password(format!("password for entity {}", i).as_str(), "".to_string())?
+        } else {entity_passwords[i].clone()};
+        add_entity(database, entity_names[i].clone(), entity_group_ids[i],
+                   entity_user_ids[i], password, url, HashMap::new())
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+    }
+    Ok(true)
 }
 
 fn select_entities(database: u64, group_names: String) -> Result<bool, Error> {
-    for name in parse_string_array(group_names, "group names expected")? {
+    for name in parse_string_array(group_names, "group names expected", None)? {
         let groups = get_groups(database)
             .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
         let group = groups.iter()
-            .find(|g|g.name == name).ok_or(Error::new(ErrorKind::NotFound, "group not found"))?;
+            .find(|g|g.name == name)
+            .ok_or(Error::new(ErrorKind::NotFound, "group not found"))?;
         let users = get_users(database)
             .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
         for (_, entity) in get_entities(database, group.id)
             .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))? {
-            println!("Name: {}", entity.get_name().map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?);
+            println!("Name: {}", entity.get_name()
+                .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?);
             let group_id = entity.get_group_id(ENTITY_VERSION_LATEST)
                 .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
-            let group = groups.iter().find(|g|g.id == group_id).unwrap().name.clone();
+            let group = groups.iter()
+                .find(|g|g.id == group_id).unwrap().name.clone();
             println!("Group: {}", group);
             let user_id = entity.get_user_id(ENTITY_VERSION_LATEST)
                 .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
             println!("User: {}", users.get(&user_id).unwrap().clone());
-            if let Some(url) = entity.get_url(ENTITY_VERSION_LATEST).map_err(|e| Error::new(ErrorKind::Other, e.to_string()))? {
-                println!("Url: {}", url);
-            }
-            println!("Password: {}", entity.get_password(ENTITY_VERSION_LATEST).map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?);
+            let url = entity.get_url(ENTITY_VERSION_LATEST)
+                .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?
+                .unwrap_or("None".to_string());
+            println!("Url: {}", url);
+            println!("Password: {}", entity.get_password(ENTITY_VERSION_LATEST)
+                .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?);
             println!("-------------------------------------");
         }
     }
@@ -335,7 +380,7 @@ fn select_groups(database: u64) -> Result<bool, Error> {
 }
 
 fn add_groups(database: u64, group_names: String) -> Result<bool, Error> {
-    for name in parse_string_array(group_names, "group names expected")? {
+    for name in parse_string_array(group_names, "group names expected", None)? {
         add_group(database, name)
             .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
     }
@@ -343,18 +388,25 @@ fn add_groups(database: u64, group_names: String) -> Result<bool, Error> {
 }
 
 fn add_users(database: u64, user_names: String) -> Result<bool, Error> {
-    for name in parse_string_array(user_names, "user names expected")? {
+    for name in parse_string_array(user_names, "user names expected", None)? {
         add_user(database, name)
             .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
     }
     Ok(true)
 }
 
-fn parse_string_array(array: String, error_message: &str) -> Result<Vec<String>, Error> {
+fn parse_string_array(array: String, error_message: &str, expected_count: Option<usize>) -> Result<Vec<String>, Error> {
     if array.is_empty() {
         return Err(Error::new(ErrorKind::InvalidInput, error_message));
     }
-    Ok(array.split(',').map(|v|v.to_string()).collect())
+    let result: Vec<String> = array.split(',').map(|v|v.to_string()).collect();
+    if let Some(count) = expected_count {
+        if result.len() != count {
+            return Err(Error::new(ErrorKind::InvalidInput,
+                                  format!("{} items in {}", count, error_message)));
+        }
+    }
+    Ok(result)
 }
 
 fn s3_test(s3_path: String, s3_key: String) -> Result<bool, Error> {
@@ -418,8 +470,7 @@ fn test_argon2(password: String, iterations: isize, parallelism: isize, memory: 
     Ok(())
 }
 
-fn get_password(prompt: &str, password_parameter: &StringParameter) -> Result<String, Error> {
-    let password = password_parameter.get_value();
+fn get_password(prompt: &str, password: String) -> Result<String, Error> {
     if !password.is_empty() {
         return Ok(password);
     }
@@ -427,6 +478,7 @@ fn get_password(prompt: &str, password_parameter: &StringParameter) -> Result<St
     print!("{}: ", prompt);
     stdout().flush()?;
     stdin().read_line(&mut buffer)?;
+    buffer = buffer.trim().to_string();
     if buffer.is_empty() {
         return Err(Error::new(ErrorKind::InvalidInput, "empty password"));
     }
