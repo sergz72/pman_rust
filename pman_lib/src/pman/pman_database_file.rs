@@ -422,8 +422,9 @@ impl PmanDatabaseProperties {
         }
         let updated = set_file_location_local(&mut self.names_files_info)?;
         if updated {
-            self.names_file.as_mut().unwrap().set_updated();
+            self.names_file.as_mut().unwrap().update_handlers(&mut self.names_files_info)?;
             self.is_updated = true;
+            self.local_names_file = true;
         }
         Ok(updated)
     }
@@ -434,7 +435,7 @@ impl PmanDatabaseProperties {
         }
         let updated = set_file_location_local(&mut self.passwords_files_info)?;
         if updated {
-            self.passwords_file.as_mut().unwrap().set_updated();
+            self.passwords_file.as_mut().unwrap().update_handlers(&mut self.passwords_files_info)?;
             self.is_updated = true;
         }
         Ok(updated)
@@ -446,8 +447,9 @@ impl PmanDatabaseProperties {
         }
         let updated = set_file_location_s3(&mut self.names_files_info, file_name, s3_key)?;
         if updated {
-            self.names_file.as_mut().unwrap().set_updated();
+            self.names_file.as_mut().unwrap().update_handlers(&mut self.names_files_info)?;
             self.is_updated = true;
+            self.local_names_file = false;
         }
         Ok(updated)
     }
@@ -458,7 +460,7 @@ impl PmanDatabaseProperties {
         }
         let updated = set_file_location_s3(&mut self.passwords_files_info, file_name, s3_key)?;
         if updated {
-            self.passwords_file.as_mut().unwrap().set_updated();
+            self.passwords_file.as_mut().unwrap().update_handlers(&mut self.passwords_files_info)?;
             self.is_updated = true;
         }
         Ok(updated)

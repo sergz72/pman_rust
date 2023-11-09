@@ -154,6 +154,13 @@ impl IdValueMap {
     pub fn get_records_count(&self)  -> usize {
         self.map.iter().filter(|(_k, v)|v.is_some()).count()
     }
+
+    pub fn set_handlers(&mut self, mut handlers: Vec<Box<dyn IdValueMapDataHandler + Send + Sync>>)
+        -> Result<(), Error> {
+        self.selected_handler = select_handler(&mut handlers)?;
+        self.other_handlers = handlers;
+        Ok(())
+    }
 }
 
 fn select_handler(handlers: &mut Vec<Box<dyn IdValueMapDataHandler + Send + Sync>>) -> Result<Box<dyn IdValueMapDataHandler + Send + Sync>, Error> {

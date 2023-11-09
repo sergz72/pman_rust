@@ -91,6 +91,11 @@ impl DataFile {
     pub fn get_records_count(&self) -> usize {
         self.data.get_records_count()
     }
+
+    pub fn update_handlers(&mut self, file_info: &mut IdValueMap) -> Result<(), Error> {
+        self.is_updated = true;
+        self.data.set_handlers(new_data_file_handlers(file_info)?)
+    }
 }
 
 fn build_local_file_name(main_file_name: &String, file_exiension: &str,
