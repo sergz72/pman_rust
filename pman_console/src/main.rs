@@ -1,17 +1,17 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::{Error, ErrorKind, Read, stdin, stdout, Write};
 use std::env::args;
 use std::fs::File;
 use std::sync::Arc;
 use std::time::Instant;
 use arguments_parser::{Arguments, IntParameter, BoolParameter, Switch, StringParameter, EnumParameter};
-use pman_lib::{add_entity, add_group, add_user, build_argon2_hash, create, get_database_type, get_entities, get_groups, get_users, lib_init, modify_entity, open, pre_open, prepare, remove_entity, save};
+use pman_lib::{add_entity, add_group, add_user, build_argon2_hash, create, DatabaseEntity, get_database_type, get_entities, get_groups, get_users, lib_init, modify_entity, open, pre_open, prepare, remove_entity, save, search};
 use pman_lib::crypto::AesProcessor;
 use pman_lib::pman::database_entity::ENTITY_VERSION_LATEST;
 use pman_lib::pman::id_value_map::id_value_map::IdValueMap;
 use pman_lib::pman::id_value_map::id_value_map_s3_handler::IdValueMapS3Handler;
 use pman_lib::pman::pman_database_file::ENCRYPTION_ALGORITHM_CHACHA20;
-use pman_lib::structs_interfaces::FileAction;
+use pman_lib::structs_interfaces::{DatabaseGroup, FileAction};
 use rand::RngCore;
 use rand::rngs::OsRng;
 use sha2::{Sha256, Digest};
@@ -290,8 +290,43 @@ fn execute_action(database: u64, action: &str, parameters: &Parameters, verbose:
         "set_hash2" => set_hash2(database, parameters),
         "names_location" => set_names_file_location(database, parameters),
         "passwords_location" => set_passwords_file_location(database, parameters),
+        "search" => search_entities(database, parameters),
+        "show" => show_entities(database, parameters),
         _ => Err(Error::new(ErrorKind::Unsupported, "unknown action"))
     }
+}
+
+fn show_entities(database: u64, parameters: &Parameters) -> Result<bool, Error> {
+    let entity_names = get_entity_names(parameters)?;
+    let users = get_users(database)
+        .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+    let (entities, groups) = get_entities_from_names(database, entity_names)?;
+    for (_, entity) in entities {
+        show_entity(&groups, &users, entity)?;
+    }
+    Ok(false)
+}
+
+fn search_entities(database: u64, parameters: &Parameters) -> Result<bool, Error> {
+    let entity_names = get_entity_names(parameters)?;
+    let groups: HashMap<u32, String> = get_groups(database)
+        .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?
+        .into_iter()
+        .map(|g|(g.id, g.name.clone()))
+        .collect();
+    for name in entity_names {
+        let result = search(database, name)
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+        for (group_id, entities) in result {
+            println!("{}:", groups.get(&group_id).unwrap());
+            for (_, entity) in entities {
+                println!("  {}",
+                         entity.get_name()
+                             .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?)
+            }
+        }
+    }
+    Ok(false)
 }
 
 fn set_passwords_file_location(database: u64, parameters: &Parameters) -> Result<bool, Error> {
@@ -312,11 +347,11 @@ fn set_hash1(database: u64, parameters: &Parameters) -> Result<bool, Error> {
 
 fn set_urls(database: u64, parameters: &Parameters) -> Result<bool, Error> {
     let entity_names = get_entity_names(parameters)?;
-    let entity_ids = get_entity_ids(database, entity_names)?;
-    let l = entity_ids.len();
+    let (entities, _) = get_entities_from_names(database, entity_names)?;
+    let l = entities.len();
     let urls = get_entity_urls(parameters, Some(l))?;
     for i in 0..l {
-        modify_entity(database, entity_ids[i], None, None,
+        modify_entity(database, entities[i].0, None, None,
                       None, urls[i].clone(), true,
                       HashMap::new(), HashMap::new())
             .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
@@ -326,12 +361,12 @@ fn set_urls(database: u64, parameters: &Parameters) -> Result<bool, Error> {
 
 fn set_passwords(database: u64, parameters: &Parameters) -> Result<bool, Error> {
     let entity_names = get_entity_names(parameters)?;
-    let entity_ids = get_entity_ids(database, entity_names)?;
-    let l = entity_ids.len();
+    let (entities, _) = get_entities_from_names(database, entity_names)?;
+    let l = entities.len();
     let passwords = get_entity_passwords(parameters, Some(l))?;
     for i in 0..l {
         let password = get_entity_password(passwords[i].clone(), i)?;
-        modify_entity(database, entity_ids[i], None, None,
+        modify_entity(database, entities[i].0, None, None,
                       Some(password), None, false,
         HashMap::new(), HashMap::new())
             .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
@@ -341,15 +376,29 @@ fn set_passwords(database: u64, parameters: &Parameters) -> Result<bool, Error> 
 
 fn remove_entities(database: u64, parameters: &Parameters) -> Result<bool, Error> {
     let entity_names = get_entity_names(parameters)?;
-    for entity_id in get_entity_ids(database, entity_names)? {
+    let (entities, _) = get_entities_from_names(database, entity_names)?;
+    for (entity_id, _) in entities {
         remove_entity(database, entity_id)
             .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
     }
     Ok(true)
 }
 
-fn get_entity_ids(database: u64, entity_names: Vec<String>) -> Result<Vec<u32>, Error> {
-    todo!()
+fn get_entities_from_names(database: u64, entity_names: Vec<String>)
+    -> Result<(Vec<(u32, Arc<DatabaseEntity>)>, Vec<Arc<DatabaseGroup>>), Error> {
+    let names_set: HashSet<String> = entity_names.into_iter().collect();
+    let groups = get_groups(database)
+        .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+    let mut entities = Vec::new();
+    for group in &groups {
+        for (id, entity) in get_entities(database, group.id)
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?{
+            if names_set.contains(&entity.get_name().map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?) {
+                entities.push((id, entity));
+            }
+        }
+    }
+    Ok((entities, groups))
 }
 
 fn get_entity_names(parameters: &Parameters) -> Result<Vec<String>, Error> {
@@ -410,34 +459,40 @@ fn add_entities(database: u64, parameters: &Parameters) -> Result<bool, Error> {
     Ok(true)
 }
 
+fn show_entity(groups: &Vec<Arc<DatabaseGroup>>, users: &HashMap<u32, String>,
+               entity: Arc<DatabaseEntity>) -> Result<(), Error> {
+    println!("Name: {}", entity.get_name()
+        .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?);
+    let group_id = entity.get_group_id(ENTITY_VERSION_LATEST)
+        .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+    let group = groups.iter()
+        .find(|g|g.id == group_id).unwrap().name.clone();
+    println!("Group: {}", group);
+    let user_id = entity.get_user_id(ENTITY_VERSION_LATEST)
+        .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+    println!("User: {}", users.get(&user_id).unwrap().clone());
+    let url = entity.get_url(ENTITY_VERSION_LATEST)
+        .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?
+        .unwrap_or("None".to_string());
+    println!("Url: {}", url);
+    println!("Password: {}", entity.get_password(ENTITY_VERSION_LATEST)
+        .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?);
+    println!("-------------------------------------");
+    Ok(())
+}
+
 fn select_entities(database: u64, group_names: String) -> Result<bool, Error> {
+    let groups = get_groups(database)
+        .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+    let users = get_users(database)
+        .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
     for name in parse_string_array(group_names, "group names expected", None)? {
-        let groups = get_groups(database)
-            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
         let group = groups.iter()
             .find(|g|g.name == name)
             .ok_or(Error::new(ErrorKind::NotFound, "group not found"))?;
-        let users = get_users(database)
-            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
         for (_, entity) in get_entities(database, group.id)
             .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))? {
-            println!("Name: {}", entity.get_name()
-                .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?);
-            let group_id = entity.get_group_id(ENTITY_VERSION_LATEST)
-                .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
-            let group = groups.iter()
-                .find(|g|g.id == group_id).unwrap().name.clone();
-            println!("Group: {}", group);
-            let user_id = entity.get_user_id(ENTITY_VERSION_LATEST)
-                .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
-            println!("User: {}", users.get(&user_id).unwrap().clone());
-            let url = entity.get_url(ENTITY_VERSION_LATEST)
-                .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?
-                .unwrap_or("None".to_string());
-            println!("Url: {}", url);
-            println!("Password: {}", entity.get_password(ENTITY_VERSION_LATEST)
-                .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?);
-            println!("-------------------------------------");
+            show_entity(&groups, &users, entity)?;
         }
     }
     Ok(false)
