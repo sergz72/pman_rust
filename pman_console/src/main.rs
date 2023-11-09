@@ -5,7 +5,7 @@ use std::fs::File;
 use std::sync::Arc;
 use std::time::Instant;
 use arguments_parser::{Arguments, IntParameter, BoolParameter, Switch, StringParameter, EnumParameter};
-use pman_lib::{add_entity, add_group, add_user, build_argon2_hash, create, DatabaseEntity, get_database_type, get_entities, get_groups, get_users, lib_init, modify_entity, open, pre_open, prepare, remove_entity, save, search};
+use pman_lib::{add_entity, add_group, add_user, build_argon2_hash, create, DatabaseEntity, get_database_type, get_entities, get_groups, get_users, lib_init, modify_entity, open, pre_open, prepare, remove_entity, save, search, set_argon2};
 use pman_lib::crypto::AesProcessor;
 use pman_lib::pman::database_entity::ENTITY_VERSION_LATEST;
 use pman_lib::pman::id_value_map::id_value_map::IdValueMap;
@@ -338,11 +338,29 @@ fn set_names_file_location(database: u64, parameters: &Parameters) -> Result<boo
 }
 
 fn set_hash2(database: u64, parameters: &Parameters) -> Result<bool, Error> {
-    todo!()
+    set_hash(database, 1, parameters.hash2_parameter.get_value(),
+    parameters.iterations2_parameter.get_value(),
+             parameters.memory2_parameter.get_value(),
+             parameters.parallelism2_parameter.get_value())?;
+    Ok(true)
 }
 
 fn set_hash1(database: u64, parameters: &Parameters) -> Result<bool, Error> {
-    todo!()
+    set_hash(database, 0, parameters.hash_parameter.get_value(),
+             parameters.iterations_parameter.get_value(),
+             parameters.memory_parameter.get_value(),
+             parameters.parallelism_parameter.get_value())?;
+    Ok(true)
+}
+
+fn set_hash(database: u64, hash_id: i32, hash_type: String, iterations: isize, memory: isize,
+            parallelism: isize) -> Result<(), Error> {
+    match hash_type.as_str() {
+        "argon2" => set_argon2(database, hash_id, iterations as u64,
+                               parallelism as u64, memory as u64)
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string())),
+        _ => Err(Error::new(ErrorKind::InvalidInput, "unknown hash type"))
+    }
 }
 
 fn set_urls(database: u64, parameters: &Parameters) -> Result<bool, Error> {
