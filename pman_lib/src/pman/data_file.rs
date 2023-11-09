@@ -160,3 +160,19 @@ fn build_data_file_handlers(file_info: &mut IdValueMap, local_file_data: Option<
 pub fn build_local_file_location() -> Vec<u8> {
     vec![FILE_LOCATION_LOCAL]
 }
+
+pub fn build_s3_file_location(file_name: String, s3_key: Vec<u8>) -> Vec<u8> {
+    let mut result = Vec::new();
+    result.push(FILE_LOCATION_S3);
+    build_s3_location_data(&mut result, file_name, s3_key);
+    result
+}
+
+pub fn build_s3_location_data(result: &mut Vec<u8>, s3_path: String, s3_key: Vec<u8>) {
+    let bytes = s3_path.as_bytes();
+    result.push(bytes.len() as u8);
+    result.extend_from_slice(bytes);
+    result.push(s3_key.len() as u8);
+    result.extend_from_slice(&s3_key);
+}
+

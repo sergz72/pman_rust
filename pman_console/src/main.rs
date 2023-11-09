@@ -7,6 +7,7 @@ use std::time::Instant;
 use arguments_parser::{Arguments, IntParameter, BoolParameter, Switch, StringParameter, EnumParameter};
 use pman_lib::{add_entity, add_group, add_user, build_argon2_hash, create, DatabaseEntity, get_database_type, get_entities, get_groups, get_users, lib_init, modify_entity, open, pre_open, prepare, remove_entity, save, search, set_argon2};
 use pman_lib::crypto::AesProcessor;
+use pman_lib::pman::data_file::build_s3_location_data;
 use pman_lib::pman::database_entity::ENTITY_VERSION_LATEST;
 use pman_lib::pman::id_value_map::id_value_map::IdValueMap;
 use pman_lib::pman::id_value_map::id_value_map_s3_handler::IdValueMapS3Handler;
@@ -330,11 +331,37 @@ fn search_entities(database: u64, parameters: &Parameters) -> Result<bool, Error
 }
 
 fn set_passwords_file_location(database: u64, parameters: &Parameters) -> Result<bool, Error> {
-    todo!()
+    match parameters.passwords_file_parameter.get_value().as_str() {
+        "local" => pman_lib::set_passwords_file_location_local(database)
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string())),
+        "s3" => {
+            let s3_path = parameters.s3_path_parameter2.get_value();
+            let s3_key = parameters.s3_key_parameter2.get_value();
+            if s3_path.is_empty() || s3_key.is_empty() {
+                return Err(Error::new(ErrorKind::InvalidInput, "s3-path2 & s3-key2 must be provided"));
+            }
+            pman_lib::set_passwords_file_location_s3(database, s3_path, load_file(s3_key)?)
+                .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))
+        },
+        _ => Err(Error::new(ErrorKind::InvalidInput, "invalid passwords file location"))
+    }
 }
 
 fn set_names_file_location(database: u64, parameters: &Parameters) -> Result<bool, Error> {
-    todo!()
+    match parameters.names_file_parameter.get_value().as_str() {
+        "local" => pman_lib::set_names_file_location_local(database)
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string())),
+        "s3" => {
+            let s3_path = parameters.s3_path_parameter1.get_value();
+            let s3_key = parameters.s3_key_parameter1.get_value();
+            if s3_path.is_empty() || s3_key.is_empty() {
+                return Err(Error::new(ErrorKind::InvalidInput, "s3-path1 & s3-key1 must be provided"));
+            }
+            pman_lib::set_names_file_location_s3(database, s3_path, load_file(s3_key)?)
+                .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))
+        },
+        _ => Err(Error::new(ErrorKind::InvalidInput, "invalid names file location"))
+    }
 }
 
 fn set_hash2(database: u64, parameters: &Parameters) -> Result<bool, Error> {
@@ -353,7 +380,7 @@ fn set_hash1(database: u64, parameters: &Parameters) -> Result<bool, Error> {
     Ok(true)
 }
 
-fn set_hash(database: u64, hash_id: i32, hash_type: String, iterations: isize, memory: isize,
+fn set_hash(database: u64, hash_id: u64, hash_type: String, iterations: isize, memory: isize,
             parallelism: isize) -> Result<(), Error> {
     match hash_type.as_str() {
         "argon2" => set_argon2(database, hash_id, iterations as u64,
@@ -589,11 +616,7 @@ fn s3_test(s3_path: String, s3_key: String) -> Result<bool, Error> {
 fn build_location_data(s3_path: String, s3_key: String) -> Result<Vec<u8>, Error> {
     let data = load_file(s3_key)?;
     let mut result = Vec::new();
-    let bytes = s3_path.as_bytes();
-    result.push(bytes.len() as u8);
-    result.extend_from_slice(bytes);
-    result.push(data.len() as u8);
-    result.extend_from_slice(&data);
+    build_s3_location_data(&mut result, s3_path, data);
     Ok(result)
 }
 

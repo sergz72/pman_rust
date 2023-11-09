@@ -160,6 +160,35 @@ pub fn set_argon2(database_id: u64, hash_id: u64, iterations: u64, parallelism: 
         .map_err(|e|PmanError::message(e.to_string()))
 }
 
+fn get_pman_database<'a>(database_id: u64) -> Result<&'a PmanDatabase, PmanError> {
+    let db = get_database(database_id)?;
+    db.database.as_any().downcast_ref().ok_or(PmanError::message("wrong database type"))
+}
+
+pub fn set_names_file_location_local(database_id: u64) -> Result<bool, PmanError> {
+    let db = get_pman_database(database_id)?;
+    db.set_names_file_location_local()
+        .map_err(|e|PmanError::message(e.to_string()))
+}
+
+pub fn set_passwords_file_location_local(database_id: u64) -> Result<bool, PmanError> {
+    let db = get_pman_database(database_id)?;
+    db.set_passwords_file_location_local()
+        .map_err(|e|PmanError::message(e.to_string()))
+}
+
+pub fn set_names_file_location_s3(database_id: u64, file_name: String, s3_key: Vec<u8>) -> Result<bool, PmanError> {
+    let db = get_pman_database(database_id)?;
+    db.set_names_file_location_s3(file_name, s3_key)
+        .map_err(|e|PmanError::message(e.to_string()))
+}
+
+pub fn set_passwords_file_location_s3(database_id: u64, file_name: String, s3_key: Vec<u8>) -> Result<bool, PmanError> {
+    let db = get_pman_database(database_id)?;
+    db.set_passwords_file_location_s3(file_name, s3_key)
+        .map_err(|e|PmanError::message(e.to_string()))
+}
+
 pub fn build_argon2_hash(password: Vec<u8>, iterations: isize, parallelism: isize, memory: isize, salt: [u8; 16]) -> Result<[u8; 32], Error> {
     let properties = build_argon2_properties(iterations as u8, parallelism as u8, memory as u16, salt);
     build_argon2_key(properties, &password)

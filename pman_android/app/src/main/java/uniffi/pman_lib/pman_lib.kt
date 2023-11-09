@@ -417,7 +417,7 @@ internal interface _UniFFILib : Library {
     ): Int
     fun uniffi_pman_lib_fn_func_close(`databaseId`: Long,_uniffi_out_err: RustCallStatus, 
     ): Unit
-    fun uniffi_pman_lib_fn_func_create(`databaseType`: RustBuffer.ByValue,`passwordHash`: RustBuffer.ByValue,`password2Hash`: RustBuffer.ByValue,`keyFileContents`: RustBuffer.ByValue,_uniffi_out_err: RustCallStatus, 
+    fun uniffi_pman_lib_fn_func_create(`databaseType`: RustBuffer.ByValue,`passwordHash`: RustBuffer.ByValue,`password2Hash`: RustBuffer.ByValue,`keyFileContents`: RustBuffer.ByValue,`fileName`: RustBuffer.ByValue,_uniffi_out_err: RustCallStatus, 
     ): Long
     fun uniffi_pman_lib_fn_func_get_entities(`databaseId`: Long,`groupId`: Int,_uniffi_out_err: RustCallStatus, 
     ): RustBuffer.ByValue
@@ -453,6 +453,14 @@ internal interface _UniFFILib : Library {
     ): RustBuffer.ByValue
     fun uniffi_pman_lib_fn_func_set_argon2(`databaseId`: Long,`hashId`: Long,`iterations`: Long,`parallelism`: Long,`memory`: Long,_uniffi_out_err: RustCallStatus, 
     ): Unit
+    fun uniffi_pman_lib_fn_func_set_names_file_location_local(`databaseId`: Long,_uniffi_out_err: RustCallStatus, 
+    ): Byte
+    fun uniffi_pman_lib_fn_func_set_names_file_location_s3(`databaseId`: Long,`fileName`: RustBuffer.ByValue,`s3Key`: RustBuffer.ByValue,_uniffi_out_err: RustCallStatus, 
+    ): Byte
+    fun uniffi_pman_lib_fn_func_set_passwords_file_location_local(`databaseId`: Long,_uniffi_out_err: RustCallStatus, 
+    ): Byte
+    fun uniffi_pman_lib_fn_func_set_passwords_file_location_s3(`databaseId`: Long,`fileName`: RustBuffer.ByValue,`s3Key`: RustBuffer.ByValue,_uniffi_out_err: RustCallStatus, 
+    ): Byte
     fun ffi_pman_lib_rustbuffer_alloc(`size`: Int,_uniffi_out_err: RustCallStatus, 
     ): RustBuffer.ByValue
     fun ffi_pman_lib_rustbuffer_from_bytes(`bytes`: ForeignBytes.ByValue,_uniffi_out_err: RustCallStatus, 
@@ -611,6 +619,14 @@ internal interface _UniFFILib : Library {
     ): Short
     fun uniffi_pman_lib_checksum_func_set_argon2(
     ): Short
+    fun uniffi_pman_lib_checksum_func_set_names_file_location_local(
+    ): Short
+    fun uniffi_pman_lib_checksum_func_set_names_file_location_s3(
+    ): Short
+    fun uniffi_pman_lib_checksum_func_set_passwords_file_location_local(
+    ): Short
+    fun uniffi_pman_lib_checksum_func_set_passwords_file_location_s3(
+    ): Short
     fun uniffi_pman_lib_checksum_method_databaseentity_get_created_at(
     ): Short
     fun uniffi_pman_lib_checksum_method_databaseentity_get_group_id(
@@ -668,7 +684,7 @@ private fun uniffiCheckApiChecksums(lib: _UniFFILib) {
     if (lib.uniffi_pman_lib_checksum_func_close() != 57699.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_pman_lib_checksum_func_create() != 32896.toShort()) {
+    if (lib.uniffi_pman_lib_checksum_func_create() != 52861.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_pman_lib_checksum_func_get_entities() != 64141.toShort()) {
@@ -720,6 +736,18 @@ private fun uniffiCheckApiChecksums(lib: _UniFFILib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_pman_lib_checksum_func_set_argon2() != 13956.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_pman_lib_checksum_func_set_names_file_location_local() != 23401.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_pman_lib_checksum_func_set_names_file_location_s3() != 16952.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_pman_lib_checksum_func_set_passwords_file_location_local() != 50397.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_pman_lib_checksum_func_set_passwords_file_location_s3() != 21259.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_pman_lib_checksum_method_databaseentity_get_created_at() != 25075.toShort()) {
@@ -1964,10 +1992,10 @@ fun `close`(`databaseId`: ULong) =
 
 @Throws(PmanException::class)
 
-fun `create`(`databaseType`: PasswordDatabaseType, `passwordHash`: ByteArray, `password2Hash`: ByteArray?, `keyFileContents`: ByteArray?): ULong {
+fun `create`(`databaseType`: PasswordDatabaseType, `passwordHash`: ByteArray, `password2Hash`: ByteArray?, `keyFileContents`: ByteArray?, `fileName`: String): ULong {
     return FfiConverterULong.lift(
     rustCallWithError(PmanException) { _status ->
-    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_create(FfiConverterTypePasswordDatabaseType.lower(`databaseType`),FfiConverterByteArray.lower(`passwordHash`),FfiConverterOptionalByteArray.lower(`password2Hash`),FfiConverterOptionalByteArray.lower(`keyFileContents`),_status)
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_create(FfiConverterTypePasswordDatabaseType.lower(`databaseType`),FfiConverterByteArray.lower(`passwordHash`),FfiConverterOptionalByteArray.lower(`password2Hash`),FfiConverterOptionalByteArray.lower(`keyFileContents`),FfiConverterString.lower(`fileName`),_status)
 })
 }
 
@@ -2122,5 +2150,41 @@ fun `setArgon2`(`databaseId`: ULong, `hashId`: ULong, `iterations`: ULong, `para
     _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_set_argon2(FfiConverterULong.lower(`databaseId`),FfiConverterULong.lower(`hashId`),FfiConverterULong.lower(`iterations`),FfiConverterULong.lower(`parallelism`),FfiConverterULong.lower(`memory`),_status)
 }
 
+
+@Throws(PmanException::class)
+
+fun `setNamesFileLocationLocal`(`databaseId`: ULong): Boolean {
+    return FfiConverterBoolean.lift(
+    rustCallWithError(PmanException) { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_set_names_file_location_local(FfiConverterULong.lower(`databaseId`),_status)
+})
+}
+
+@Throws(PmanException::class)
+
+fun `setNamesFileLocationS3`(`databaseId`: ULong, `fileName`: String, `s3Key`: ByteArray): Boolean {
+    return FfiConverterBoolean.lift(
+    rustCallWithError(PmanException) { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_set_names_file_location_s3(FfiConverterULong.lower(`databaseId`),FfiConverterString.lower(`fileName`),FfiConverterByteArray.lower(`s3Key`),_status)
+})
+}
+
+@Throws(PmanException::class)
+
+fun `setPasswordsFileLocationLocal`(`databaseId`: ULong): Boolean {
+    return FfiConverterBoolean.lift(
+    rustCallWithError(PmanException) { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_set_passwords_file_location_local(FfiConverterULong.lower(`databaseId`),_status)
+})
+}
+
+@Throws(PmanException::class)
+
+fun `setPasswordsFileLocationS3`(`databaseId`: ULong, `fileName`: String, `s3Key`: ByteArray): Boolean {
+    return FfiConverterBoolean.lift(
+    rustCallWithError(PmanException) { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_set_passwords_file_location_s3(FfiConverterULong.lower(`databaseId`),FfiConverterString.lower(`fileName`),FfiConverterByteArray.lower(`s3Key`),_status)
+})
+}
 
 

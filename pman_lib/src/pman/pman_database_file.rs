@@ -48,8 +48,8 @@ use sha2::{Sha256, Digest};
 use crate::crypto::{AesProcessor, ChachaProcessor, CryptoProcessor, NoEncryptionProcessor};
 use crate::error_builders::build_corrupted_data_error;
 use crate::pman::id_value_map::id_value_map::{ByteValue, IdValueMap};
-use crate::pman::ids::{DATABASE_VERSION_ID, ENCRYPTION_ALGORITHM1_PROPERTIES_ID, ENCRYPTION_ALGORITHM2_PROPERTIES_ID, HASH_ALGORITHM_PROPERTIES_ID, HISTORY_LENGTH_ID};
-use crate::pman::data_file::DataFile;
+use crate::pman::ids::{DATABASE_VERSION_ID, ENCRYPTION_ALGORITHM1_PROPERTIES_ID, ENCRYPTION_ALGORITHM2_PROPERTIES_ID, FILES_LOCATIONS_ID, HASH_ALGORITHM_PROPERTIES_ID, HISTORY_LENGTH_ID};
+use crate::pman::data_file::{build_local_file_location, build_s3_file_location, DataFile};
 use crate::pman::id_value_map::id_value_map_local_data_handler::IdValueMapLocalDataHandler;
 use crate::structs_interfaces::FileAction;
 
@@ -415,6 +415,54 @@ impl PmanDatabaseProperties {
             _ => Err(Error::new(ErrorKind::InvalidInput, "wrong hash id"))
         }
     }
+
+    pub fn set_names_file_location_local(&mut self) -> Result<bool, Error> {
+        if self.names_file.is_none() {
+            return Err(build_names_file_not_initialized_error());
+        }
+        let updated = set_file_location_local(&mut self.names_files_info)?;
+        if updated {
+            self.names_file.as_mut().unwrap().set_updated();
+            self.is_updated = true;
+        }
+        Ok(updated)
+    }
+
+    pub fn set_passwords_file_location_local(&mut self) -> Result<bool, Error> {
+        if self.passwords_file.is_none() {
+            return Err(build_passwords_file_not_initialized_error());
+        }
+        let updated = set_file_location_local(&mut self.passwords_files_info)?;
+        if updated {
+            self.passwords_file.as_mut().unwrap().set_updated();
+            self.is_updated = true;
+        }
+        Ok(updated)
+    }
+
+    pub fn set_names_file_location_s3(&mut self, file_name: String, s3_key: Vec<u8>) -> Result<bool, Error> {
+        if self.names_file.is_none() {
+            return Err(build_names_file_not_initialized_error());
+        }
+        let updated = set_file_location_s3(&mut self.names_files_info, file_name, s3_key)?;
+        if updated {
+            self.names_file.as_mut().unwrap().set_updated();
+            self.is_updated = true;
+        }
+        Ok(updated)
+    }
+
+    pub fn set_passwords_file_location_s3(&mut self, file_name: String, s3_key: Vec<u8>) -> Result<bool, Error> {
+        if self.passwords_file.is_none() {
+            return Err(build_passwords_file_not_initialized_error());
+        }
+        let updated = set_file_location_s3(&mut self.passwords_files_info, file_name, s3_key)?;
+        if updated {
+            self.passwords_file.as_mut().unwrap().set_updated();
+            self.is_updated = true;
+        }
+        Ok(updated)
+    }
 }
 
 impl PmanDatabaseFile {
@@ -576,6 +624,34 @@ impl PmanDatabaseFile {
         }
         Err(build_properties_not_initialized_error())
     }
+
+    pub fn set_names_file_location_local(&mut self) -> Result<bool, Error> {
+        if let Some(p) = &mut self.properties {
+            return p.set_names_file_location_local()
+        }
+        Err(build_properties_not_initialized_error())
+    }
+
+    pub fn set_passwords_file_location_local(&mut self) -> Result<bool, Error> {
+        if let Some(p) = &mut self.properties {
+            return p.set_passwords_file_location_local()
+        }
+        Err(build_properties_not_initialized_error())
+    }
+
+    pub fn set_names_file_location_s3(&mut self, file_name: String, s3_key: Vec<u8>) -> Result<bool, Error> {
+        if let Some(p) = &mut self.properties {
+            return p.set_names_file_location_s3(file_name, s3_key)
+        }
+        Err(build_properties_not_initialized_error())
+    }
+
+    pub fn set_passwords_file_location_s3(&mut self, file_name: String, s3_key: Vec<u8>) -> Result<bool, Error> {
+        if let Some(p) = &mut self.properties {
+            return p.set_passwords_file_location_s3(file_name, s3_key)
+        }
+        Err(build_properties_not_initialized_error())
+    }
 }
 
 pub fn build_properties_not_initialized_error() -> Error {
@@ -592,6 +668,41 @@ pub fn build_passwords_file_not_initialized_error() -> Error {
 
 pub fn build_unsupported_algorithm_error() -> Error {
     Error::new(ErrorKind::Unsupported, "unsupported encryption algorithm")
+}
+
+fn set_file_location_local(header: &mut IdValueMap) -> Result<bool, Error> {
+    if !check_file_locations(header, FILE_LOCATION_LOCAL)? {
+        header.set(FILES_LOCATIONS_ID+1, build_local_file_location())?;
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
+
+fn check_file_locations(header: &mut IdValueMap, location_to_check: u8) -> Result<bool, Error> {
+    let locations: Vec<u8> = header.get(FILES_LOCATIONS_ID)?;
+    for location in &locations {
+        let location_data: Vec<u8> = header.get(*location as u32)?;
+        if location_data.is_empty() {
+            return Err(build_corrupted_data_error());
+        }
+        if location_data[0] == location_to_check {
+            return Ok(true);
+        }
+    }
+    if locations.len() > 1 {
+        return Err(Error::new(ErrorKind::InvalidData, "multiple file locations"));
+    }
+    Ok(false)
+}
+
+fn set_file_location_s3(header: &mut IdValueMap, file_name: String, s3_key: Vec<u8>) -> Result<bool, Error> {
+    if !check_file_locations(header, FILE_LOCATION_S3)? {
+        header.set(FILES_LOCATIONS_ID+1, build_s3_file_location(file_name, s3_key))?;
+        Ok(true)
+    } else {
+        Ok(false)
+    }
 }
 
 fn set_argon2_in_header(header: &mut IdValueMap, iterations: u8, parallelism: u8, memory: u16) -> Result<(), Error> {

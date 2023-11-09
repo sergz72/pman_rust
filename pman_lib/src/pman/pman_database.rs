@@ -332,6 +332,22 @@ impl PmanDatabase {
     pub fn load_passwords_file(&self, data: Option<Vec<u8>>) -> Result<(), Error> {
         self.file.lock().unwrap().load_passwords_file(data)
     }
+
+    pub fn set_names_file_location_local(&self) -> Result<bool, Error> {
+        self.file.lock().unwrap().set_names_file_location_local()
+    }
+
+    pub fn set_passwords_file_location_local(&self) -> Result<bool, Error> {
+        self.file.lock().unwrap().set_passwords_file_location_local()
+    }
+
+    pub fn set_names_file_location_s3(&self, file_name: String, s3_key: Vec<u8>) -> Result<bool, Error> {
+        self.file.lock().unwrap().set_names_file_location_s3(file_name, s3_key)
+    }
+
+    pub fn set_passwords_file_location_s3(&self, file_name: String, s3_key: Vec<u8>) -> Result<bool, Error> {
+        self.file.lock().unwrap().set_passwords_file_location_s3(file_name, s3_key)
+    }
 }
 
 fn check_property_name(file: &mut MutexGuard<PmanDatabaseFile>, properties: &HashMap<u32, u32>,
