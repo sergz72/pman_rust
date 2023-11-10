@@ -104,7 +104,7 @@ fn build_local_file_name(main_file_name: &String, file_exiension: &str,
     for location in locations {
         let location_data: Vec<u8> = file_info.get(location as u32)?;
         if location_data.is_empty() {
-            return Err(build_corrupted_data_error());
+            return Err(build_corrupted_data_error("build_local_file_name"));
         }
         if location_data[0] == FILE_LOCATION_LOCAL {
             return Ok(Some(main_file_name.clone() + file_exiension));
@@ -119,16 +119,20 @@ fn new_data_file_handlers(file_info: &mut IdValueMap) -> Result<Vec<Box<dyn IdVa
     for location in locations {
         let location_data: Vec<u8> = file_info.get(location as u32)?;
         if location_data.is_empty() {
-            return Err(build_corrupted_data_error());
+            return Err(build_corrupted_data_error(" new_data_file_handlers1"));
         }
         match location_data[0] {
             FILE_LOCATION_LOCAL => {
                 if location_data.len() != 1 {
-                    return Err(build_corrupted_data_error());
+                    return Err(build_corrupted_data_error(" new_data_file_handlers2"));
                 }
                 result.push(Box::new(IdValueMapDataFileHandler::new()))
             },
-            _ => return Err(build_corrupted_data_error())
+            FILE_LOCATION_S3 => {
+                let handler = IdValueMapS3Handler::new(location_data[1..].to_vec())?;
+                result.push(Box::new(handler));
+            },
+            _ => return Err(build_corrupted_data_error(" new_data_file_handlers3"))
         }
     }
     Ok(result)
@@ -141,12 +145,12 @@ fn build_data_file_handlers(file_info: &mut IdValueMap, local_file_data: Option<
     for location in locations {
         let location_data: Vec<u8> = file_info.get(location as u32)?;
         if location_data.is_empty() {
-            return Err(build_corrupted_data_error());
+            return Err(build_corrupted_data_error("build_data_file_handlers1"));
         }
         match location_data[0] {
             FILE_LOCATION_LOCAL => {
                 if local_file_data.is_none() {
-                    return Err(build_corrupted_data_error());
+                    return Err(build_corrupted_data_error("build_data_file_handlers2"));
                 }
                 let handler =
                     IdValueMapDataFileHandler::load(local_file_data.clone().unwrap(), encryption_key, alg1)?;
@@ -156,7 +160,7 @@ fn build_data_file_handlers(file_info: &mut IdValueMap, local_file_data: Option<
                 let handler = IdValueMapS3Handler::load(location_data[1..].to_vec(), encryption_key, alg1)?;
                 result.push(Box::new(handler));
             },
-            _ => return Err(build_corrupted_data_error())
+            _ => return Err(build_corrupted_data_error("build_data_file_handlers3"))
         }
     }
     Ok(result)

@@ -176,7 +176,7 @@ impl PmanDatabaseProperties {
         let mut passwords_files_info = IdValueMap::new(processor22.clone(), vec![Box::new(handler3)])?;
 
         if offset3 != l2 {
-            return Err(build_corrupted_data_error());
+            return Err(build_corrupted_data_error("pre_open"));
         }
 
         let mut files_to_load = Vec::new();
@@ -686,7 +686,7 @@ fn check_file_locations(header: &mut IdValueMap, location_to_check: u8) -> Resul
     for location in &locations {
         let location_data: Vec<u8> = header.get(*location as u32)?;
         if location_data.is_empty() {
-            return Err(build_corrupted_data_error());
+            return Err(build_corrupted_data_error("check_file_locations"));
         }
         if location_data[0] == location_to_check {
             return Ok(true);
@@ -714,7 +714,7 @@ fn set_argon2_in_header(header: &mut IdValueMap, iterations: u8, parallelism: u8
 
 fn build_encryption_processor(algorithm_parameters: Vec<u8>, encryption_key: [u8; 32]) -> Result<Arc<dyn CryptoProcessor + Send + Sync>, Error> {
     if algorithm_parameters.len() == 0 {
-        return Err(build_corrupted_data_error())
+        return Err(build_corrupted_data_error("build_encryption_processor"))
     }
     match algorithm_parameters[0] {
         ENCRYPTION_ALGORITHM_AES => build_aes_processor(algorithm_parameters, encryption_key),
@@ -725,14 +725,14 @@ fn build_encryption_processor(algorithm_parameters: Vec<u8>, encryption_key: [u8
 
 pub fn build_aes_processor(parameters: Vec<u8>, key: [u8; 32]) -> Result<Arc<dyn CryptoProcessor + Send + Sync>, Error> {
     if parameters.len() != 1 {
-        return Err(build_corrupted_data_error());
+        return Err(build_corrupted_data_error("build_aes_processor"));
     }
     Ok(AesProcessor::new(key))
 }
 
 pub fn build_chacha_processor(parameters: Vec<u8>, key: [u8; 32]) -> Result<Arc<dyn CryptoProcessor + Send + Sync>, Error> {
     if parameters.len() != 13 {
-        return Err(build_corrupted_data_error());
+        return Err(build_corrupted_data_error("build_chacha_processor"));
     }
     let mut iv = [0u8; 12];
     iv.copy_from_slice(&parameters[1..13]);
@@ -750,7 +750,7 @@ pub fn modify_header_algorithm_properties(header: &mut IdValueMap) -> Result<(),
 
 fn modify_algorithm_properties(mut properties: Vec<u8>) -> Result<Vec<u8>, Error> {
     if properties.len() == 0 {
-        return Err(build_corrupted_data_error());
+        return Err(build_corrupted_data_error("modify_algorithm_properties"));
     }
     match properties[0] {
         HASH_ALGORITHM_ARGON2 => {
@@ -777,7 +777,7 @@ pub fn decrypt_data(processor: Arc<dyn CryptoProcessor>, data: &mut Vec<u8>, off
 fn get_history_length(header: &mut IdValueMap) -> Result<usize, Error> {
     let l: Vec<u8> = header.get(HISTORY_LENGTH_ID)?;
     if l.len() != 1 {
-        return Err(build_corrupted_data_error());
+        return Err(build_corrupted_data_error("get_history_length"));
     }
     Ok(l[0] as usize)
 }
@@ -792,7 +792,7 @@ pub fn build_encryption_keys(header: &mut IdValueMap, password_hash: &Vec<u8>,
                              password2_hash: &Vec<u8>) -> Result<([u8;32], [u8;32]), Error> {
     let alg: Vec<u8> = header.get(HASH_ALGORITHM_PROPERTIES_ID)?;
     if alg.len() == 0 {
-        return Err(build_corrupted_data_error())
+        return Err(build_corrupted_data_error("build_encryption_keys"))
     }
     let mut hasher = Sha256::new();
     hasher.update(password_hash);
@@ -812,7 +812,7 @@ pub fn build_encryption_keys(header: &mut IdValueMap, password_hash: &Vec<u8>,
 fn validate_database_version(header: &mut IdValueMap) -> Result<usize, Error> {
     let version_bytes: Vec<u8> = header.get(DATABASE_VERSION_ID)?;
     if version_bytes.len() != 2 {
-        return Err(build_corrupted_data_error())
+        return Err(build_corrupted_data_error("validate_database_version"))
     }
     let mut bytes = [0u8; 2];
     bytes.copy_from_slice(&version_bytes);
@@ -844,7 +844,7 @@ pub fn add_data_hash_and_hmac(data: &mut Vec<u8>, encryption_key: [u8; 32]) -> R
 pub fn validate_data_hmac(encryption_key: &[u8; 32], data: &Vec<u8>, length: usize) -> Result<usize, Error> {
     let mut l = length;
     if l < 32 {
-        return Err(build_corrupted_data_error())
+        return Err(build_corrupted_data_error("validate_data_hmac"))
     }
     l -= 32;
     let mut mac: HmacSha256 = KeyInit::new_from_slice(encryption_key)
@@ -861,7 +861,7 @@ pub fn validate_data_hmac(encryption_key: &[u8; 32], data: &Vec<u8>, length: usi
 pub fn validate_data_hash(data: &Vec<u8>) -> Result<usize, Error> {
     let mut l = data.len();
     if l < 32 {
-        return Err(build_corrupted_data_error())
+        return Err(build_corrupted_data_error("validate_data_hash"))
     }
     l -= 32;
     let mut hasher = Sha256::new();
@@ -886,7 +886,7 @@ pub fn default_chacha_properties() -> Vec<u8> {
 
 pub fn build_argon2_key(algorithm_properties: Vec<u8>, password_hash: &Vec<u8>) -> Result<[u8; 32], Error> {
     if algorithm_properties.len() != 21 {
-        return Err(build_corrupted_data_error())
+        return Err(build_corrupted_data_error("build_argon2_key"))
     }
     let iterations = algorithm_properties[1];
     let parallelism = algorithm_properties[2];
@@ -918,7 +918,7 @@ pub fn build_argon2_properties(iterations: u8, parallelism: u8, memory: u16, sal
 
 fn set_argon2_salt(input: &mut Vec<u8>, salt: [u8; 16]) -> Result<(), Error> {
     if input.len() != 21 {
-        Err(build_corrupted_data_error())
+        Err(build_corrupted_data_error("set_argon2_salt"))
     } else {
         input[5..21].copy_from_slice(&salt);
         Ok(())
@@ -926,7 +926,7 @@ fn set_argon2_salt(input: &mut Vec<u8>, salt: [u8; 16]) -> Result<(), Error> {
 }
 fn set_chacha_salt(input: &mut Vec<u8>, salt: [u8; 12]) -> Result<(), Error> {
     if input.len() != 13 {
-        Err(build_corrupted_data_error())
+        Err(build_corrupted_data_error("set_chacha_salt"))
     } else {
         input[1..13].copy_from_slice(&salt);
         Ok(())

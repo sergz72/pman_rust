@@ -8,8 +8,8 @@ pub fn build_not_found_error() -> Error {
     Error::new(ErrorKind::NotFound, "not found")
 }
 
-pub fn build_corrupted_data_error() -> Error {
-    Error::new(ErrorKind::InvalidData, "corrupted data")
+pub fn build_corrupted_data_error(function_name: &str) -> Error {
+    Error::new(ErrorKind::InvalidData, format!("{}: corrupted data", function_name))
 }
 
 pub fn build_read_only_db_error() -> Error {

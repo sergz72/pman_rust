@@ -72,17 +72,17 @@ impl IdValueMapS3Handler {
 
 fn decode_location_data(location_data: Vec<u8>) -> Result<(String, Vec<u8>), Error> {
     if location_data.is_empty() {
-        return Err(build_corrupted_data_error());
+        return Err(build_corrupted_data_error("decode_location_data1"));
     }
     let l = location_data[0] as usize;
     if location_data.len() < l + 2 {
-        return Err(build_corrupted_data_error());
+        return Err(build_corrupted_data_error("decode_location_data2"));
     }
     let path = String::from_utf8(location_data[1..=l].to_vec())
         .map_err(|e|Error::new(ErrorKind::InvalidData, e.to_string()))?;
     let l2 = location_data[l + 1] as usize;
     if location_data.len() != l + 2 + l2 {
-        return Err(build_corrupted_data_error());
+        return Err(build_corrupted_data_error("decode_location_data3"));
     }
     Ok((path, location_data[l+2..].to_vec()))
 }

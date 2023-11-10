@@ -27,7 +27,7 @@ impl ByteValue for String {
 impl ByteValue for Vec<u32> {
     fn from_bytes(source: Vec<u8>) -> Result<Box<Vec<u32>>, Error> {
         if source.len() % 4 != 0 {
-            return Err(build_corrupted_data_error())
+            return Err(build_corrupted_data_error("Vec<u32>.from_bytes"))
         }
         let mut buffer32 = [0u8; 4];
         let mut result = Vec::new();

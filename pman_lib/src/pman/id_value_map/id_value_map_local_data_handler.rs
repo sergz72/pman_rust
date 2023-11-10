@@ -59,7 +59,7 @@ impl IdValueMapLocalDataHandler {
     pub fn load(source: &Vec<u8>, offset: usize) -> Result<(IdValueMapLocalDataHandler, usize), Error> {
         let sl = source.len();
         if offset + 4 > sl {
-            return Err(build_corrupted_data_error());
+            return Err(build_corrupted_data_error("IdValueMapLocalDataHandler.load1"));
         }
         // reading map length
         let mut buffer32 = [0u8; 4];
@@ -71,21 +71,21 @@ impl IdValueMapLocalDataHandler {
         let mut next_id = 100;
         while l > 0 {
             if idx + 8 > sl { // 4 for key + 4 for value length
-                return Err(build_corrupted_data_error());
+                return Err(build_corrupted_data_error("IdValueMapLocalDataHandler.load2"));
             }
             //reading key
             buffer32.copy_from_slice(&source[idx..idx + 4]);
             idx += 4;
             let key = u32::from_le_bytes(buffer32);
             if map.contains_key(&key) {
-                return Err(build_corrupted_data_error());
+                return Err(build_corrupted_data_error("IdValueMapLocalDataHandler.load3"));
             }
             // reading value length
             buffer32.copy_from_slice(&source[idx..idx + 4]);
             idx += 4;
             let value_length = u32::from_le_bytes(buffer32) as usize;
             if idx + value_length > sl {
-                return Err(build_corrupted_data_error());
+                return Err(build_corrupted_data_error("IdValueMapLocalDataHandler.load4"));
             }
             // reading value
             let value = source[idx..idx+value_length].to_vec();

@@ -69,7 +69,7 @@ impl IdValueMapDataFileHandler {
         decrypt_data(processor1, &mut data, offset, l2)?;
         let (handler, offset2) = IdValueMapLocalDataHandler::load(&data, offset)?;
         if offset2 != l2 {
-            return Err(build_corrupted_data_error());
+            return Err(build_corrupted_data_error("IdValueMapDataFileHandler.load"));
         }
         Ok(IdValueMapDataFileHandler { handler })
     }

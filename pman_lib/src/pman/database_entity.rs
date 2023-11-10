@@ -36,7 +36,7 @@ impl PmanDatabaseEntityFields {
 
     fn from_bytes(source: &Vec<u8>, mut offset: usize) -> Result<(PmanDatabaseEntityFields, usize), Error> {
         if source.len() < offset + 25 {
-            return Err(build_corrupted_data_error());
+            return Err(build_corrupted_data_error("PmanDatabaseEntityFields.from_bytes1"));
         }
         let mut buffer32 = [0u8; 4];
         buffer32.copy_from_slice(&source[offset..offset+4]);
@@ -58,7 +58,7 @@ impl PmanDatabaseEntityFields {
         let mut length = source[offset] as usize;
         offset += 1;
         if source.len() < offset + length * 8 {
-            return Err(build_corrupted_data_error());
+            return Err(build_corrupted_data_error("PmanDatabaseEntityFields.from_bytes2"));
         }
         let mut properties = HashMap::new();
         while length > 0 {
@@ -69,7 +69,7 @@ impl PmanDatabaseEntityFields {
             offset += 4;
             let value = u32::from_le_bytes(buffer32);
             if properties.insert(key, value).is_some() {
-                return Err(build_corrupted_data_error());
+                return Err(build_corrupted_data_error("PmanDatabaseEntityFields.from_bytes3"));
             }
             length -= 1;
         }
@@ -110,7 +110,7 @@ pub struct PmanDatabaseEntity {
 impl ByteValue for PmanDatabaseEntity {
     fn from_bytes(source: Vec<u8>) -> Result<Box<PmanDatabaseEntity>, Error> {
         if source.len() < 29 {
-            return Err(build_corrupted_data_error());
+            return Err(build_corrupted_data_error("PmanDatabaseEntity.from_bytes"));
         }
         let mut buffer32 = [0u8; 4];
         buffer32.copy_from_slice(&source[0..4]);
@@ -125,7 +125,7 @@ impl ByteValue for PmanDatabaseEntity {
             length -= 1;
         }
         if offset != source.len() {
-            Err(build_corrupted_data_error())
+            Err(build_corrupted_data_error("PmanDatabaseEntity.from_bytes"))
         } else {
             Ok(Box::new(PmanDatabaseEntity { name_id, database_file: None, history }))
         }

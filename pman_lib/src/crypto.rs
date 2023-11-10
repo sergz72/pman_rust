@@ -68,7 +68,7 @@ impl CryptoProcessor for AesProcessor {
                 out_length -= size;
             } else {
                 if out_length == 0 {
-                    return Err(build_corrupted_data_error())
+                    return Err(build_corrupted_data_error("decode1"))
                 }
                 let size = min(out_length, 9);
                 out_data.extend_from_slice(&sl[7..7+size]);
@@ -76,7 +76,7 @@ impl CryptoProcessor for AesProcessor {
             }
         }
         if out_length != 0 {
-            return Err(build_corrupted_data_error())
+            return Err(build_corrupted_data_error("decode2"))
         }
         Ok(out_data)
     }
