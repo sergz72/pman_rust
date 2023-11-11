@@ -14,7 +14,7 @@ struct ContentView: View {
     @State var selectedDatabase: Database?
     
     @Binding var databaseOperation: EntityOperations
-    
+
     var body: some View {
 #if !os(macOS)
         GeometryReader { geometry in
@@ -80,18 +80,13 @@ struct ContentView: View {
     }
     
     func buildPasswordView() -> some View {
-        Grid {
-            Text("password view")
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
+        PasswordView(selectedDatabase: $selectedDatabase)
     }
 }
 
-struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        StatefulPreviewWrapper(EntityOperations.none) {
-            ContentView(databaseOperation: $0)
-                .previewLayout(.fixed(width: 900, height: 400))
-        }
+#Preview {
+    StatefulPreviewWrapper(EntityOperations.none) {
+        ContentView(databaseOperation: $0)
+            .previewLayout(.fixed(width: 900, height: 400))
     }
 }

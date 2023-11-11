@@ -22,7 +22,7 @@ struct DBView: View {
         let pdbfType = UTType(filenameExtension: "pdbf")!
         VStack {
             HeaderView(entityOperation: $databaseOperation, title: "Databases", backgroundColor: .cyan)
-            List(databases.databases) { item in
+            List(Databases.databases) { item in
                 Text(item.name)
                     .listRowBackground(selectedDatabase == item ? Color.red : Color.gray)
                     .onTapGesture {
@@ -63,13 +63,6 @@ struct DBView: View {
             onCompletion: { result in
                 switch result {
                 case .success(let file):
-                    var size: UInt64 = 0;
-                    do {
-                        let name = file.relativePath;
-                        size = try testFile(fileName: name);
-                    } catch {
-                        print("Unexpected error: \(error).")
-                    }
                     databases.add(databaseURL: file.absoluteURL)
                 case .failure:
                     break

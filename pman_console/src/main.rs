@@ -13,7 +13,7 @@ use pman_lib::pman::id_value_map::id_value_map::IdValueMap;
 use pman_lib::pman::id_value_map::id_value_map_s3_handler::IdValueMapS3Handler;
 use pman_lib::pman::pman_database_file::ENCRYPTION_ALGORITHM_CHACHA20;
 use pman_lib::structs_interfaces::{DatabaseGroup, FileAction};
-use rand::RngCore;
+use rand::{Rng, RngCore};
 use rand::rngs::OsRng;
 use sha2::{Sha256, Digest};
 
@@ -21,20 +21,22 @@ const TIME_DEFAULT: isize = 1000;
 const PARALLELISM_DEFAULT: isize = 6;
 const MEMORY_DEFAULT: isize = 128;
 
+const LETTER_TABLE: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+const NUMBER_TABLE: &str = "0123456789";
+const SYMBOL_TABLE: &str = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
+
 struct Parameters {
     names_file_parameter: StringParameter,
     passwords_file_parameter: StringParameter,
     password_parameter: StringParameter,
     password2_parameter: StringParameter,
     file_name_parameter: StringParameter,
-    salt_parameter: StringParameter,
     hash_parameter: EnumParameter,
     hash2_parameter: EnumParameter,
     encryption_parameter: EnumParameter,
     encryption2_parameter: EnumParameter,
     verbose_parameter: BoolParameter,
     create_parameter: BoolParameter,
-    argon2_test_parameter: BoolParameter,
     time_parameter: IntParameter,
     parallelism_parameter: IntParameter,
     time2_parameter: IntParameter,
@@ -43,8 +45,6 @@ struct Parameters {
     memory2_parameter: IntParameter,
     iterations_parameter: IntParameter,
     iterations2_parameter: IntParameter,
-    s3_path_parameter: StringParameter,
-    s3_key_parameter: StringParameter,
     s3_path_parameter1: StringParameter,
     s3_key_parameter1: StringParameter,
     s3_path_parameter2: StringParameter,
@@ -97,20 +97,19 @@ fn main() -> Result<(), Error> {
     let entity_groups_parameter = StringParameter::new("");
     let entity_users_parameter = StringParameter::new("");
     let entity_urls_parameter = StringParameter::new("");
+    let generate_password_parameter = StringParameter::new("");
     let parameters = Parameters{
         names_file_parameter,
         passwords_file_parameter,
         password_parameter,
         password2_parameter,
         file_name_parameter,
-        salt_parameter,
         hash_parameter,
         hash2_parameter,
         encryption_parameter,
         encryption2_parameter,
         verbose_parameter,
         create_parameter,
-        argon2_test_parameter,
         time_parameter,
         parallelism_parameter,
         time2_parameter,
@@ -119,8 +118,6 @@ fn main() -> Result<(), Error> {
         memory2_parameter,
         iterations_parameter,
         iterations2_parameter,
-        s3_path_parameter,
-        s3_key_parameter,
         s3_path_parameter1,
         s3_key_parameter1,
         s3_path_parameter2,
@@ -147,9 +144,9 @@ fn main() -> Result<(), Error> {
                     &parameters.hash2_parameter),
         Switch::new("verbose", Some('v'), None, &parameters.verbose_parameter),
         Switch::new("create mode", Some('c'), None, &parameters.create_parameter),
-        Switch::new("argon2 test mode", None, Some("argon2-test"), &parameters.argon2_test_parameter),
-        Switch::new("s3 path for s3 test", None, Some("s3-path"), &parameters.s3_path_parameter),
-        Switch::new("s3 key file for s3 test", None, Some("s3-key"), &parameters.s3_key_parameter),
+        Switch::new("argon2 test mode", None, Some("argon2-test"), &argon2_test_parameter),
+        Switch::new("s3 path for s3 test", None, Some("s3-path"), &s3_path_parameter),
+        Switch::new("s3 key file for s3 test", None, Some("s3-key"), &s3_key_parameter),
         Switch::new("s3 path for names file", None, Some("s3-path1"), &parameters.s3_path_parameter1),
         Switch::new("s3 key file for names file", None, Some("s3-key1"), &parameters.s3_key_parameter1),
         Switch::new("s3 path for passwords file", None, Some("s3-path2"), &parameters.s3_path_parameter2),
@@ -181,7 +178,7 @@ fn main() -> Result<(), Error> {
         Switch::new("file name", Some('f'), None,
                     &parameters.file_name_parameter),
         Switch::new("salt for hash algorithm test", None, Some("salt"),
-                    &parameters.salt_parameter),
+                    &salt_parameter),
         Switch::new("group names", None, Some("group-names"),
                     &parameters.group_names_parameter),
         Switch::new("user names", None, Some("user-names"),
@@ -195,7 +192,9 @@ fn main() -> Result<(), Error> {
         Switch::new("entity users", None, Some("entity-users"),
                     &parameters.entity_users_parameter),
         Switch::new("entity urls", None, Some("entity-urls"),
-                    &parameters.entity_urls_parameter)
+                    &parameters.entity_urls_parameter),
+        Switch::new("password generator", None, Some("generate-password"),
+                    &generate_password_parameter)
     ];
     let mut arguments = Arguments::new("pman_console", &switches, None);
     if let Err(e) = arguments.build(args().skip(1).collect()) {
@@ -203,9 +202,9 @@ fn main() -> Result<(), Error> {
         arguments.usage();
         return Ok(());
     }
-    if parameters.argon2_test_parameter.get_value() {
+    if argon2_test_parameter.get_value() {
         let password = get_password("password", parameters.password_parameter.get_value())?;
-        let salt_string = parameters.salt_parameter.get_value();
+        let salt_string = salt_parameter.get_value();
         let salt = salt_string.as_bytes();
         if salt.len() != 16 {
             println!("salt should have 16 bytes length");
@@ -214,12 +213,21 @@ fn main() -> Result<(), Error> {
         test_argon2(password, parameters.iterations_parameter.get_value(),
                     parameters.parallelism_parameter.get_value(),
                     parameters.memory_parameter.get_value(), salt)
-    } else if s3_test(parameters.s3_path_parameter.get_value(),
-                      parameters.s3_key_parameter.get_value())? {
+    } else if s3_test(s3_path_parameter.get_value(),
+                      s3_key_parameter.get_value())? ||
+        generate_password_command(generate_password_parameter.get_value())? {
         Ok(())
     } else {
         execute_database_operations(parameters)
     }
+}
+
+fn generate_password_command(rules: String) -> Result<bool, Error> {
+    if rules.is_empty() {
+        return Ok(false);
+    }
+    let password = get_entity_password(rules, 0)?;
+    return Ok(true);
 }
 
 fn execute_database_operations(parameters: Parameters) -> Result<(), Error> {
@@ -465,7 +473,34 @@ fn get_entity_urls(parameters: &Parameters, l: Option<usize>) -> Result<Vec<Opti
 fn get_entity_password(password: String, i: usize) -> Result<String, Error> {
     if password == "Ask" {
         get_password(format!("password for entity {}", i).as_str(), "".to_string())
+    } else if password.starts_with("gen") && password.len() > 5 {
+        Ok(generate_password(password))
     } else {Ok(password)}
+}
+
+fn generate_password(rules: String) -> String {
+    let l = rules.len();
+    if let Ok(length) = rules[l-2..l].parse::<usize>() {
+        let mut table = String::new();
+        for c in rules[3..l-2].chars() {
+            match c {
+                'a' => table += LETTER_TABLE,
+                '1' => table += NUMBER_TABLE,
+                '@' => table += SYMBOL_TABLE,
+                _ => return rules
+            }
+        }
+        let chars: Vec<char> = table.chars().collect();
+        let mut result = String::new();
+        let mut rng = rand::thread_rng();
+        for _ in 0..length {
+            let idx = rng.gen_range(0..chars.len());
+            result.push(chars[idx]);
+        }
+        println!("Generated password: {}", result);
+        return result;
+    }
+    rules
 }
 
 fn add_entities(database: u64, parameters: &Parameters) -> Result<bool, Error> {
