@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 use std::sync::Arc;
-use s3cli_lib::{build_key_info, KeyInfo};
+use s3cli_lib::{build_key_info, KeyInfo, S3KeyInfo};
 use crate::crypto::CryptoProcessor;
 use crate::error_builders::build_corrupted_data_error;
 use crate::pman::id_value_map::id_value_map::{IdValueMapDataHandler, IdValueMapValue};
 use crate::pman::id_value_map::id_value_map_data_file_handler::IdValueMapDataFileHandler;
 
 pub struct IdValueMapS3Handler {
-    key_info: KeyInfo,
+    key_info: S3KeyInfo,
     path: String,
     handler: IdValueMapDataFileHandler
 }
@@ -87,7 +87,7 @@ fn decode_location_data(location_data: Vec<u8>) -> Result<(String, Vec<u8>), Err
     Ok((path, location_data[l+2..].to_vec()))
 }
 
-fn load_from_s3(key_info: &KeyInfo, path: &String) -> Result<Vec<u8>, Error> {
+fn load_from_s3(key_info: &S3KeyInfo, path: &String) -> Result<Vec<u8>, Error> {
     let request_info = key_info.build_request_info("GET",
                                                    chrono::Utc::now(), &Vec::new(), path)?;
     request_info.make_request(None)
