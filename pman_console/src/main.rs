@@ -56,7 +56,8 @@ struct Parameters {
     entity_passwords_parameter: StringParameter,
     entity_groups_parameter: StringParameter,
     entity_users_parameter: StringParameter,
-    entity_urls_parameter: StringParameter
+    entity_urls_parameter: StringParameter,
+    entity_properties_parameter: StringParameter
 }
 
 fn main() -> Result<(), Error> {
@@ -97,6 +98,7 @@ fn main() -> Result<(), Error> {
     let entity_groups_parameter = StringParameter::new("");
     let entity_users_parameter = StringParameter::new("");
     let entity_urls_parameter = StringParameter::new("");
+    let entity_properties_parameter = StringParameter::new("");
     let generate_password_parameter = StringParameter::new("");
     let parameters = Parameters{
         names_file_parameter,
@@ -129,7 +131,8 @@ fn main() -> Result<(), Error> {
         entity_passwords_parameter,
         entity_groups_parameter,
         entity_users_parameter,
-        entity_urls_parameter
+        entity_urls_parameter,
+        entity_properties_parameter
     };
     let switches = [
         Switch::new("action", None, Some("actions"),
@@ -193,6 +196,8 @@ fn main() -> Result<(), Error> {
                     &parameters.entity_users_parameter),
         Switch::new("entity urls", None, Some("entity-urls"),
                     &parameters.entity_urls_parameter),
+        Switch::new("entity parameters", None, Some("entity-properties"),
+                    &parameters.entity_properties_parameter),
         Switch::new("password generator", None, Some("generate-password"),
                     &generate_password_parameter)
     ];
@@ -226,7 +231,7 @@ fn generate_password_command(rules: String) -> Result<bool, Error> {
     if rules.is_empty() {
         return Ok(false);
     }
-    let password = get_entity_password(rules, 0)?;
+    let _ = get_entity_password(rules, 0)?;
     return Ok(true);
 }
 
@@ -293,8 +298,7 @@ fn execute_action(database: u64, action: &str, parameters: &Parameters, verbose:
         "add_entities" => add_entities(database, parameters),
         "get_entities" => select_entities(database, parameters.group_names_parameter.get_value()),
         "remove_entities" => remove_entities(database, parameters),
-        "set_passwords" => set_passwords(database, parameters),
-        "set_urls" => set_urls(database, parameters),
+        "modify_entities" => modify_entities(database, parameters),
         "set_hash1" => set_hash1(database, parameters),
         "set_hash2" => set_hash2(database, parameters),
         "names_location" => set_names_file_location(database, parameters),
@@ -398,33 +402,53 @@ fn set_hash(database: u64, hash_id: u64, hash_type: String, iterations: isize, m
     }
 }
 
-fn set_urls(database: u64, parameters: &Parameters) -> Result<bool, Error> {
+fn modify_entities(database: u64, parameters: &Parameters) -> Result<bool, Error> {
     let entity_names = get_entity_names(parameters)?;
     let (entities, _) = get_entities_from_names(database, entity_names)?;
     let l = entities.len();
-    let urls = get_entity_urls(parameters, Some(l))?;
+    let passwords = if !parameters.entity_passwords_parameter.get_value().is_empty() {
+        Some(get_entity_passwords(parameters, Some(l))?)
+    } else {None};
+    let urls = if !parameters.entity_urls_parameter.get_value().is_empty() {
+        Some(get_entity_urls(parameters, Some(l))?)
+    } else {None};
+    let params = if !parameters.entity_properties_parameter.get_value().is_empty() {
+        Some(get_entity_parameters(parameters, Some(l))?)
+    } else {None};
     for i in 0..l {
+        let password = if let Some(pwds) = &passwords {
+            Some(get_entity_password(pwds[i].clone(), i)?)
+        } else {None};
+        let (url, change_url) = if let Some(u) = &urls {
+            (u[i].clone(), true)
+        } else {(None, false)};
+        let (new_properties, modified_properties) =
+            if let Some(p) = &params {
+            build_property_maps(entities[i].1.clone(), p[i].clone())?
+        } else {(HashMap::new(), HashMap::new())};
         modify_entity(database, entities[i].0, None, None,
-                      None, urls[i].clone(), true,
-                      HashMap::new(), HashMap::new())
+                      password, url, change_url, new_properties,
+                      modified_properties)
             .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
     }
     Ok(true)
 }
 
-fn set_passwords(database: u64, parameters: &Parameters) -> Result<bool, Error> {
-    let entity_names = get_entity_names(parameters)?;
-    let (entities, _) = get_entities_from_names(database, entity_names)?;
-    let l = entities.len();
-    let passwords = get_entity_passwords(parameters, Some(l))?;
-    for i in 0..l {
-        let password = get_entity_password(passwords[i].clone(), i)?;
-        modify_entity(database, entities[i].0, None, None,
-                      Some(password), None, false,
-        HashMap::new(), HashMap::new())
-            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+fn build_property_maps(entity: Arc<DatabaseEntity>, parameters: HashMap<String, String>)
+    -> Result<(HashMap<String, String>, HashMap<u32, Option<String>>), Error> {
+    let property_names = entity.get_property_names(ENTITY_VERSION_LATEST)
+        .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+    let mut new_properties = HashMap::new();
+    let mut modified_properties = HashMap::new();
+    for (name, value) in parameters {
+        if let Some(id) = property_names.get(&name) {
+            let v = if value == "None" { None } else { Some(value) };
+            modified_properties.insert(*id, v);
+        } else {
+            new_properties.insert(name, value);
+        }
     }
-    Ok(true)
+    Ok((new_properties, modified_properties))
 }
 
 fn remove_entities(database: u64, parameters: &Parameters) -> Result<bool, Error> {
@@ -470,6 +494,29 @@ fn get_entity_urls(parameters: &Parameters, l: Option<usize>) -> Result<Vec<Opti
     Ok(urls.into_iter().map(|u|if u == "None" {None} else {Some(u)}).collect())
 }
 
+fn get_entity_parameters(parameters: &Parameters, l: Option<usize>) -> Result<Vec<HashMap<String, String>>, Error> {
+    let params = parse_string_array(parameters.entity_properties_parameter.get_value(),
+                                  "entity parameters expected", l)?;
+    let mut result = Vec::new();
+    for p in params {
+        let mut entity_parameters = HashMap::new();
+        if p != "None" {
+            for part in p.split(';') {
+                let namevalue: Vec<String> = part.split(':').map(|e| e.to_string()).collect();
+                if namevalue.len() != 2 {
+                    return Err(Error::new(ErrorKind::InvalidInput, "invalid parameters"));
+                }
+                let value = if namevalue[1] == "Ask" {
+                    get_password(format!("value for parameter {}", namevalue[0]).as_str(), "".to_string())?
+                } else {namevalue[1].clone()};
+                entity_parameters.insert(namevalue[0].clone(), value);
+            }
+        }
+        result.push(entity_parameters);
+    }
+    Ok(result)
+}
+
 fn get_entity_password(password: String, i: usize) -> Result<String, Error> {
     if password == "Ask" {
         get_password(format!("password for entity {}", i).as_str(), "".to_string())
@@ -512,6 +559,9 @@ fn add_entities(database: u64, parameters: &Parameters) -> Result<bool, Error> {
         parse_string_array(parameters.entity_users_parameter.get_value(), "entity users expected", l)?;
     let entity_passwords = get_entity_passwords(parameters, l)?;
     let entity_urls = get_entity_urls(parameters, l)?;
+    let params = if !parameters.entity_properties_parameter.get_value().is_empty() {
+        Some(get_entity_parameters(parameters, l)?)
+    } else {None};
     let groups: HashMap<String, u32> = get_groups(database)
         .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?
         .into_iter()
@@ -532,8 +582,11 @@ fn add_entities(database: u64, parameters: &Parameters) -> Result<bool, Error> {
     }
     for i in 0..l.unwrap() {
         let password = get_entity_password(entity_passwords[i].clone(), i)?;
+        let properties = if let Some(p) = &params {
+            p[i].clone()
+        } else { HashMap::new() };
         add_entity(database, entity_names[i].clone(), entity_group_ids[i],
-                   entity_user_ids[i], password, entity_urls[i].clone(), HashMap::new())
+                   entity_user_ids[i], password, entity_urls[i].clone(), properties)
             .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
     }
     Ok(true)
@@ -557,6 +610,13 @@ fn show_entity(groups: &Vec<Arc<DatabaseGroup>>, users: &HashMap<u32, String>,
     println!("Url: {}", url);
     println!("Password: {}", entity.get_password(ENTITY_VERSION_LATEST)
         .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?);
+    println!("Properties:");
+    for (name, id) in entity.get_property_names(ENTITY_VERSION_LATEST)
+        .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))? {
+        let value = entity.get_property_value(ENTITY_VERSION_LATEST, id)
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+        println!("{}:{}", name, value);
+    }
     println!("-------------------------------------");
     Ok(())
 }
