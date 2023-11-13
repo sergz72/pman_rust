@@ -12,10 +12,13 @@ use pman_lib::pman::database_entity::ENTITY_VERSION_LATEST;
 use pman_lib::pman::id_value_map::id_value_map::IdValueMap;
 use pman_lib::pman::id_value_map::id_value_map_s3_handler::IdValueMapS3Handler;
 use pman_lib::pman::pman_database_file::ENCRYPTION_ALGORITHM_CHACHA20;
-use pman_lib::structs_interfaces::{DatabaseGroup, FileAction};
+use pman_lib::structs_interfaces::{DatabaseGroup, FileAction, PasswordDatabaseType};
 use rand::{Rng, RngCore};
 use rand::rngs::OsRng;
 use sha2::{Sha256, Digest};
+use aes::Aes256;
+use aes::cipher::generic_array::GenericArray;
+use aes::cipher::{BlockDecrypt, BlockEncrypt, KeyInit};
 
 const TIME_DEFAULT: isize = 1000;
 const PARALLELISM_DEFAULT: isize = 6;
@@ -57,7 +60,8 @@ struct Parameters {
     entity_groups_parameter: StringParameter,
     entity_users_parameter: StringParameter,
     entity_urls_parameter: StringParameter,
-    entity_properties_parameter: StringParameter
+    entity_properties_parameter: StringParameter,
+    key_file_parameter: StringParameter
 }
 
 fn main() -> Result<(), Error> {
@@ -76,6 +80,7 @@ fn main() -> Result<(), Error> {
     let verbose_parameter = BoolParameter::new();
     let create_parameter = BoolParameter::new();
     let argon2_test_parameter = BoolParameter::new();
+    let key_create_parameter = BoolParameter::new();
     let time_parameter = IntParameter::new(TIME_DEFAULT, |v|v>0);
     let parallelism_parameter = IntParameter::new(PARALLELISM_DEFAULT, |v|v>0&&v<256);
     let time2_parameter = IntParameter::new(TIME_DEFAULT, |v|v>0);
@@ -100,6 +105,7 @@ fn main() -> Result<(), Error> {
     let entity_urls_parameter = StringParameter::new("");
     let entity_properties_parameter = StringParameter::new("");
     let generate_password_parameter = StringParameter::new("");
+    let key_file_parameter = StringParameter::new("");
     let parameters = Parameters{
         names_file_parameter,
         passwords_file_parameter,
@@ -132,7 +138,8 @@ fn main() -> Result<(), Error> {
         entity_groups_parameter,
         entity_users_parameter,
         entity_urls_parameter,
-        entity_properties_parameter
+        entity_properties_parameter,
+        key_file_parameter
     };
     let switches = [
         Switch::new("action", None, Some("actions"),
@@ -148,6 +155,7 @@ fn main() -> Result<(), Error> {
         Switch::new("verbose", Some('v'), None, &parameters.verbose_parameter),
         Switch::new("create mode", Some('c'), None, &parameters.create_parameter),
         Switch::new("argon2 test mode", None, Some("argon2-test"), &argon2_test_parameter),
+        Switch::new("key file create", None, Some("key-create"), &key_create_parameter),
         Switch::new("s3 path for s3 test", None, Some("s3-path"), &s3_path_parameter),
         Switch::new("s3 key file for s3 test", None, Some("s3-key"), &s3_key_parameter),
         Switch::new("s3 path for names file", None, Some("s3-path1"), &parameters.s3_path_parameter1),
@@ -199,7 +207,9 @@ fn main() -> Result<(), Error> {
         Switch::new("entity parameters", None, Some("entity-properties"),
                     &parameters.entity_properties_parameter),
         Switch::new("password generator", None, Some("generate-password"),
-                    &generate_password_parameter)
+                    &generate_password_parameter),
+        Switch::new("key file name", None, Some("key-file"),
+                    &parameters.key_file_parameter)
     ];
     let mut arguments = Arguments::new("pman_console", &switches, None);
     if let Err(e) = arguments.build(args().skip(1).collect()) {
@@ -218,6 +228,8 @@ fn main() -> Result<(), Error> {
         test_argon2(password, parameters.iterations_parameter.get_value(),
                     parameters.parallelism_parameter.get_value(),
                     parameters.memory_parameter.get_value(), salt)
+    } else if key_create_parameter.get_value() {
+        create_key_file(parameters)
     } else if s3_test(s3_path_parameter.get_value(),
                       s3_key_parameter.get_value())? ||
         generate_password_command(generate_password_parameter.get_value())? {
@@ -225,6 +237,52 @@ fn main() -> Result<(), Error> {
     } else {
         execute_database_operations(parameters)
     }
+}
+
+fn build_cipher(password: String) -> Result<Aes256, Error> {
+    let key = get_password("key", password)?;
+    let key_hash = create_hash(key);
+    let mut k = [0u8; 32];
+    k.copy_from_slice(key_hash.as_slice());
+    let key = GenericArray::from(k);
+    let cipher = Aes256::new(&key);
+    Ok(cipher)
+}
+
+fn create_encrypted_hash(password: String, cipher: &Aes256) -> Vec<u8> {
+    let h = create_hash(password);
+    let password_hash = h.as_slice();
+    let mut ph = [0u8; 16];
+    ph.copy_from_slice(&password_hash[0..16]);
+    let mut block1 = GenericArray::from(ph);
+    cipher.encrypt_block(&mut block1);
+    ph.copy_from_slice(&password_hash[16..32]);
+    let mut block2 = GenericArray::from(ph);
+    cipher.encrypt_block(&mut block2);
+    let mut v = block1.to_vec();
+    v.extend_from_slice(&block2.as_slice());
+    v
+}
+
+fn create_key_file_data(key: String, password: String, password2: String) -> Result<Vec<u8>, Error> {
+    let cipher = build_cipher(key)?;
+    let mut password_hash = create_encrypted_hash(password, &cipher);
+    let password2_hash = create_encrypted_hash(password2, &cipher);
+    password_hash.extend_from_slice(&password2_hash);
+    Ok(password_hash)
+}
+
+fn create_key_file(parameters: Parameters) -> Result<(), Error> {
+    let file_name = parameters.key_file_parameter.get_value();
+    if file_name == "" {
+        println!("key file name expected");
+        return Ok(());
+    }
+    let password = get_password("password", parameters.password_parameter.get_value())?;
+    let password2 = get_password("password2", parameters.password2_parameter.get_value())?;
+    let data = create_key_file_data("".to_string(), password, password2)?;
+    let mut f = File::create(file_name)?;
+    f.write_all(&data)
 }
 
 fn generate_password_command(rules: String) -> Result<bool, Error> {
@@ -235,20 +293,69 @@ fn generate_password_command(rules: String) -> Result<bool, Error> {
     return Ok(true);
 }
 
+fn build_password_hashes(database_type: &PasswordDatabaseType, file_name: &String, parameters: &Parameters)
+    -> Result<(Vec<u8>, Option<Vec<u8>>), Error> {
+    let password = get_password("password", parameters.password_parameter.get_value())?;
+    let password2 = if database_type.requires_second_password() {
+        Some(get_password("password2", parameters.password2_parameter.get_value())?)
+    } else { None };
+    let password_hash = create_hash(password);
+    let password2_hash = password2.map(|p|create_hash(p));
+    Ok((password_hash, password2_hash))
+}
+
+fn build_password_hashes_from_key_file(file_name: String) -> Result<(Vec<u8>, Option<Vec<u8>>), Error> {
+    let data = load_file(file_name)?;
+    build_password_hashes_from_data(data, "".to_string())
+}
+
+fn build_password_hashes_from_data(data: Vec<u8>, key: String) -> Result<(Vec<u8>, Option<Vec<u8>>), Error> {
+    if data.len() != 64 {
+        return Err(Error::new(ErrorKind::InvalidData, "wrong key file length"));
+    }
+    let cipher = build_cipher(key)?;
+    let d = data.as_slice();
+    let mut ph = [0u8; 16];
+
+    ph.copy_from_slice(&d[0..16]);
+    let mut block1 = GenericArray::from(ph);
+    cipher.decrypt_block(&mut block1);
+
+    ph.copy_from_slice(&d[16..32]);
+    let mut block2 = GenericArray::from(ph);
+    cipher.decrypt_block(&mut block2);
+
+    ph.copy_from_slice(&d[32..48]);
+    let mut block3 = GenericArray::from(ph);
+    cipher.decrypt_block(&mut block3);
+
+    ph.copy_from_slice(&d[48..64]);
+    let mut block4 = GenericArray::from(ph);
+    cipher.decrypt_block(&mut block4);
+
+    let mut v1 = block1.to_vec();
+    v1.extend_from_slice(block2.as_slice());
+
+    let mut v2 = block3.to_vec();
+    v2.extend_from_slice(block4.as_slice());
+
+    Ok((v1, Some(v2)))
+}
+
 fn execute_database_operations(parameters: Parameters) -> Result<(), Error> {
     let file_name = parameters.file_name_parameter.get_value();
     if file_name == "" {
         println!("file name expected");
         return Ok(());
     }
-    let password = get_password("password", parameters.password_parameter.get_value())?;
     let database_type = get_database_type(&file_name)?;
-    let password2 = if database_type.requires_second_password() {
-        Some(get_password("password2", parameters.password2_parameter.get_value())?)
-    } else { None };
     let verbose = parameters.verbose_parameter.get_value();
-    let password_hash = create_hash(password);
-    let password2_hash = password2.map(|p|create_hash(p));
+    let (password_hash, password2_hash) =
+        if parameters.key_file_parameter.get_value().is_empty() {
+        build_password_hashes(&database_type, &file_name, &parameters)?
+    } else {
+        build_password_hashes_from_key_file(parameters.key_file_parameter.get_value())?
+    };
     lib_init();
     let database = if parameters.create_parameter.get_value() {
         create(database_type, password_hash, password2_hash, None, file_name)
@@ -761,4 +868,26 @@ fn create_hash(password: String) -> Vec<u8> {
     hasher.update(password);
     let hash = hasher.finalize();
     Vec::from(hash.as_slice())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::Error;
+    use crate::{build_password_hashes_from_data, create_hash, create_key_file_data};
+
+    #[test]
+    fn test_key_file() -> Result<(), Error> {
+        let key = "12345".to_string();
+        let password = "2131415".to_string();
+        let password_hash = create_hash(password.clone());
+        let password2 = "9876543".to_string();
+        let password2_hash = create_hash(password2.clone());
+        let data =
+            create_key_file_data(key.clone(), password, password2)?;
+        let (h1, h2) = build_password_hashes_from_data(data, key)?;
+        assert!(h2.is_some());
+        assert_eq!(password_hash, h1);
+        assert_eq!(password2_hash, h2.unwrap());
+        Ok(())
+    }
 }

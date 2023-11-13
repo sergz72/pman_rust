@@ -8,3 +8,4 @@ arguments_parser = { git = "https://github.com/sergz72/arguments_parser.git"}
 pman_lib = { path = "../pman_lib" }
 sha2 = "0.10.8"
 rand = "0.8.5"
+aes = "0.8.3"
