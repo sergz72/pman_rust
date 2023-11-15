@@ -9,7 +9,6 @@ import SwiftUI
 
 struct PasswordView: View {
     @Binding var selectedDatabase: Database?
-    @Binding var databaseIsOpened: Bool
 
     @State var firstPassword = ""
     @State var secondPassword = ""
@@ -34,9 +33,6 @@ struct PasswordView: View {
                         .open_database(
                             firstPassword: firstPassword, secondPassword: secondPassword)
                         ?? "Database is not selected"
-                    if errorMessage.isEmpty {
-                        databaseIsOpened = true;
-                    }
                 }
                 .gridCellColumns(2)
                 .disabled(secondPassword.isEmpty || firstPassword.isEmpty)
@@ -51,7 +47,7 @@ struct PasswordView: View {
 }
 
 #Preview {
-    StatefulPreviewWrapper2(value: nil, value2: false) {
-        PasswordView(selectedDatabase: $0, databaseIsOpened: $1)
+    StatefulPreviewWrapper(nil) {
+        PasswordView(selectedDatabase: $0)
     }
 }

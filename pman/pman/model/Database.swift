@@ -8,17 +8,23 @@
 import Foundation
 import CryptoKit
 
-class Database: Hashable, Identifiable, Equatable, ObservableObject {
+struct Database: Equatable, Identifiable {
     let id: String
     let name: String
     let errorMessage: String?
     let dbId: UInt64?
     var isOpened: Bool
+    var groups: [DBGroup]
+    var entities: [DBEntity]
+    var selectedGroup: UInt32
     
     init(dbURL: URL) {
         name = dbURL.absoluteString
         id = name
         isOpened = false
+        groups = []
+        entities = []
+        selectedGroup = 0
         do {
             let rawData: Data = try Data(contentsOf: dbURL)
             dbId = try prepare(data: rawData, fileName: name)
@@ -38,9 +44,23 @@ class Database: Hashable, Identifiable, Equatable, ObservableObject {
         isOpened = false
         errorMessage = message
         dbId = nil
+        groups = []
+        entities = []
+        selectedGroup = 0
     }
     
-    func open_database(firstPassword: String, secondPassword: String?) -> String {
+    init(groupName: String, entitiesCount: Int) {
+        name = "test"
+        id = name
+        isOpened = true
+        errorMessage = ""
+        dbId = 1
+        entities = []
+        selectedGroup = 0
+        groups = [DBGroup(n: groupName, eCount: entitiesCount)]
+    }
+    
+    mutating func open_database(firstPassword: String, secondPassword: String?) -> String {
         if dbId == nil {
             return "Database is not prepared"
         }
@@ -53,11 +73,29 @@ class Database: Hashable, Identifiable, Equatable, ObservableObject {
             let fileNames = try preOpen(databaseId: dbId!, passwordHash: hash1, password2Hash: hash2, keyFileContents: nil)
             let data = try loadFiles(names: fileNames)
             try open(databaseId: dbId!, data: data)
+            let g = try getGroups(databaseId: dbId!)
+            groups = g.map { DBGroup(group: $0) }.sorted {$0.name < $1.name}
             isOpened = true
-            objectWillChange.send()
+            Databases.save(database: self)
         } catch PmanError.ErrorMessage(let e) {
             return e
         } catch {
+            return error.localizedDescription
+        }
+        return ""
+    }
+    
+    mutating func selectGroup(groupId: UInt32) -> String {
+        selectedGroup = groupId
+        do {
+            let e = try getEntities(databaseId: dbId!, groupId: groupId)
+            entities = try e.map { try DBEntity(entityId: $0.key, e: $0.value) }.sorted {$0.name < $1.name}
+            Databases.save(database: self)
+        } catch PmanError.ErrorMessage(let e) {
+            entities = []
+            return e
+        } catch {
+            entities = []
             return error.localizedDescription
         }
         return ""
@@ -72,26 +110,11 @@ class Database: Hashable, Identifiable, Equatable, ObservableObject {
         return result
     }
     
-    func getDatabaseGroups() throws -> [DatabaseGroup] {
-        if !isOpened {
-            throw DatabaseError.databaseIsNotOpened
-        }
-        return try getGroups(databaseId: dbId!)
-    }
-
-    func getDatabaseEntities(groupId: UInt32) throws -> [UInt32: DatabaseEntity] {
+    private func getDatabaseEntities(groupId: UInt32) throws -> [UInt32: DatabaseEntity] {
         if !isOpened {
             throw DatabaseError.databaseIsNotOpened
         }
         return try getEntities(databaseId: dbId!, groupId: groupId)
-    }
-
-    public func hash(into hasher: inout Hasher) {
-        return hasher.combine(id)
-    }
-
-    static func == (lhs: Database, rhs: Database) -> Bool {
-        return lhs.id == rhs.id
     }
 }
 
@@ -102,6 +125,15 @@ class Databases: ObservableObject {
         libInit();
         let dbs = UserDefaults.standard.array(forKey: "databases") as? [String] ?? []
         return dbs.map{ Database(dbURL: URL(string: $0)!) }
+    }
+    
+    static func save(database: Database) {
+        for i in 0...databases.count-1 {
+            if databases[i].id == database.id {
+                databases[i] = database
+                break
+            }
+        }
     }
     
     func add(databaseURL: URL) {
@@ -119,4 +151,34 @@ class Databases: ObservableObject {
 
 enum DatabaseError: Error {
     case databaseIsNotOpened
+}
+
+struct DBGroup: Equatable, Identifiable {
+    let name: String
+    let entitesCount: String
+    let id: UInt32
+    
+    init(n: String, eCount: Int) {
+        self.name = n
+        self.entitesCount = String(eCount)
+        self.id = 0
+    }
+    
+    init(group: DatabaseGroup) {
+        self.name = group.getName()
+        self.id = group.getId()
+        self.entitesCount = String(group.getEntitiesCount())
+    }
+}
+
+struct DBEntity: Equatable, Identifiable {
+    let id: UInt32
+    let name: String
+    //let entity: DatabaseEntity
+    
+    init(entityId: UInt32, e: DatabaseEntity) throws {
+        self.id = entityId
+        self.name = try e.getName()
+        //self.entity = e
+    }
 }

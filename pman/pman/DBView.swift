@@ -11,7 +11,6 @@ import UniformTypeIdentifiers
 struct DBView: View {
     @Binding var selectedDatabase: Database?
     @Binding var databaseOperation: EntityOperations
-    @Binding var databaseIsOpened: Bool
 
     var databases = Databases()
 
@@ -25,7 +24,7 @@ struct DBView: View {
             HeaderView(entityOperation: $databaseOperation, title: "Databases", backgroundColor: .cyan)
             List(Databases.databases) { item in
                 Text(item.name)
-                    .listRowBackground(selectedDatabase == item ? Color.red : Color.gray)
+                    .listRowBackground(selectedDatabase == item ? Color.green : Color.gray)
                     .onTapGesture {
                         selectedDatabase = item
                     }
@@ -74,8 +73,8 @@ struct DBView: View {
 
 struct DBView_Previews: PreviewProvider {
     static var previews: some View {
-        StatefulPreviewWrapper3(value: nil, value2: EntityOperations.none, value3: false) {
-            DBView(selectedDatabase: $0, databaseOperation: $1, databaseIsOpened: $2)
+        StatefulPreviewWrapper2(value: Database.init(dbName: "", message: nil), value2: EntityOperations.none) {
+            DBView(selectedDatabase: $0, databaseOperation: $1)
         }
     }
 }
