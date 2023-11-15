@@ -72,6 +72,20 @@ class Database: Hashable, Identifiable, Equatable, ObservableObject {
         return result
     }
     
+    func getDatabaseGroups() throws -> [DatabaseGroup] {
+        if !isOpened {
+            throw DatabaseError.databaseIsNotOpened
+        }
+        return try getGroups(databaseId: dbId!)
+    }
+
+    func getDatabaseEntities(groupId: UInt32) throws -> [UInt32: DatabaseEntity] {
+        if !isOpened {
+            throw DatabaseError.databaseIsNotOpened
+        }
+        return try getEntities(databaseId: dbId!, groupId: groupId)
+    }
+
     public func hash(into hasher: inout Hasher) {
         return hasher.combine(id)
     }
@@ -90,9 +104,6 @@ class Databases: ObservableObject {
         return dbs.map{ Database(dbURL: URL(string: $0)!) }
     }
     
-    init() {
-    }
-    
     func add(databaseURL: URL) {
         Databases.databases.append(Database(dbURL: databaseURL))
         let dbs = Databases.databases.map { $0.name }
@@ -104,4 +115,8 @@ class Databases: ObservableObject {
         let dbs = Databases.databases.map { $0.name }
         UserDefaults.standard.set(dbs, forKey: "databases")
     }
+}
+
+enum DatabaseError: Error {
+    case databaseIsNotOpened
 }

@@ -11,7 +11,8 @@ import UniformTypeIdentifiers
 struct DBView: View {
     @Binding var selectedDatabase: Database?
     @Binding var databaseOperation: EntityOperations
-    
+    @Binding var databaseIsOpened: Bool
+
     var databases = Databases()
 
     var body: some View {
@@ -73,8 +74,8 @@ struct DBView: View {
 
 struct DBView_Previews: PreviewProvider {
     static var previews: some View {
-        StatefulPreviewWrapper2(value: nil, value2: EntityOperations.none) {
-            DBView(selectedDatabase: $0, databaseOperation: $1)
+        StatefulPreviewWrapper3(value: nil, value2: EntityOperations.none, value3: false) {
+            DBView(selectedDatabase: $0, databaseOperation: $1, databaseIsOpened: $2)
         }
     }
 }

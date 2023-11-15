@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct EntityView: View {
+    @Binding var selectedDatabase: Database?
+
     @State var entityOperation = EntityOperations.none
     
     var body: some View {
@@ -37,6 +39,8 @@ struct EntityView: View {
 
 struct EntityView_Previews: PreviewProvider {
     static var previews: some View {
-        EntityView()
+        StatefulPreviewWrapper(nil) {
+            EntityView(selectedDatabase: $0)
+        }
     }
 }

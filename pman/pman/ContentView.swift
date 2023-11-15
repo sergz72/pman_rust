@@ -12,6 +12,7 @@ struct ContentView: View {
     @AppStorage("groupsViewWidth") var groupsViewWidth = 200.0
 
     @State var selectedDatabase: Database?
+    @State var databaseIsOpened: Bool = false
     
     @Binding var databaseOperation: EntityOperations
 
@@ -20,7 +21,7 @@ struct ContentView: View {
         GeometryReader { geometry in
             if geometry.size.width < geometry.size.height {
                 VStack {
-                    DBView(selectedDatabase: $selectedDatabase, databaseOperation: $databaseOperation)
+                    DBView(selectedDatabase: $selectedDatabase, databaseOperation: $databaseOperation, databaseIsOpened: $databaseIsOpened)
                         .frame(minHeight: 100, maxHeight: 100)
                     Divider()
                     if selectedDatabase?.name == nil {
@@ -30,14 +31,15 @@ struct ContentView: View {
                             Text(selectedDatabase!.errorMessage!)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                         } else {
-                            if selectedDatabase!.isOpened {
-                                GroupsView()
+                            if databaseIsOpened {
+                                GroupsView(selectedDatabase: $selectedDatabase)
                                     .frame(minHeight: 100, maxHeight: 100)
                                 Divider()
-                                EntityView()
+                                EntityView(selectedDatabase: $selectedDatabase)
                                     .frame(maxHeight: .infinity)
                             } else {
-                                buildPasswordView()
+                                PasswordView(selectedDatabase: $selectedDatabase,
+                                             databaseIsOpened: $databaseIsOpened)
                             }
                         }
                     }
@@ -54,7 +56,7 @@ struct ContentView: View {
     
     func buildHorizontalView() -> some View {
         HStack(spacing: 3) {
-            DBView(selectedDatabase: $selectedDatabase, databaseOperation: $databaseOperation)
+            DBView(selectedDatabase: $selectedDatabase, databaseOperation: $databaseOperation, databaseIsOpened: $databaseIsOpened)
                 .frame(width: dbViewWidth)
             DraggableDivider(viewWidth: $dbViewWidth, minViewWidth: 200)
             if selectedDatabase?.name == nil {
@@ -64,23 +66,20 @@ struct ContentView: View {
                     Text(selectedDatabase!.errorMessage!)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    if selectedDatabase!.isOpened {
-                        GroupsView()
+                    if databaseIsOpened {
+                        GroupsView(selectedDatabase: $selectedDatabase)
                             .frame(width: groupsViewWidth)
                         DraggableDivider(viewWidth: $groupsViewWidth, minViewWidth: 200)
-                        EntityView()
+                        EntityView(selectedDatabase: $selectedDatabase)
                             .frame(maxWidth: .infinity)
                     } else {
-                        buildPasswordView()
+                        PasswordView(selectedDatabase: $selectedDatabase,
+                                     databaseIsOpened: $databaseIsOpened)
                     }
                 }
             }
         }
         .padding()
-    }
-    
-    func buildPasswordView() -> some View {
-        PasswordView(selectedDatabase: $selectedDatabase)
     }
 }
 

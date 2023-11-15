@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct GroupsView: View {
+    @Binding var selectedDatabase: Database?
+
     @State var groupOperation = EntityOperations.none
 
     var body: some View {
@@ -17,12 +19,18 @@ struct GroupsView: View {
                 Text(/*@START_MENU_TOKEN@*/"Hello, World!"/*@END_MENU_TOKEN@*/)
 #if os(macOS)
                     .contextMenu {
+                        Button("Rename") {
+                            
+                        }
                         Button("Delete") {
                             
                         }
                     }
 #else
                     .swipeActions {
+                        Button("Rename") {
+                        }
+                        .tint(.yellow)
                         Button("Delete") {
                         }
                         .tint(.red)
@@ -36,5 +44,7 @@ struct GroupsView: View {
 }
 
 #Preview {
-    GroupsView()
+    StatefulPreviewWrapper(nil) {
+        GroupsView(selectedDatabase: $0)
+    }
 }

@@ -9,6 +9,7 @@ import SwiftUI
 
 struct PasswordView: View {
     @Binding var selectedDatabase: Database?
+    @Binding var databaseIsOpened: Bool
 
     @State var firstPassword = ""
     @State var secondPassword = ""
@@ -19,20 +20,23 @@ struct PasswordView: View {
             GridRow {
                 Text("First password")
                     .gridColumnAlignment(.leading)
-                TextField("Enter password", text: $firstPassword)
+                SecureField("Enter password", text: $firstPassword)
                     .textContentType(.password)
             }
             GridRow {
                 Text("Second password")
-                TextField("Enter password", text: $secondPassword)
+                SecureField("Enter password", text: $secondPassword)
                     .textContentType(.password)
             }
             GridRow {
                 Button("Open database") {
-                   errorMessage = selectedDatabase?
+                    errorMessage = selectedDatabase?
                         .open_database(
                             firstPassword: firstPassword, secondPassword: secondPassword)
                         ?? "Database is not selected"
+                    if errorMessage.isEmpty {
+                        databaseIsOpened = true;
+                    }
                 }
                 .gridCellColumns(2)
                 .disabled(secondPassword.isEmpty || firstPassword.isEmpty)
@@ -47,7 +51,7 @@ struct PasswordView: View {
 }
 
 #Preview {
-    StatefulPreviewWrapper(nil) {
-        PasswordView(selectedDatabase: $0)
+    StatefulPreviewWrapper2(value: nil, value2: false) {
+        PasswordView(selectedDatabase: $0, databaseIsOpened: $1)
     }
 }
