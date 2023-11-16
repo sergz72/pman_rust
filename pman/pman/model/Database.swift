@@ -7,6 +7,7 @@
 
 import Foundation
 import CryptoKit
+import AppKit
 
 struct Database: Equatable, Identifiable {
     let id: String
@@ -14,16 +15,20 @@ struct Database: Equatable, Identifiable {
     let errorMessage: String?
     let dbId: UInt64?
     var isOpened: Bool
+    var users: [UInt32 : String]
     var groups: [DBGroup]
     var entities: [DBEntity]
     var selectedGroup: UInt32
-    
+    var propertyNames: [IdName]
+
     init(dbURL: URL) {
         name = dbURL.absoluteString
         id = name
         isOpened = false
         groups = []
+        users = [:]
         entities = []
+        propertyNames = []
         selectedGroup = 0
         do {
             let rawData: Data = try Data(contentsOf: dbURL)
@@ -45,7 +50,9 @@ struct Database: Equatable, Identifiable {
         errorMessage = message
         dbId = nil
         groups = []
+        users = [:]
         entities = []
+        propertyNames = []
         selectedGroup = 0
     }
     
@@ -56,10 +63,26 @@ struct Database: Equatable, Identifiable {
         errorMessage = ""
         dbId = 1
         entities = []
+        users = [:]
         selectedGroup = 0
+        propertyNames = []
         groups = [DBGroup(n: groupName, eCount: entitiesCount)]
     }
-    
+
+    init(eName: String) {
+        name = "test"
+        id = name
+        isOpened = true
+        errorMessage = ""
+        dbId = 1
+        entities = []
+        users = [:]
+        selectedGroup = 0
+        groups = []
+        propertyNames = []
+        entities = [DBEntity(entityName: eName)]
+    }
+
     mutating func open_database(firstPassword: String, secondPassword: String?) -> String {
         if dbId == nil {
             return "Database is not prepared"
@@ -75,6 +98,7 @@ struct Database: Equatable, Identifiable {
             try open(databaseId: dbId!, data: data)
             let g = try getGroups(databaseId: dbId!)
             groups = g.map { DBGroup(group: $0) }.sorted {$0.name < $1.name}
+            users = try getUsers(databaseId: dbId!)
             isOpened = true
             Databases.save(database: self)
         } catch PmanError.ErrorMessage(let e) {
@@ -100,7 +124,36 @@ struct Database: Equatable, Identifiable {
         }
         return ""
     }
-    
+
+    mutating func fetchPropertyNames(entity: DatabaseEntity?) -> String {
+        if entity != nil {
+            do {
+                self.propertyNames = try entity!.getPropertyNames(version: 0).map { IdName.init(iD: $0.value, n: $0.key) }
+                Databases.save(database: self)
+                return ""
+            } catch PmanError.ErrorMessage(let e) {
+                return e
+            } catch {
+                return error.localizedDescription
+            }
+        }
+        return "entity is null"
+    }
+
+    func getUserName(entity: DatabaseEntity?) -> ValueError {
+        if entity != nil {
+            do {
+                let value = try entity!.getUserId(version: 0)
+                return ValueError.init(v: self.users[value]!, message: "")
+            } catch PmanError.ErrorMessage(let e) {
+                return ValueError.init(v: "", message: e)
+            } catch {
+                return ValueError.init(v: "", message: error.localizedDescription)
+            }
+        }
+        return ValueError.init(v: "", message: "entity is null")
+    }
+
     func loadFiles(names: [String]) throws -> [Data] {
         var result: [Data] = []
         for name in names {
@@ -171,14 +224,81 @@ struct DBGroup: Equatable, Identifiable {
     }
 }
 
+struct ValueError {
+    let errorMessage: String
+    let value: String
+    
+    init(v: String, message: String) {
+        self.value = v
+        self.errorMessage = message
+    }
+    
+    func copy() -> String {
+        if self.errorMessage == "" {
+            let pasteboard = NSPasteboard.general
+            pasteboard.clearContents()
+            pasteboard.setString(self.value, forType: .string)
+        }
+        return self.errorMessage
+    }
+}
+
+struct IdName: Equatable, Identifiable {
+    let id: UInt32
+    let name: String
+    
+    init(iD: UInt32, n: String) {
+        id = iD
+        name = n
+    }
+}
+
 struct DBEntity: Equatable, Identifiable {
     let id: UInt32
     let name: String
-    //let entity: DatabaseEntity
+    let entity: DatabaseEntity?
+    
+    init(entityName: String) {
+        self.id = 1
+        self.name = entityName
+        self.entity = nil
+    }
     
     init(entityId: UInt32, e: DatabaseEntity) throws {
         self.id = entityId
         self.name = try e.getName()
-        //self.entity = e
+        self.entity = e
+    }
+        
+    func getPassword() -> ValueError {
+        if entity != nil {
+            do {
+                let value = try entity!.getPassword(version: 0)
+                return ValueError.init(v: value, message: "")
+            } catch PmanError.ErrorMessage(let e) {
+                return ValueError.init(v: "", message: e)
+            } catch {
+                return ValueError.init(v: "", message: error.localizedDescription)
+            }
+        }
+        return ValueError.init(v: "", message: "entity is null")
+    }
+    
+    func getPropertyValue(propertyId: UInt32) -> ValueError {
+        if entity != nil {
+            do {
+                let value = try entity!.getPropertyValue(version: 0, id: propertyId)
+                return ValueError.init(v: value, message: "")
+            } catch PmanError.ErrorMessage(let e) {
+                return ValueError.init(v: "", message: e)
+            } catch {
+                return ValueError.init(v: "", message: error.localizedDescription)
+            }
+        }
+        return ValueError.init(v: "", message: "entity is null")
+    }
+        
+    static func == (lhs: DBEntity, rhs: DBEntity) -> Bool {
+        return lhs.id == rhs.id && lhs.name == rhs.name
     }
 }

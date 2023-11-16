@@ -70,7 +70,7 @@ struct ContentView: View {
                             GroupsView(selectedDatabase: $selectedDatabase, errorMessage: $errorMessage)
                                 .frame(width: groupsViewWidth)
                             DraggableDivider(viewWidth: $groupsViewWidth, minViewWidth: 200)
-                            EntityView(selectedDatabase: $selectedDatabase)
+                            EntityView(selectedDatabase: $selectedDatabase, errorMessage: $errorMessage)
                                 .frame(maxWidth: .infinity)
                         } else {
                             PasswordView(selectedDatabase: $selectedDatabase)

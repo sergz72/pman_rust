@@ -34,6 +34,7 @@ struct PasswordView: View {
                             firstPassword: firstPassword, secondPassword: secondPassword)
                         ?? "Database is not selected"
                 }
+                .keyboardShortcut(.defaultAction)
                 .gridCellColumns(2)
                 .disabled(secondPassword.isEmpty || firstPassword.isEmpty)
             }
