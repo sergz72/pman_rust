@@ -7,7 +7,11 @@
 
 import Foundation
 import CryptoKit
+#if os(macOS)
 import AppKit
+#else
+import UIKit
+#endif
 
 struct Database: Equatable, Identifiable {
     let id: String
@@ -235,9 +239,13 @@ struct ValueError {
     
     func copy() -> String {
         if self.errorMessage == "" {
+#if os(macOS)
             let pasteboard = NSPasteboard.general
             pasteboard.clearContents()
             pasteboard.setString(self.value, forType: .string)
+#else
+            UIPasteboard.general.string = self.value
+#endif
         }
         return self.errorMessage
     }

@@ -32,16 +32,17 @@ struct ContentView: View {
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                         } else {
                             if selectedDatabase!.isOpened {
-                                GroupsView(selectedDatabase: $selectedDatabase)
+                                GroupsView(selectedDatabase: $selectedDatabase, errorMessage: $errorMessage)
                                     .frame(minHeight: 100, maxHeight: 100)
                                 Divider()
-                                EntityView(selectedDatabase: $selectedDatabase)
+                                EntityView(selectedDatabase: $selectedDatabase, errorMessage: $errorMessage)
                                     .frame(maxHeight: .infinity)
                             } else {
                                 PasswordView(selectedDatabase: $selectedDatabase)
                             }
                         }
                     }
+                    Text(errorMessage).tint(.red)
                 }
                 .padding()
             } else {
