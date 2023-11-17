@@ -54,6 +54,14 @@ open class RustBuffer : Structure() {
            }
         }
 
+        internal fun create(capacity: Int, len: Int, data: Pointer?): RustBuffer.ByValue {
+            var buf = RustBuffer.ByValue()
+            buf.capacity = capacity
+            buf.len = len
+            buf.data = data
+            return buf
+        }
+
         internal fun free(buf: RustBuffer.ByValue) = rustCall() { status ->
             _UniFFILib.INSTANCE.ffi_pman_lib_rustbuffer_free(buf, status)
         }
