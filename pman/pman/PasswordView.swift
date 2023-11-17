@@ -20,12 +20,12 @@ struct PasswordView: View {
                 Text("First password")
                     .gridColumnAlignment(.leading)
                 SecureField("Enter password", text: $firstPassword)
-                    .textContentType(.password)
+                    .textFieldStyle(.roundedBorder)
             }
             GridRow {
                 Text("Second password")
                 SecureField("Enter password", text: $secondPassword)
-                    .textContentType(.password)
+                    .textFieldStyle(.roundedBorder)
             }
             GridRow {
                 Button("Open database") {
@@ -34,6 +34,8 @@ struct PasswordView: View {
                             firstPassword: firstPassword, secondPassword: secondPassword)
                         ?? "Database is not selected"
                 }
+                .buttonStyle(.bordered)
+                .background(Color.green)
                 .keyboardShortcut(.defaultAction)
                 .gridCellColumns(2)
                 .disabled(secondPassword.isEmpty || firstPassword.isEmpty)

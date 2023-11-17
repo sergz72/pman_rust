@@ -19,10 +19,10 @@ struct ContentView: View {
     var body: some View {
 #if !os(macOS)
         GeometryReader { geometry in
-            if geometry.size.width < geometry.size.height {
+            if geometry.size.width < geometry.size.height + 100 {
                 VStack {
                     DBView(selectedDatabase: $selectedDatabase, databaseOperation: $databaseOperation)
-                        .frame(minHeight: 100, maxHeight: 100)
+                        .frame(minHeight: 200, maxHeight: 200)
                     Divider()
                     if selectedDatabase?.name == nil {
                         Spacer()
@@ -33,7 +33,7 @@ struct ContentView: View {
                         } else {
                             if selectedDatabase!.isOpened {
                                 GroupsView(selectedDatabase: $selectedDatabase, errorMessage: $errorMessage)
-                                    .frame(minHeight: 100, maxHeight: 100)
+                                    .frame(minHeight: 200, maxHeight: 200)
                                 Divider()
                                 EntityView(selectedDatabase: $selectedDatabase, errorMessage: $errorMessage)
                                     .frame(maxHeight: .infinity)

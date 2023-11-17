@@ -27,19 +27,27 @@ struct EntityView: View {
                             let result = selectedDatabase!.getUserName(entity: item.entity)
                             errorMessage = result.copy()
                         }
+                        .buttonStyle(.bordered)
+                        .background(Color.green)
                         Button("Copy password") {
                             let result = item.getPassword()
                             errorMessage = result.copy()
                         }
+                        .buttonStyle(.bordered)
+                        .background(Color.green)
                         if showPropertiesForEntity != item.id {
                             Button("Show Properties") {
                                 showPropertiesForEntity = item.id
                                 errorMessage = selectedDatabase!.fetchPropertyNames(entity: item.entity)
                             }
+                            .buttonStyle(.bordered)
+                            .background(Color.green)
                         } else {
                             Button("Hide Properties") {
                                 showPropertiesForEntity = 0
                             }
+                            .buttonStyle(.bordered)
+                            .background(Color.green)
                         }
                     }
                     if showPropertiesForEntity == item.id {
@@ -50,6 +58,8 @@ struct EntityView: View {
                                     let result = item.getPropertyValue(propertyId: p.id)
                                     errorMessage = result.copy()
                                 }
+                                .buttonStyle(.bordered)
+                                .background(Color.green)
                             }
                         }.frame(alignment: .leading)
                     }
