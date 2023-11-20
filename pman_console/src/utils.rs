@@ -1,6 +1,7 @@
 use std::fs::File;
-use std::io::{Error, ErrorKind, Read, stdin, stdout, Write};
+use std::io::{Error, ErrorKind, Read, Write};
 use std::sync::Arc;
+use passterm::prompt_password_tty;
 use pman_lib::structs_interfaces::FileAction;
 use rand::Rng;
 
@@ -71,13 +72,6 @@ pub fn get_password(prompt: &str, password: String) -> Result<String, Error> {
     if !password.is_empty() {
         return Ok(password);
     }
-    let mut buffer = String::new();
-    print!("{}: ", prompt);
-    stdout().flush()?;
-    stdin().read_line(&mut buffer)?;
-    buffer = buffer.trim().to_string();
-    if buffer.is_empty() {
-        return Err(Error::new(ErrorKind::InvalidInput, "empty password"));
-    }
-    Ok(buffer)
+    prompt_password_tty(Some(prompt))
+        .map_err(|e|Error::new(ErrorKind::Other, e.to_string()))
 }

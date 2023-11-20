@@ -10,7 +10,7 @@ use crate::entity_actions::get_entity_password;
 use crate::utils::load_file;
 
 fn build_cipher(password: String) -> Result<Aes256, Error> {
-    let key = get_password("key", password)?;
+    let key = get_password("key: ", password)?;
     let key_hash = create_hash(key);
     let mut k = [0u8; 32];
     k.copy_from_slice(key_hash.as_slice());
@@ -48,8 +48,8 @@ pub fn create_key_file(parameters: Parameters) -> Result<(), Error> {
         println!("key file name expected");
         return Ok(());
     }
-    let password = get_password("password", parameters.password_parameter.get_value())?;
-    let password2 = get_password("password2", parameters.password2_parameter.get_value())?;
+    let password = get_password("password: ", parameters.password_parameter.get_value())?;
+    let password2 = get_password("password2: ", parameters.password2_parameter.get_value())?;
     let data = create_key_file_data("".to_string(), password, password2)?;
     let mut f = File::create(file_name)?;
     f.write_all(&data)
@@ -65,9 +65,9 @@ pub fn generate_password_command(rules: String) -> Result<bool, Error> {
 
 pub fn build_password_hashes(database_type: &PasswordDatabaseType, parameters: &Parameters)
                          -> Result<(Vec<u8>, Option<Vec<u8>>), Error> {
-    let password = get_password("password", parameters.password_parameter.get_value())?;
+    let password = get_password("password: ", parameters.password_parameter.get_value())?;
     let password2 = if database_type.requires_second_password() {
-        Some(get_password("password2", parameters.password2_parameter.get_value())?)
+        Some(get_password("password2: ", parameters.password2_parameter.get_value())?)
     } else { None };
     let password_hash = create_hash(password);
     let password2_hash = password2.map(|p|create_hash(p));

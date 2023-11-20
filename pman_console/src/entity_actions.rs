@@ -171,10 +171,10 @@ fn get_entity_parameters(parameters: &Parameters, l: Option<usize>) -> Result<Ve
                     return Err(Error::new(ErrorKind::InvalidInput, "invalid parameters"));
                 }
                 let value = if namevalue[1] == "Ask" {
-                    get_password(format!("value for parameter {}", namevalue[0]).as_str(), "".to_string())?
+                    get_password(format!("value for parameter {}: ", namevalue[0]).as_str(), "".to_string())?
                 } else if namevalue[1].starts_with("file#") {
                     let data = load_file(namevalue[1][5..].to_string())?;
-                    String::from_utf8(data).map_err(|e|Error::new(ErrorKind::InvalidData, "non-text file"))?
+                    String::from_utf8(data).map_err(|_e|Error::new(ErrorKind::InvalidData, "non-text file"))?
                 } else {namevalue[1].clone()};
                 entity_parameters.insert(namevalue[0].clone(), value);
             }
@@ -186,7 +186,7 @@ fn get_entity_parameters(parameters: &Parameters, l: Option<usize>) -> Result<Ve
 
 pub fn get_entity_password(password: String, i: usize) -> Result<String, Error> {
     if password == "Ask" {
-        get_password(format!("password for entity {}", i).as_str(), "".to_string())
+        get_password(format!("password for entity {}: ", i).as_str(), "".to_string())
     } else if password.starts_with("gen") && password.len() > 5 {
         Ok(generate_password(password))
     } else {Ok(password)}
