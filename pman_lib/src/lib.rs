@@ -5,7 +5,7 @@ use thiserror::Error;
 use crate::keepass::keepass_database::KeePassDatabase;
 use crate::pman::pman_database::PmanDatabase;
 use crate::pman::pman_database_file::{build_argon2_key, build_argon2_properties};
-use crate::structs_interfaces::{DatabaseGroup, FileAction, PasswordDatabase, PasswordDatabaseEntity, PasswordDatabaseType};
+use crate::structs_interfaces::{DatabaseGroup, PasswordDatabase, PasswordDatabaseEntity, PasswordDatabaseType};
 use crate::structs_interfaces::CryptoEngine;
 use crate::structs_interfaces::HashAlgorithm;
 
@@ -125,15 +125,15 @@ pub fn is_read_only(database_id: u64) -> Result<bool, PmanError> {
 }
 
 pub fn pre_open(database_id: u64, password_hash: Vec<u8>, password2_hash: Option<Vec<u8>>, key_file_contents: Option<Vec<u8>>)
-                   -> Result<Vec<String>, PmanError> {
+                   -> Result<(), PmanError> {
     let db = get_database(database_id)?;
-    db.database.pre_open(&db.file_name, password_hash, password2_hash, key_file_contents)
+    db.database.pre_open(password_hash, password2_hash, key_file_contents)
         .map_err(|e|PmanError::message(e.to_string()))
 }
 
-pub fn open(database_id: u64, data: Vec<Vec<u8>>) -> Result<(), PmanError> {
+pub fn open(database_id: u64) -> Result<(), PmanError> {
     let db = get_database(database_id)?;
-    db.database.open(data)
+    db.database.open()
         .map_err(|e|PmanError::message(e.to_string()))
 }
 
@@ -144,10 +144,9 @@ pub fn close(database_id: u64) -> Result<(), PmanError> {
     Ok(())
 }
 
-pub fn save(database_id: u64) -> Result<Vec<Arc<FileAction>>, PmanError> {
+pub fn save(database_id: u64) -> Result<Option<Vec<u8>>, PmanError> {
     let db = get_database(database_id)?;
-    db.database.save(&db.file_name)
-        .map(|a|a.into_iter().map(|fa|Arc::new(fa)).collect())
+    db.database.save()
         .map_err(|e|PmanError::message(e.to_string()))
 }
 
@@ -165,27 +164,15 @@ fn get_pman_database<'a>(database_id: u64) -> Result<&'a PmanDatabase, PmanError
     db.database.as_any().downcast_ref().ok_or(PmanError::message("wrong database type"))
 }
 
-pub fn set_names_file_location_local(database_id: u64) -> Result<bool, PmanError> {
+pub fn set_file1_location_qs3(database_id: u64, file_name: String, s3_key: Vec<u8>) -> Result<(), PmanError> {
     let db = get_pman_database(database_id)?;
-    db.set_names_file_location_local()
+    db.set_file1_location_qs3(file_name, s3_key)
         .map_err(|e|PmanError::message(e.to_string()))
 }
 
-pub fn set_passwords_file_location_local(database_id: u64) -> Result<bool, PmanError> {
+pub fn set_file2_location_qs3(database_id: u64, file_name: String, s3_key: Vec<u8>) -> Result<(), PmanError> {
     let db = get_pman_database(database_id)?;
-    db.set_passwords_file_location_local()
-        .map_err(|e|PmanError::message(e.to_string()))
-}
-
-pub fn set_names_file_location_s3(database_id: u64, file_name: String, s3_key: Vec<u8>) -> Result<bool, PmanError> {
-    let db = get_pman_database(database_id)?;
-    db.set_names_file_location_s3(file_name, s3_key)
-        .map_err(|e|PmanError::message(e.to_string()))
-}
-
-pub fn set_passwords_file_location_s3(database_id: u64, file_name: String, s3_key: Vec<u8>) -> Result<bool, PmanError> {
-    let db = get_pman_database(database_id)?;
-    db.set_passwords_file_location_s3(file_name, s3_key)
+    db.set_file2_location_qs3(file_name, s3_key)
         .map_err(|e|PmanError::message(e.to_string()))
 }
 

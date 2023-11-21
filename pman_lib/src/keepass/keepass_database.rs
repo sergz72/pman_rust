@@ -2,7 +2,7 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 use crate::error_builders::build_read_only_db_error;
-use crate::structs_interfaces::{DatabaseGroup, FileAction, PasswordDatabase, PasswordDatabaseEntity};
+use crate::structs_interfaces::{DatabaseGroup, PasswordDatabase, PasswordDatabaseEntity};
 
 pub struct KeePassDatabase {
 
@@ -17,13 +17,13 @@ impl PasswordDatabase for KeePassDatabase {
         true
     }
 
-    fn pre_open(&self, _main_file_name: &String, _password_hash: Vec<u8>,
+    fn pre_open(&self, _password_hash: Vec<u8>,
                 _password2_hash: Option<Vec<u8>>, _key_file_contents: Option<Vec<u8>>)
-            -> Result<Vec<String>, Error> {
+            -> Result<(), Error> {
         todo!()
     }
 
-    fn open(&self, _data: Vec<Vec<u8>>) -> Result<(), Error> {
+    fn open(&self) -> Result<(), Error> {
         todo!()
     }
 
@@ -83,7 +83,7 @@ impl PasswordDatabase for KeePassDatabase {
         Err(build_read_only_db_error())
     }
 
-    fn save(&self, _file_name: &String) -> Result<Vec<FileAction>, Error> {
+    fn save(&self) -> Result<Option<Vec<u8>>, Error> {
         Err(build_read_only_db_error())
     }
 

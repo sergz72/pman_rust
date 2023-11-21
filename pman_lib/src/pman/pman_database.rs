@@ -6,7 +6,7 @@ use crate::error_builders::build_not_found_error;
 use crate::pman::database_entity::{ENTITY_VERSION_LATEST, PmanDatabaseEntity};
 use crate::pman::id_value_map::id_value_map::ByteValue;
 use crate::pman::pman_database_file::PmanDatabaseFile;
-use crate::structs_interfaces::{DatabaseGroup, FileAction, PasswordDatabase, PasswordDatabaseEntity};
+use crate::structs_interfaces::{DatabaseGroup, PasswordDatabase, PasswordDatabaseEntity};
 
 const GROUPS_ID: u32 = 1;
 const USERS_ID: u32 = 2;
@@ -26,21 +26,22 @@ impl PasswordDatabase for PmanDatabase {
         false
     }
 
-    fn pre_open(&self, main_file_name: &String, password_hash: Vec<u8>,
-                password2_hash: Option<Vec<u8>>, _key_file_contents: Option<Vec<u8>>)
-            -> Result<Vec<String>, Error> {
+    fn pre_open(&self, password_hash: Vec<u8>, password2_hash: Option<Vec<u8>>,
+                _key_file_contents: Option<Vec<u8>>)
+            -> Result<(), Error> {
         if password2_hash.is_none() {
             return Err(Error::new(ErrorKind::InvalidInput, "password2 hash is required"))
         }
-        self.file.lock().unwrap().pre_open(main_file_name, password_hash, password2_hash.unwrap())
+        self.file.lock().unwrap().pre_open(password_hash, password2_hash.unwrap())
     }
 
-    fn open(&self, data: Vec<Vec<u8>>) -> Result<(), Error> {
-        self.file.lock().unwrap().open(data)
+    fn open(&self) -> Result<(), Error> {
+        //self.file.lock().unwrap().open()
+        todo!()
     }
 
     fn get_groups(&self) -> Result<Vec<DatabaseGroup>, Error> {
-        let groups: HashMap<u32, String> = match self.file.lock().unwrap().get_indirect_from_names_file(GROUPS_ID) {
+        let groups: HashMap<u32, String> = match self.file.lock().unwrap().get_indirect_from_names(GROUPS_ID) {
             Ok(g) => g,
             Err(e) => {
                 if e.kind() == ErrorKind::NotFound {
@@ -64,7 +65,7 @@ impl PasswordDatabase for PmanDatabase {
     }
 
     fn get_users(&self) -> Result<HashMap<u32, String>, Error> {
-        self.file.lock().unwrap().get_indirect_from_names_file(USERS_ID)
+        self.file.lock().unwrap().get_indirect_from_names(USERS_ID)
     }
 
     fn get_entities(&self, group_id: u32) -> Result<HashMap<u32, Box<dyn PasswordDatabaseEntity + Send>>, Error> {
@@ -111,9 +112,9 @@ impl PasswordDatabase for PmanDatabase {
     fn rename_group(&self, group_id: u32, new_name: String) -> Result<(), Error> {
         self.check_group_exists(group_id)?;
         let mut file = self.file.lock().unwrap();
-        let indexes: Vec<u32> = file.get_from_names_file(GROUPS_ID)?;
+        let indexes: Vec<u32> = file.get_from_names(GROUPS_ID)?;
         string_validator(&indexes, &mut file, &new_name)?;
-        file.set_in_names_file(group_id, new_name)
+        file.set_in_names(group_id, new_name)
     }
 
     fn remove_group(&self, group_id: u32) -> Result<(), Error> {
@@ -128,16 +129,16 @@ impl PasswordDatabase for PmanDatabase {
     fn remove_entity(&self, entity_id: u32) -> Result<(), Error> {
         self.check_entity_exists(entity_id)?;
         let mut file = self.file.lock().unwrap();
-        let entity: PmanDatabaseEntity = file.get_from_names_file(entity_id)?;
+        let entity: PmanDatabaseEntity = file.get_from_names(entity_id)?;
         let names_ids = entity.collect_names_ids();
         let passwords_ids = entity.collect_passwords_ids();
         for id in names_ids {
-            file.remove_from_names_file(id)?;
+            file.remove_from_names(&id)?;
         }
         for id in passwords_ids {
-            file.remove_from_passwords_file(id)?;
+            file.remove_from_passwords(&id)?;
         }
-        file.remove_from_names_file(entity_id)?;
+        file.remove_from_names(&entity_id)?;
         drop(file);
         self.remove_from_list(ENTITIES_ID, entity_id)
     }
@@ -148,15 +149,15 @@ impl PasswordDatabase for PmanDatabase {
         self.check_user_exists(user_id)?;
         self.check_entity_name(group_id, name.clone())?;
         let mut file = self.file.lock().unwrap();
-        let name_id = file.add_to_names_file(name)?;
-        let password_id = file.add_to_passwords_file(password)?;
+        let name_id = file.add_to_names(name)?;
+        let password_id = file.add_to_passwords(password)?;
         let url_id = if let Some(u) = url {
-            Some(file.add_to_names_file(u)?)
+            Some(file.add_to_names(u)?)
         } else { None };
         let mut property_ids = HashMap::new();
         for (k, v) in properties {
-            let key_id = file.add_to_names_file(k)?;
-            let value_id = file.add_to_passwords_file(v)?;
+            let key_id = file.add_to_names(k)?;
+            let value_id = file.add_to_passwords(v)?;
             property_ids.insert(key_id, value_id);
         }
         drop(file);
@@ -168,7 +169,7 @@ impl PasswordDatabase for PmanDatabase {
     fn rename_entity(&self, entity_id: u32, new_name: String) -> Result<(), Error> {
         let entity = self.get_entity(entity_id)?;
         self.check_entity_name(entity.get_group_id(ENTITY_VERSION_LATEST)?, new_name.clone())?;
-        self.file.lock().unwrap().set_in_names_file(entity.get_name_id(), new_name)
+        self.file.lock().unwrap().set_in_names(entity.get_name_id(), new_name)
     }
 
     fn modify_entity(&self, entity_id: u32, new_group_id: Option<u32>,
@@ -186,7 +187,7 @@ impl PasswordDatabase for PmanDatabase {
         } else { entity.get_user_id(ENTITY_VERSION_LATEST)? };
         let mut file = self.file.lock().unwrap();
         let new_pid = if let Some(password) = new_password {
-            file.add_to_passwords_file(password)?
+            file.add_to_passwords(password)?
         } else { entity.get_password_id() };
         let new_url_id =
             build_new_url_id(&mut file, new_url, change_url, entity.get_url_id())?;
@@ -196,7 +197,7 @@ impl PasswordDatabase for PmanDatabase {
                 return Err(Error::new(ErrorKind::NotFound, "invalid property id"));
             }
             if let Some(value) = v {
-                let id = file.add_to_passwords_file(value)?;
+                let id = file.add_to_passwords(value)?;
                 new_props.insert(k, id);
             } else {
                 new_props.remove(&k);
@@ -204,16 +205,18 @@ impl PasswordDatabase for PmanDatabase {
         }
         for (k, v) in new_properties {
             check_property_name(&mut file,&new_props, k.clone())?;
-            let key_id = file.add_to_names_file(k)?;
-            let value_id = file.add_to_passwords_file(v)?;
+            let key_id = file.add_to_names(k)?;
+            let value_id = file.add_to_passwords(v)?;
             new_props.insert(key_id, value_id);
         }
         entity.update(&mut file, new_pid, new_gid, new_uid, new_url_id, new_props)?;
-        file.set_in_names_file(entity_id, entity)
+        file.set_in_names(entity_id, entity)
     }
 
-    fn save(&self, file_name: &String) -> Result<Vec<FileAction>, Error> {
-        self.file.lock().unwrap().save(file_name)
+    fn save(&self) -> Result<Option<Vec<u8>>, Error> {
+        //let (data1, data2) = self.file.lock().unwrap().save()?;
+        //Ok(data1)
+        todo!()
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -227,13 +230,31 @@ impl PmanDatabase {
         Ok(Box::new(PmanDatabase { file }))
     }
 
+    pub fn new_from_file2(contents: Vec<u8>) -> Result<PmanDatabase, Error> {
+        let file = Arc::new(Mutex::new(PmanDatabaseFile::prepare(contents)?));
+        Ok(PmanDatabase { file })
+    }
+
     pub fn new(password_hash: Vec<u8>, password2_hash: Vec<u8>) -> Result<Box<dyn PasswordDatabase>, Error> {
         let file = Arc::new(Mutex::new(PmanDatabaseFile::new(password_hash, password2_hash)?));
         Ok(Box::new(PmanDatabase { file }))
     }
 
+    pub fn new2(password_hash: Vec<u8>, password2_hash: Vec<u8>) -> Result<PmanDatabase, Error> {
+        let file = Arc::new(Mutex::new(PmanDatabaseFile::new(password_hash, password2_hash)?));
+        Ok(PmanDatabase { file })
+    }
+
+    fn open_from_data(&self, data1: Vec<u8>, data2: Vec<u8>) -> Result<(), Error> {
+        self.file.lock().unwrap().open(data1, data2)
+    }
+
+    fn save_to_data(&self) -> Result<(Option<Vec<u8>>, Option<(Vec<u8>, Vec<u8>)>), Error> {
+        self.file.lock().unwrap().save()
+    }
+
     fn get_all_entities(&self) -> Result<HashMap<u32, PmanDatabaseEntity>, Error> {
-        let mut entities: HashMap<u32, PmanDatabaseEntity> = self.file.lock().unwrap().get_indirect_from_names_file(ENTITIES_ID)?;
+        let mut entities: HashMap<u32, PmanDatabaseEntity> = self.file.lock().unwrap().get_indirect_from_names(ENTITIES_ID)?;
         for (_key, value) in &mut entities {
             value.set_database_file(self.file.clone());
         }
@@ -243,7 +264,7 @@ impl PmanDatabase {
     fn add_to_list<T: ByteValue>(&self, id: u32, value: T,
                                  validator: fn(indexes: &Vec<u32>, file: &mut MutexGuard<PmanDatabaseFile>, value: &T) -> Result<(), Error>) -> Result<u32, Error> {
         let mut file = self.file.lock().unwrap();
-        let mut indexes: Vec<u32> = match file.get_from_names_file(id) {
+        let mut indexes: Vec<u32> = match file.get_from_names(id) {
             Ok(v) => v,
             Err(e) => {
                 if e.kind() == ErrorKind::NotFound {
@@ -254,9 +275,9 @@ impl PmanDatabase {
             }
         };
         validator(&indexes, &mut file, &value)?;
-        let idx = file.add_to_names_file(value)?;
+        let idx = file.add_to_names(value)?;
         indexes.push(idx);
-        file.set_in_names_file(id, indexes)?;
+        file.set_in_names(id, indexes)?;
         Ok(idx)
     }
 
@@ -265,7 +286,7 @@ impl PmanDatabase {
     }
 
     fn check_exists(&self, list_id: u32, id: u32, error_message: &str) -> Result<(), Error> {
-        let items: Vec<u32> = self.file.lock().unwrap().get_from_names_file(list_id)?;
+        let items: Vec<u32> = self.file.lock().unwrap().get_from_names(list_id)?;
         if items.into_iter().find(|i| *i == id).is_none() {
             return Err(Error::new(ErrorKind::NotFound, error_message));
         }
@@ -286,27 +307,27 @@ impl PmanDatabase {
 
     fn remove_from_list(&self, list_id: u32, id: u32) -> Result<(), Error> {
         let mut file = self.file.lock().unwrap();
-        let mut indexes: Vec<u32> = file.get_from_names_file(list_id)?;
+        let mut indexes: Vec<u32> = file.get_from_names(list_id)?;
         for i in 0..indexes.len() {
             if indexes[i] == id {
-                file.remove_from_names_file(id)?;
+                file.remove_from_names(&id)?;
                 indexes.remove(i);
                 return if indexes.is_empty() {
-                    file.remove_from_names_file(list_id)
+                    file.remove_from_names(&list_id)
                 } else {
-                    file.set_in_names_file(list_id, indexes)
+                    file.set_in_names(list_id, indexes)
                 }
             }
         }
         Err(build_not_found_error())
     }
 
-    fn get_names_file_records_count(&self) -> Result<usize, Error> {
-        self.file.lock().unwrap().get_names_file_records_count()
+    fn get_names_records_count(&self) -> Result<usize, Error> {
+        self.file.lock().unwrap().get_names_records_count()
     }
 
-    fn get_passwords_file_records_count(&self) -> Result<usize, Error> {
-        self.file.lock().unwrap().get_passwords_file_records_count()
+    fn get_passwords_records_count(&self) -> Result<usize, Error> {
+        self.file.lock().unwrap().get_passwords_records_count()
     }
 
     fn check_entity_name(&self, group_id: u32, name: String) -> Result<(), Error> {
@@ -320,40 +341,24 @@ impl PmanDatabase {
 
     fn get_entity(&self, entity_id: u32) -> Result<PmanDatabaseEntity, Error> {
         self.check_entity_exists(entity_id)?;
-        let mut entity: PmanDatabaseEntity = self.file.lock().unwrap().get_from_names_file(entity_id)?;
+        let mut entity: PmanDatabaseEntity = self.file.lock().unwrap().get_from_names(entity_id)?;
         entity.set_database_file(self.file.clone());
         Ok(entity)
     }
 
-    pub fn load_names_file(&self, data: Vec<Vec<u8>>) -> Result<Option<Vec<u8>>, Error> {
-        self.file.lock().unwrap().load_names_file(data)
+    pub fn set_file1_location_qs3(&self, file_name: String, s3_key: Vec<u8>) -> Result<(), Error> {
+        self.file.lock().unwrap().set_file1_location_qs3(file_name, s3_key)
     }
 
-    pub fn load_passwords_file(&self, data: Option<Vec<u8>>) -> Result<(), Error> {
-        self.file.lock().unwrap().load_passwords_file(data)
-    }
-
-    pub fn set_names_file_location_local(&self) -> Result<bool, Error> {
-        self.file.lock().unwrap().set_names_file_location_local()
-    }
-
-    pub fn set_passwords_file_location_local(&self) -> Result<bool, Error> {
-        self.file.lock().unwrap().set_passwords_file_location_local()
-    }
-
-    pub fn set_names_file_location_s3(&self, file_name: String, s3_key: Vec<u8>) -> Result<bool, Error> {
-        self.file.lock().unwrap().set_names_file_location_s3(file_name, s3_key)
-    }
-
-    pub fn set_passwords_file_location_s3(&self, file_name: String, s3_key: Vec<u8>) -> Result<bool, Error> {
-        self.file.lock().unwrap().set_passwords_file_location_s3(file_name, s3_key)
+    pub fn set_file2_location_qs3(&self, file_name: String, s3_key: Vec<u8>) -> Result<(), Error> {
+        self.file.lock().unwrap().set_file2_location_qs3(file_name, s3_key)
     }
 }
 
 fn check_property_name(file: &mut MutexGuard<PmanDatabaseFile>, properties: &HashMap<u32, u32>,
                        name: String) -> Result<(), Error> {
     for (k, _v) in properties {
-        let n: String = file.get_from_names_file(*k)?;
+        let n: String = file.get_from_names(*k)?;
         if n == name {
             return Err(Error::new(ErrorKind::AlreadyExists, "duplicate property name"));
         }
@@ -367,13 +372,13 @@ fn build_new_url_id(file: &mut MutexGuard<PmanDatabaseFile>, new_url: Option<Str
         return Ok(current_url_id);
     }
     let new_url_id = if let Some(url) = new_url {
-        Some(file.add_to_names_file(url)?)
+        Some(file.add_to_names(url)?)
     } else { None };
     Ok(new_url_id)
 }
 
 fn string_validator(indexes: &Vec<u32>, file: &mut MutexGuard<PmanDatabaseFile>, value: &String) -> Result<(), Error> {
-    let data: HashMap<u32, String> = file.mget_from_names_file(indexes.clone().into_iter().collect())?;
+    let data: HashMap<u32, String> = file.mget_from_names(indexes.clone().into_iter().collect())?;
     if data.into_iter().find(|(_id, name)|*name == *value).is_some() {
         return Err(Error::new(ErrorKind::AlreadyExists, "item with the same name already exists"));
     }
@@ -523,7 +528,7 @@ mod tests {
 
     struct TestDatabase {
         test_data: TestData,
-        database: Box<dyn PasswordDatabase>,
+        database: PmanDatabase,
         group_ids: Vec<u32>,
         user_ids: Vec<u32>,
         entity_ids: Vec<u32>
@@ -560,7 +565,7 @@ mod tests {
     }
 
     fn build_database(test_data: TestData) -> Result<TestDatabase, Error> {
-        let database = PmanDatabase::new(test_data.hash1_vec.clone(),
+        let database = PmanDatabase::new2(test_data.hash1_vec.clone(),
                                          test_data.hash2_vec.clone())?;
         database.set_argon2(0, 1, 6, 1)?;
         database.set_argon2(1, 1, 6, 1)?;
@@ -605,23 +610,17 @@ mod tests {
         // create and save
         let test_data = build_test_data();
         let mut test_database = build_database(test_data)?;
-        let file_name = "some_file.pdbf".to_string();
-        let data = test_database.database.save(&file_name)?;
-        assert_eq!(data.len(), 3);
-        assert_eq!(data[0].file_name, file_name.clone());
-        assert_eq!(data[1].file_name, file_name.clone() + ".names");
-        assert_eq!(data[2].file_name, file_name.clone() + ".passwords");
+        let (data1, data2) = test_database.database.save_to_data()?;
+        assert!(data1.is_some());
+        assert!(data2.is_some());
+        let main_data = data1.unwrap();
 
         // open again
-        let main_data = data[0].data.clone();
-        let database = PmanDatabase::new_from_file(main_data.clone())?;
-        let files = database.pre_open(&file_name, test_database.test_data.hash1_vec.clone(),
+        let database = PmanDatabase::new_from_file2(main_data.clone())?;
+        database.pre_open(test_database.test_data.hash1_vec.clone(),
                           Some(test_database.test_data.hash2_vec.clone()), None)?;
-        assert_eq!(files.len(), 2);
-        assert_eq!(files[0], file_name.clone() + ".names");
-        assert_eq!(files[1], file_name.clone() + ".passwords");
-        let open_data: Vec<Vec<u8>> = data.into_iter().skip(1).map(|d|d.data).collect();
-        database.open(open_data.clone())?;
+        let (d2, d3) = data2.unwrap();
+        database.open_from_data(d2, d3)?;
         test_database.database = database;
 
         // add group
@@ -629,17 +628,16 @@ mod tests {
         add_group(&mut test_database, &mut rng)?;
 
         // save
-        let save_data = test_database.database.save(&file_name)?;
-        assert_eq!(save_data.len(), 1);
-        assert_eq!(save_data[0].file_name, file_name.clone() + ".names");
+        let (save_data1, save_data2) = test_database.database.save_to_data()?;
+        assert!(save_data1.is_none());
+        assert!(save_data2.is_some());
 
         // open again
-        let database = PmanDatabase::new_from_file(main_data)?;
-        let files = database.pre_open(&file_name, test_database.test_data.hash1_vec.clone(),
+        let database = PmanDatabase::new_from_file2(main_data)?;
+        database.pre_open(test_database.test_data.hash1_vec.clone(),
                                       Some(test_database.test_data.hash2_vec.clone()), None)?;
-        assert_eq!(files.len(), 2);
-        let open_data: Vec<Vec<u8>> = vec![save_data[0].data.clone(), open_data[1].clone()];
-        database.open(open_data)?;
+        let (d2, d3) = save_data2.unwrap();
+        database.open_from_data(d2, d3)?;
 
         // test
         check_database(&test_database)?;
@@ -740,8 +738,8 @@ mod tests {
             database.database.remove_user(user_id)?;
         }
         let db: &PmanDatabase = database.database.as_any().downcast_ref().unwrap();
-        assert_eq!(db.get_passwords_file_records_count()?, 0);
-        assert_eq!(db.get_names_file_records_count()?, 0);
+        assert_eq!(db.get_passwords_records_count()?, 0);
+        assert_eq!(db.get_names_records_count()?, 0);
         Ok(())
     }
 
@@ -808,27 +806,29 @@ mod tests {
     #[test]
     fn test_database_with_ops_and_save() -> Result<(), Error> {
         let mut test_database = build_database_with_ops()?;
-        let file_name = "some_file.pdbf".to_string();
-        let mut data = test_database.database.save(&file_name)?;
-        assert_eq!(data.len(), 3);
-        let database = PmanDatabase::new_from_file(data[0].data.clone())?;
-        database.pre_open(&file_name, test_database.test_data.hash1_vec.clone(),
+        let (data1, data2) = test_database.database.save_to_data()?;
+        assert!(data1.is_some());
+        assert!(data2.is_some());
+        let main_data = data1.unwrap();
+
+        let database = PmanDatabase::new_from_file2(main_data.clone())?;
+        database.pre_open(test_database.test_data.hash1_vec.clone(),
                                       Some(test_database.test_data.hash2_vec.clone()), None)?;
-        let data0 = data.remove(0);
-        let open_data = data.into_iter().map(|d|d.data).collect();
-        database.open(open_data)?;
+        let (d2, d3) = data2.unwrap();
+        database.open_from_data(d2, d3)?;
         test_database.database = database;
         check_database(&test_database)?;
 
         modify_database_with_ops(&mut test_database, 200)?;
         check_database(&test_database)?;
-        let new_data = test_database.database.save(&file_name)?;
-        assert_eq!(new_data.len(), 2);
-        let new_database = PmanDatabase::new_from_file(data0.data)?;
-        new_database.pre_open(&file_name, test_database.test_data.hash1_vec.clone(),
+        let (new_data1, new_data2) = test_database.database.save_to_data()?;
+        assert!(new_data1.is_none());
+        assert!(new_data2.is_some());
+        let new_database = PmanDatabase::new_from_file2(main_data)?;
+        new_database.pre_open(test_database.test_data.hash1_vec.clone(),
                           Some(test_database.test_data.hash2_vec.clone()), None)?;
-        let new_open_data = new_data.into_iter().map(|d|d.data).collect();
-        new_database.open(new_open_data)?;
+        let (d2, d3) = new_data2.unwrap();
+        new_database.open_from_data(d2, d3)?;
         test_database.database = new_database;
         check_database(&test_database)?;
         cleanup_database(test_database)
@@ -1081,13 +1081,13 @@ mod tests {
         } else { None }
     }
 
-    fn select_random_user_id(db: &Box<dyn PasswordDatabase>, rng: &mut ThreadRng) -> Result<u32, Error> {
+    fn select_random_user_id(db: &PmanDatabase, rng: &mut ThreadRng) -> Result<u32, Error> {
         let user_ids: Vec<u32> = db.get_users()?.into_iter().map(|(id, _name)|id).collect();
         let random_index = rng.gen_range(0..user_ids.len());
         Ok(user_ids[random_index])
     }
 
-    fn select_random_group_id(db: &Box<dyn PasswordDatabase>, rng: &mut ThreadRng) -> Result<u32, Error> {
+    fn select_random_group_id(db: &PmanDatabase, rng: &mut ThreadRng) -> Result<u32, Error> {
         let group_ids: Vec<u32> = db.get_groups()?.iter().map(|g|g.id).collect();
         let random_index = rng.gen_range(0..group_ids.len());
         Ok(group_ids[random_index])

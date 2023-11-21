@@ -3,24 +3,6 @@ use std::collections::HashMap;
 use std::io::Error;
 use crate::structs_interfaces::PasswordDatabaseType::Pman;
 
-pub struct FileAction {
-    pub file_name: String,
-    pub data: Vec<u8>
-}
-
-impl FileAction {
-    pub fn get_file_name(&self) -> String {
-        return self.file_name.clone()
-    }
-    pub fn get_data(&self) -> Vec<u8> {
-        return self.data.clone()
-    }
-
-    pub fn new(file_name: String, data: Vec<u8>) -> FileAction {
-        FileAction{ file_name, data }
-    }
-}
-
 pub trait PasswordDatabaseEntity {
     fn get_max_version(&self) -> u32;
     fn get_name(&self) -> Result<String, Error>;
@@ -59,11 +41,10 @@ pub trait PasswordDatabase {
         -> Result<(), Error>;
     fn is_read_only(&self) -> bool;
     // pre_open - tries to decrypt local file and returns download file actions.
-    fn pre_open(&self, main_file_name: &String, password_hash: Vec<u8>,
-                password2_hash: Option<Vec<u8>>, key_file_contents: Option<Vec<u8>>)
-                -> Result<Vec<String>, Error>;
+    fn pre_open(&self, password_hash: Vec<u8>, password2_hash: Option<Vec<u8>>,
+                key_file_contents: Option<Vec<u8>>) -> Result<(), Error>;
     // open - opens database using download results.
-    fn open(&self, data: Vec<Vec<u8>>) -> Result<(), Error>;
+    fn open(&self) -> Result<(), Error>;
     fn get_groups(&self) -> Result<Vec<DatabaseGroup>, Error>;
     fn get_users(&self) -> Result<HashMap<u32, String>, Error>;
     fn get_entities(&self, group_id: u32) -> Result<HashMap<u32, Box<dyn PasswordDatabaseEntity + Send>>, Error>;
@@ -82,7 +63,7 @@ pub trait PasswordDatabase {
                      new_user_id: Option<u32>, new_password: Option<String>, new_url: Option<String>,
                      change_url: bool, new_properties: HashMap<String, String>,
                      modified_properties: HashMap<u32, Option<String>>) -> Result<(), Error>;
-    fn save(&self, file_name: &String) -> Result<Vec<FileAction>, Error>;
+    fn save(&self) -> Result<Option<Vec<u8>>, Error>;
 
     fn as_any(&self) -> &dyn Any;
 }
