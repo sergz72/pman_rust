@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use crate::error_builders::build_not_found_error;
 use crate::pman::database_entity::{ENTITY_VERSION_LATEST, PmanDatabaseEntity};
 use crate::pman::id_value_map::id_value_map::ByteValue;
+use crate::pman::network::{download_file, upload_file};
 use crate::pman::pman_database_file::PmanDatabaseFile;
 use crate::structs_interfaces::{DatabaseGroup, PasswordDatabase, PasswordDatabaseEntity};
 
@@ -36,8 +37,22 @@ impl PasswordDatabase for PmanDatabase {
     }
 
     fn open(&self) -> Result<(), Error> {
-        //self.file.lock().unwrap().open()
-        todo!()
+        let mut file = self.file.lock().unwrap();
+        let (location1, location2) = file.get_location_data()?;
+        let data1 = download_file(location1)?;
+        let data2 = download_file(location2)?;
+        file.open(data1, data2)
+    }
+
+    fn save(&self) -> Result<Option<Vec<u8>>, Error> {
+        let mut file = self.file.lock().unwrap();
+        let (data1, data2) = file.save()?;
+        if let Some((d2, d3)) = data2 {
+            let (location1, location2) = file.get_location_data()?;
+            upload_file(d2, location1)?;
+            upload_file(d3, location2)?;
+        }
+        Ok(data1)
     }
 
     fn get_groups(&self) -> Result<Vec<DatabaseGroup>, Error> {
@@ -211,12 +226,6 @@ impl PasswordDatabase for PmanDatabase {
         }
         entity.update(&mut file, new_pid, new_gid, new_uid, new_url_id, new_props)?;
         file.set_in_names(entity_id, entity)
-    }
-
-    fn save(&self) -> Result<Option<Vec<u8>>, Error> {
-        //let (data1, data2) = self.file.lock().unwrap().save()?;
-        //Ok(data1)
-        todo!()
     }
 
     fn as_any(&self) -> &dyn Any {

@@ -48,7 +48,7 @@ use crate::pman::id_value_map::id_value_map::{ByteValue, IdValueMap};
 use crate::pman::ids::{DATABASE_VERSION_ID, ENCRYPTION_ALGORITHM1_PROPERTIES_ID,
                        ENCRYPTION_ALGORITHM2_PROPERTIES_ID, FILE_LOCATION_ID,
                        HASH_ALGORITHM_PROPERTIES_ID, HISTORY_LENGTH_ID};
-use crate::pman::data_file::data_file::{build_qs3_file_location, DataFile, validate_data_hash};
+use crate::pman::data_file::{build_qs3_file_location, DataFile, validate_data_hash};
 
 const DATABASE_VERSION_MIN: u16 = 0x100; // 1.0
 const DATABASE_VERSION_MAX: u16 = 0x100; // 1.0
@@ -340,14 +340,18 @@ impl PmanDatabaseProperties {
         }
     }
 
-    pub fn set_file1_location_qs3(&mut self, file_name: String, s3_key: Vec<u8>) -> Result<(), Error> {
+    fn set_file1_location_qs3(&mut self, file_name: String, s3_key: Vec<u8>) -> Result<(), Error> {
         self.is_updated = true;
         self.main_data.set_file_location_qs3(file_name, s3_key)
     }
 
-    pub fn set_file2_location_qs3(&mut self, file_name: String, s3_key: Vec<u8>) -> Result<(), Error> {
+    fn set_file2_location_qs3(&mut self, file_name: String, s3_key: Vec<u8>) -> Result<(), Error> {
         self.is_updated = true;
         self.main_data.set_file2_location_qs3(file_name, s3_key)
+    }
+
+    fn get_location_data(&self) -> Result<(Vec<u8>, Vec<u8>), Error> {
+        self.main_data.get_location_data()
     }
 }
 
@@ -508,6 +512,14 @@ impl PmanDatabaseFile {
     pub fn set_file2_location_qs3(&mut self, file_name: String, s3_key: Vec<u8>) -> Result<(), Error> {
         if let Some(p) = &mut self.properties {
             p.set_file2_location_qs3(file_name, s3_key)
+        } else {
+            Err(build_properties_not_initialized_error())
+        }
+    }
+
+    pub fn get_location_data(&self) -> Result<(Vec<u8>, Vec<u8>), Error> {
+        if let Some(p) = &self.properties {
+            p.get_location_data()
         } else {
             Err(build_properties_not_initialized_error())
         }
@@ -728,9 +740,10 @@ fn join_data(data1: Vec<u8>, data2: Vec<u8>) -> Result<Vec<u8>, Error> {
 #[cfg(test)]
 mod tests {
     use std::io::Error;
-    use rand::RngCore;
+    use rand::{Rng, RngCore};
+    use rand::distributions::Standard;
     use rand::rngs::OsRng;
-    use crate::pman::pman_database_file::PmanDatabaseFile;
+    use crate::pman::pman_database_file::{join_data, PmanDatabaseFile, split_data};
 
     #[test]
     fn test_create() -> Result<(), Error> {
@@ -748,5 +761,20 @@ mod tests {
         db2.pre_open(hash1_vec, hash2_vec)?;
         let (d2, d3) = data2.unwrap();
         db2.open(d2, d3)
+    }
+
+    #[test]
+    fn test_split_join() -> Result<(), Error> {
+        let mut rng = rand::thread_rng();
+        for _i in 0..1000 {
+            let count: usize = rng.gen_range(10..2000);
+            let values: Vec<u8> = rand::thread_rng().sample_iter(Standard).take(count).collect();
+            let (v1, v2) = split_data(values.clone()).unwrap();
+            assert_eq!(v2.len(), values.len() / 2);
+            assert_eq!(v2.len()+v1.len(), values.len());
+            let joined = join_data(v1, v2)?;
+            assert_eq!(joined, values);
+        }
+        Ok(())
     }
 }

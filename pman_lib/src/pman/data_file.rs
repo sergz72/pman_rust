@@ -19,22 +19,22 @@ pub struct DataFile {
     passwords_data_offset: usize
 }
 
-pub trait DataFileHandler {
-    fn save(&self, data: Vec<u8>) -> Result<(), Error>;
-}
-
 type HmacSha256 = Hmac<Sha256>;
 
 impl DataFile {
     pub fn new(names_data: IdValueMap, processor22: Arc<dyn CryptoProcessor + Send + Sync>)
-        -> Result<DataFile, Error> {
-        Ok(DataFile {is_updated: true, names_data,
-            passwords_data: Some(IdValueMap::new(processor22)?), data_length: 0,
-            passwords_data_offset: 0})
+               -> Result<DataFile, Error> {
+        Ok(DataFile {
+            is_updated: true,
+            names_data,
+            passwords_data: Some(IdValueMap::new(processor22)?),
+            data_length: 0,
+            passwords_data_offset: 0
+        })
     }
 
     pub fn pre_load(data: &mut Vec<u8>, offset: usize, l: usize, encryption_key1: [u8; 32], alg11: u8,
-                    processor12: Arc<dyn CryptoProcessor + Send + Sync>,) -> Result<DataFile, Error> {
+                    processor12: Arc<dyn CryptoProcessor + Send + Sync>, ) -> Result<DataFile, Error> {
         let data_length = validate_data_hmac(&encryption_key1, data, l)?;
 
         // decrypting names data
@@ -44,7 +44,7 @@ impl DataFile {
         let (names_data, passwords_data_offset) =
             IdValueMap::load(data, offset2, processor12)?;
 
-        Ok(DataFile {is_updated: false, names_data, passwords_data: None, data_length, passwords_data_offset})
+        Ok(DataFile { is_updated: false, names_data, passwords_data: None, data_length, passwords_data_offset })
     }
 
     pub fn load(&mut self, data: &mut Vec<u8>, encryption_key2: [u8; 32], alg21: u8,
@@ -88,11 +88,11 @@ impl DataFile {
         let processor11
             = build_encryption_processor(alg11, encryption_key1, data)?;
         let offset = data.len();
-        self.names_data.save(data,processor12)?;
+        self.names_data.save(data, processor12)?;
         let processor21
             = build_encryption_processor(alg21, encryption_key2, data)?;
         let offset2 = data.len();
-        self.passwords_data.as_mut().unwrap().save(data,processor22)?;
+        self.passwords_data.as_mut().unwrap().save(data, processor22)?;
         let offset3 = data.len();
 
         // encrypt passwords info
@@ -188,7 +188,7 @@ impl DataFile {
     }
 
     pub fn build_encryption_keys(&mut self, password_hash: &Vec<u8>,
-                                 password2_hash: &Vec<u8>) -> Result<([u8;32], [u8;32]), Error> {
+                                 password2_hash: &Vec<u8>) -> Result<([u8; 32], [u8; 32]), Error> {
         build_encryption_keys(&mut self.names_data, password_hash, password2_hash)
     }
 
@@ -212,6 +212,17 @@ impl DataFile {
         self.check_passwords_data()?;
         set_file_location_qs3(self.passwords_data.as_mut().unwrap(), file_name, s3_key)
     }
+
+    pub fn get_location_data(&self) -> Result<(Vec<u8>, Vec<u8>), Error> {
+        self.check_passwords_data()?;
+        let location1 = get_location_data(&self.names_data)?;
+        let location2 = get_location_data(self.passwords_data.as_ref().unwrap())?;
+        Ok((location1, location2))
+    }
+}
+
+fn get_location_data(header: &IdValueMap) -> Result<Vec<u8>, Error> {
+    header.get(FILE_LOCATION_ID)
 }
 
 fn build_encryption_processor(algorithm: u8, encryption_key: [u8; 32], data: &mut Vec<u8>)
@@ -331,7 +342,7 @@ mod tests {
     use std::io::Error;
     use rand::RngCore;
     use rand::rngs::OsRng;
-    use crate::pman::data_file::data_file::{add_data_hash_and_hmac, validate_data_hash, validate_data_hmac};
+    use crate::pman::data_file::{add_data_hash_and_hmac, validate_data_hash, validate_data_hmac};
 
     #[test]
     fn test_hash_hmac() -> Result<(), Error> {
