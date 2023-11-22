@@ -15,6 +15,7 @@ const USERS_ID: u32 = 2;
 const ENTITIES_ID: u32 = 3;
 
 pub struct PmanDatabase {
+    device_id: Vec<u8>,
     file: Arc<Mutex<PmanDatabaseFile>>
 }
 
@@ -39,8 +40,8 @@ impl PasswordDatabase for PmanDatabase {
     fn open(&self) -> Result<(), Error> {
         let mut file = self.file.lock().unwrap();
         let (location1, location2) = file.get_location_data()?;
-        let data1 = download_file(location1)?;
-        let data2 = download_file(location2)?;
+        let data1 = download_file(&self.device_id, location1)?;
+        let data2 = download_file(&self.device_id, location2)?;
         file.open(data1, data2)
     }
 
@@ -49,8 +50,8 @@ impl PasswordDatabase for PmanDatabase {
         let (data1, data2) = file.save()?;
         if let Some((d2, d3)) = data2 {
             let (location1, location2) = file.get_location_data()?;
-            upload_file(d2, location1)?;
-            upload_file(d3, location2)?;
+            upload_file(&self.device_id, d2, location1)?;
+            upload_file(&self.device_id, d3, location2)?;
         }
         Ok(data1)
     }
@@ -234,24 +235,24 @@ impl PasswordDatabase for PmanDatabase {
 }
 
 impl PmanDatabase {
-    pub fn new_from_file(contents: Vec<u8>) -> Result<Box<dyn PasswordDatabase>, Error> {
+    pub fn new_from_file(device_id: Vec<u8>, contents: Vec<u8>) -> Result<Box<dyn PasswordDatabase>, Error> {
         let file = Arc::new(Mutex::new(PmanDatabaseFile::prepare(contents)?));
-        Ok(Box::new(PmanDatabase { file }))
+        Ok(Box::new(PmanDatabase { device_id, file }))
     }
 
     pub fn new_from_file2(contents: Vec<u8>) -> Result<PmanDatabase, Error> {
         let file = Arc::new(Mutex::new(PmanDatabaseFile::prepare(contents)?));
-        Ok(PmanDatabase { file })
+        Ok(PmanDatabase { device_id: Vec::new(), file })
     }
 
-    pub fn new(password_hash: Vec<u8>, password2_hash: Vec<u8>) -> Result<Box<dyn PasswordDatabase>, Error> {
+    pub fn new(device_id: Vec<u8>, password_hash: Vec<u8>, password2_hash: Vec<u8>) -> Result<Box<dyn PasswordDatabase>, Error> {
         let file = Arc::new(Mutex::new(PmanDatabaseFile::new(password_hash, password2_hash)?));
-        Ok(Box::new(PmanDatabase { file }))
+        Ok(Box::new(PmanDatabase { device_id, file }))
     }
 
     pub fn new2(password_hash: Vec<u8>, password2_hash: Vec<u8>) -> Result<PmanDatabase, Error> {
         let file = Arc::new(Mutex::new(PmanDatabaseFile::new(password_hash, password2_hash)?));
-        Ok(PmanDatabase { file })
+        Ok(PmanDatabase { device_id: Vec::new(), file })
     }
 
     fn open_from_data(&self, data1: Vec<u8>, data2: Vec<u8>) -> Result<(), Error> {

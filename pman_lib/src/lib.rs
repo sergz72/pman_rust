@@ -56,7 +56,7 @@ pub fn get_database_type(file_name: &String) -> Result<PasswordDatabaseType, Err
     }
 }
 
-pub fn prepare(data: Vec<u8>, file_name: String) -> Result<u64, PmanError> {
+pub fn prepare(device_id: Vec<u8>, data: Vec<u8>, file_name: String) -> Result<u64, PmanError> {
     let database_type = get_database_type(&file_name)
         .map_err(|e|PmanError::message(e.to_string()))?;
     let f_name = file_name.clone();
@@ -68,7 +68,7 @@ pub fn prepare(data: Vec<u8>, file_name: String) -> Result<u64, PmanError> {
                     KeePassDatabase::new_from_file(data)
                         .map_err(|e| PmanError::message(e.to_string()))?,
                 PasswordDatabaseType::Pman =>
-                    PmanDatabase::new_from_file(data)
+                    PmanDatabase::new_from_file(device_id, data)
                         .map_err(|e| PmanError::message(e.to_string()))?,
             };
             let db_id = unsafe{NEXT_DB_ID};
@@ -83,15 +83,16 @@ pub fn prepare(data: Vec<u8>, file_name: String) -> Result<u64, PmanError> {
     }
 }
 
-pub fn create(database_type: PasswordDatabaseType, password_hash: Vec<u8>, password2_hash: Option<Vec<u8>>,
-              key_file_contents: Option<Vec<u8>>, file_name: String) -> Result<u64, PmanError> {
+pub fn create(device_id: Vec<u8>, database_type: PasswordDatabaseType, password_hash: Vec<u8>,
+              password2_hash: Option<Vec<u8>>, key_file_contents: Option<Vec<u8>>, file_name: String)
+    -> Result<u64, PmanError> {
     let database = match database_type {
         PasswordDatabaseType::KeePass =>
             KeePassDatabase::new(password_hash, key_file_contents)
                 .map_err(|e| PmanError::message(e.to_string()))?,
         PasswordDatabaseType::Pman => {
             if let Some(h) = password2_hash {
-                PmanDatabase::new(password_hash, h)
+                PmanDatabase::new(device_id, password_hash, h)
                     .map_err(|e| PmanError::message(e.to_string()))?
             } else {
                 return Err(PmanError::message("second password hash is required"));

@@ -3,8 +3,8 @@ use crate::error_builders::build_corrupted_data_error;
 use crate::pman::pman_database_file::FILE_LOCATION_QS3;
 
 trait NetworkFileHandler {
-    fn download(&self) -> Result<Vec<u8>, Error>;
-    fn upload(&self, data: Vec<u8>) -> Result<(), Error>;
+    fn download(&self, device_id: &Vec<u8>) -> Result<Vec<u8>, Error>;
+    fn upload(&self, device_id: &Vec<u8>, data: Vec<u8>) -> Result<(), Error>;
 }
 
 struct QS3Handler {
@@ -12,11 +12,11 @@ struct QS3Handler {
 }
 
 impl NetworkFileHandler for QS3Handler {
-    fn download(&self) -> Result<Vec<u8>, Error> {
+    fn download(&self, device_id: &Vec<u8>) -> Result<Vec<u8>, Error> {
         todo!()
     }
 
-    fn upload(&self, data: Vec<u8>) -> Result<(), Error> {
+    fn upload(&self, device_id: &Vec<u8>, data: Vec<u8>) -> Result<(), Error> {
         todo!()
     }
 }
@@ -57,12 +57,12 @@ fn build_file_handler(location_data: Vec<u8>) -> Result<Box<dyn NetworkFileHandl
         _ => Err(build_corrupted_data_error(" new_data_file_handlers3"))
     }
 }
-pub fn download_file(location_data: Vec<u8>) -> Result<Vec<u8>, Error> {
+pub fn download_file(device_id: &Vec<u8>, location_data: Vec<u8>) -> Result<Vec<u8>, Error> {
     let handler = build_file_handler(location_data)?;
-    handler.download()
+    handler.download(device_id)
 }
 
-pub fn upload_file(data: Vec<u8>, location_data: Vec<u8>) -> Result<(), Error> {
+pub fn upload_file(device_id: &Vec<u8>, data: Vec<u8>, location_data: Vec<u8>) -> Result<(), Error> {
     let handler = build_file_handler(location_data)?;
-    handler.upload(data)
+    handler.upload(device_id, data)
 }
