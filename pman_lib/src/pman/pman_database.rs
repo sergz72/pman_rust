@@ -15,7 +15,7 @@ const USERS_ID: u32 = 2;
 const ENTITIES_ID: u32 = 3;
 
 pub struct PmanDatabase {
-    device_id: Vec<u8>,
+    rsa_key: String,
     file: Arc<Mutex<PmanDatabaseFile>>
 }
 
@@ -28,20 +28,25 @@ impl PasswordDatabase for PmanDatabase {
         false
     }
 
-    fn pre_open(&self, password_hash: Vec<u8>, password2_hash: Option<Vec<u8>>,
-                _key_file_contents: Option<Vec<u8>>)
+    fn pre_open(&mut self, password_hash: Vec<u8>, password2_hash: Option<Vec<u8>>,
+                key_file_contents: Option<Vec<u8>>)
             -> Result<(), Error> {
         if password2_hash.is_none() {
             return Err(Error::new(ErrorKind::InvalidInput, "password2 hash is required"))
         }
+        if key_file_contents.is_none() {
+            return Err(Error::new(ErrorKind::InvalidInput, "key file is required"))
+        }
+        self.rsa_key = String::from_utf8(key_file_contents.unwrap())
+            .map_err(|_e|Error::new(ErrorKind::InvalidData, "invalid rsa key file"))?;
         self.file.lock().unwrap().pre_open(password_hash, password2_hash.unwrap())
     }
 
     fn open(&self) -> Result<(), Error> {
         let mut file = self.file.lock().unwrap();
         let (location1, location2) = file.get_location_data()?;
-        let data1 = download_file(&self.device_id, location1)?;
-        let data2 = download_file(&self.device_id, location2)?;
+        let data1 = download_file(&self.rsa_key, location1)?;
+        let data2 = download_file(&self.rsa_key, location2)?;
         file.open(data1, data2)
     }
 
@@ -50,8 +55,8 @@ impl PasswordDatabase for PmanDatabase {
         let (data1, data2) = file.save()?;
         if let Some((d2, d3)) = data2 {
             let (location1, location2) = file.get_location_data()?;
-            upload_file(&self.device_id, d2, location1)?;
-            upload_file(&self.device_id, d3, location2)?;
+            upload_file(&self.rsa_key, d2, location1)?;
+            upload_file(&self.rsa_key, d3, location2)?;
         }
         Ok(data1)
     }
@@ -235,24 +240,32 @@ impl PasswordDatabase for PmanDatabase {
 }
 
 impl PmanDatabase {
-    pub fn new_from_file(device_id: Vec<u8>, contents: Vec<u8>) -> Result<Box<dyn PasswordDatabase>, Error> {
+    pub fn new_from_file(contents: Vec<u8>) -> Result<Box<dyn PasswordDatabase>, Error> {
         let file = Arc::new(Mutex::new(PmanDatabaseFile::prepare(contents)?));
-        Ok(Box::new(PmanDatabase { device_id, file }))
+        Ok(Box::new(PmanDatabase { rsa_key: "".to_string(), file }))
     }
 
     pub fn new_from_file2(contents: Vec<u8>) -> Result<PmanDatabase, Error> {
         let file = Arc::new(Mutex::new(PmanDatabaseFile::prepare(contents)?));
-        Ok(PmanDatabase { device_id: Vec::new(), file })
+        Ok(PmanDatabase { rsa_key: "".to_string(), file })
     }
 
-    pub fn new(device_id: Vec<u8>, password_hash: Vec<u8>, password2_hash: Vec<u8>) -> Result<Box<dyn PasswordDatabase>, Error> {
-        let file = Arc::new(Mutex::new(PmanDatabaseFile::new(password_hash, password2_hash)?));
-        Ok(Box::new(PmanDatabase { device_id, file }))
+    pub fn new(password_hash: Vec<u8>, password2_hash: Vec<u8>,
+               key_file_contents: Vec<u8>) -> Result<Box<dyn PasswordDatabase>, Error> {
+        let file =
+            Arc::new(Mutex::new(PmanDatabaseFile::new(password_hash, password2_hash)?));
+        let rsa_key = String::from_utf8(key_file_contents)
+            .map_err(|_e|Error::new(ErrorKind::InvalidData, "invalid rsa key file"))?;
+        Ok(Box::new(PmanDatabase { rsa_key, file }))
     }
 
-    pub fn new2(password_hash: Vec<u8>, password2_hash: Vec<u8>) -> Result<PmanDatabase, Error> {
-        let file = Arc::new(Mutex::new(PmanDatabaseFile::new(password_hash, password2_hash)?));
-        Ok(PmanDatabase { device_id: Vec::new(), file })
+    pub fn new2(password_hash: Vec<u8>, password2_hash: Vec<u8>, key_file_contents: Vec<u8>)
+        -> Result<PmanDatabase, Error> {
+        let file =
+            Arc::new(Mutex::new(PmanDatabaseFile::new(password_hash, password2_hash)?));
+        let rsa_key = String::from_utf8(key_file_contents)
+            .map_err(|_e|Error::new(ErrorKind::InvalidData, "invalid rsa key file"))?;
+        Ok(PmanDatabase { rsa_key, file })
     }
 
     fn open_from_data(&self, data1: Vec<u8>, data2: Vec<u8>) -> Result<(), Error> {
@@ -576,7 +589,7 @@ mod tests {
 
     fn build_database(test_data: TestData) -> Result<TestDatabase, Error> {
         let database = PmanDatabase::new2(test_data.hash1_vec.clone(),
-                                         test_data.hash2_vec.clone())?;
+                                         test_data.hash2_vec.clone(), Vec::new())?;
         database.set_argon2(0, 1, 6, 1)?;
         database.set_argon2(1, 1, 6, 1)?;
         let mut group_ids = Vec::new();
@@ -626,9 +639,9 @@ mod tests {
         let main_data = data1.unwrap();
 
         // open again
-        let database = PmanDatabase::new_from_file2(main_data.clone())?;
+        let mut database = PmanDatabase::new_from_file2(main_data.clone())?;
         database.pre_open(test_database.test_data.hash1_vec.clone(),
-                          Some(test_database.test_data.hash2_vec.clone()), None)?;
+                          Some(test_database.test_data.hash2_vec.clone()), Some(Vec::new()))?;
         let (d2, d3) = data2.unwrap();
         database.open_from_data(d2, d3)?;
         test_database.database = database;
@@ -643,9 +656,9 @@ mod tests {
         assert!(save_data2.is_some());
 
         // open again
-        let database = PmanDatabase::new_from_file2(main_data)?;
+        let mut database = PmanDatabase::new_from_file2(main_data)?;
         database.pre_open(test_database.test_data.hash1_vec.clone(),
-                                      Some(test_database.test_data.hash2_vec.clone()), None)?;
+                                      Some(test_database.test_data.hash2_vec.clone()), Some(Vec::new()))?;
         let (d2, d3) = save_data2.unwrap();
         database.open_from_data(d2, d3)?;
 
@@ -821,9 +834,9 @@ mod tests {
         assert!(data2.is_some());
         let main_data = data1.unwrap();
 
-        let database = PmanDatabase::new_from_file2(main_data.clone())?;
+        let mut database = PmanDatabase::new_from_file2(main_data.clone())?;
         database.pre_open(test_database.test_data.hash1_vec.clone(),
-                                      Some(test_database.test_data.hash2_vec.clone()), None)?;
+                                      Some(test_database.test_data.hash2_vec.clone()), Some(Vec::new()))?;
         let (d2, d3) = data2.unwrap();
         database.open_from_data(d2, d3)?;
         test_database.database = database;
@@ -834,9 +847,9 @@ mod tests {
         let (new_data1, new_data2) = test_database.database.save_to_data()?;
         assert!(new_data1.is_none());
         assert!(new_data2.is_some());
-        let new_database = PmanDatabase::new_from_file2(main_data)?;
+        let mut new_database = PmanDatabase::new_from_file2(main_data)?;
         new_database.pre_open(test_database.test_data.hash1_vec.clone(),
-                          Some(test_database.test_data.hash2_vec.clone()), None)?;
+                          Some(test_database.test_data.hash2_vec.clone()), Some(Vec::new()))?;
         let (d2, d3) = new_data2.unwrap();
         new_database.open_from_data(d2, d3)?;
         test_database.database = new_database;

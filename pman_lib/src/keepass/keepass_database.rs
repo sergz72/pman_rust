@@ -17,7 +17,7 @@ impl PasswordDatabase for KeePassDatabase {
         true
     }
 
-    fn pre_open(&self, _password_hash: Vec<u8>,
+    fn pre_open(&mut self, _password_hash: Vec<u8>,
                 _password2_hash: Option<Vec<u8>>, _key_file_contents: Option<Vec<u8>>)
             -> Result<(), Error> {
         todo!()

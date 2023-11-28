@@ -87,7 +87,8 @@ pub struct PmanDatabaseFile {
 }
 
 impl PmanDatabaseProperties {
-    fn new(password_hash: Vec<u8>, password2_hash: Vec<u8>) -> Result<PmanDatabaseProperties, Error> {
+    fn new(password_hash: Vec<u8>, password2_hash: Vec<u8>)
+        -> Result<PmanDatabaseProperties, Error> {
         let mut h = IdValueMap::new(NoEncryptionProcessor::new())?;
         h.add_with_id(DATABASE_VERSION_ID, DATABASE_VERSION_1.to_le_bytes().to_vec()).unwrap();
         h.add_with_id(HASH_ALGORITHM_PROPERTIES_ID, default_argon2_properties()).unwrap();
@@ -143,7 +144,8 @@ impl PmanDatabaseProperties {
     }
 
     fn pre_open(data: &mut Vec<u8>, data_length: usize, password_hash: Vec<u8>,
-                password2_hash: Vec<u8>) -> Result<PmanDatabaseProperties, Error> {
+                password2_hash: Vec<u8>)
+        -> Result<PmanDatabaseProperties, Error> {
         let (h, offset) = IdValueMap::load(data, 0, NoEncryptionProcessor::new())?;
         let _v = validate_database_version(&h)?;
         let history_length = get_history_length(&h)?;
@@ -356,7 +358,8 @@ impl PmanDatabaseProperties {
 }
 
 impl PmanDatabaseFile {
-    pub fn new(password_hash: Vec<u8>, password2_hash: Vec<u8>) -> Result<PmanDatabaseFile, Error> {
+    pub fn new(password_hash: Vec<u8>, password2_hash: Vec<u8>)
+        -> Result<PmanDatabaseFile, Error> {
         let properties =
             PmanDatabaseProperties::new(password_hash, password2_hash)?;
         Ok(PmanDatabaseFile{

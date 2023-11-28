@@ -56,7 +56,7 @@ pub fn get_database_type(file_name: &String) -> Result<PasswordDatabaseType, Err
     }
 }
 
-pub fn prepare(device_id: Vec<u8>, data: Vec<u8>, file_name: String) -> Result<u64, PmanError> {
+pub fn prepare(data: Vec<u8>, file_name: String) -> Result<u64, PmanError> {
     let database_type = get_database_type(&file_name)
         .map_err(|e|PmanError::message(e.to_string()))?;
     let f_name = file_name.clone();
@@ -68,7 +68,7 @@ pub fn prepare(device_id: Vec<u8>, data: Vec<u8>, file_name: String) -> Result<u
                     KeePassDatabase::new_from_file(data)
                         .map_err(|e| PmanError::message(e.to_string()))?,
                 PasswordDatabaseType::Pman =>
-                    PmanDatabase::new_from_file(device_id, data)
+                    PmanDatabase::new_from_file(data)
                         .map_err(|e| PmanError::message(e.to_string()))?,
             };
             let db_id = unsafe{NEXT_DB_ID};
@@ -83,7 +83,7 @@ pub fn prepare(device_id: Vec<u8>, data: Vec<u8>, file_name: String) -> Result<u
     }
 }
 
-pub fn create(device_id: Vec<u8>, database_type: PasswordDatabaseType, password_hash: Vec<u8>,
+pub fn create(database_type: PasswordDatabaseType, password_hash: Vec<u8>,
               password2_hash: Option<Vec<u8>>, key_file_contents: Option<Vec<u8>>, file_name: String)
     -> Result<u64, PmanError> {
     let database = match database_type {
@@ -91,8 +91,11 @@ pub fn create(device_id: Vec<u8>, database_type: PasswordDatabaseType, password_
             KeePassDatabase::new(password_hash, key_file_contents)
                 .map_err(|e| PmanError::message(e.to_string()))?,
         PasswordDatabaseType::Pman => {
+            if key_file_contents.is_none() {
+                return Err(PmanError::message("key file is required"));
+            }
             if let Some(h) = password2_hash {
-                PmanDatabase::new(device_id, password_hash, h)
+                PmanDatabase::new(password_hash, h, key_file_contents.unwrap())
                     .map_err(|e| PmanError::message(e.to_string()))?
             } else {
                 return Err(PmanError::message("second password hash is required"));
@@ -115,6 +118,13 @@ fn get_database<'a>(database_id: u64) -> Result<&'a DatabaseFile, PmanError> {
     }
 }
 
+fn get_mut_database<'a>(database_id: u64) -> Result<&'a mut DatabaseFile, PmanError> {
+    match unsafe{DATABASES.as_mut()}.unwrap().get_mut(&database_id) {
+        None => Err(build_database_not_found_error()),
+        Some(db) => Ok(db)
+    }
+}
+
 fn build_database_not_found_error() -> PmanError {
     PmanError::message("database not found")
 }
@@ -125,9 +135,9 @@ pub fn is_read_only(database_id: u64) -> Result<bool, PmanError> {
     Ok(result)
 }
 
-pub fn pre_open(database_id: u64, password_hash: Vec<u8>, password2_hash: Option<Vec<u8>>, key_file_contents: Option<Vec<u8>>)
-                   -> Result<(), PmanError> {
-    let db = get_database(database_id)?;
+pub fn pre_open(database_id: u64, password_hash: Vec<u8>, password2_hash: Option<Vec<u8>>,
+                key_file_contents: Option<Vec<u8>>) -> Result<(), PmanError> {
+    let db = get_mut_database(database_id)?;
     db.database.pre_open(password_hash, password2_hash, key_file_contents)
         .map_err(|e|PmanError::message(e.to_string()))
 }

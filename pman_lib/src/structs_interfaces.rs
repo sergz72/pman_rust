@@ -41,7 +41,7 @@ pub trait PasswordDatabase {
         -> Result<(), Error>;
     fn is_read_only(&self) -> bool;
     // pre_open - tries to decrypt local file and returns download file actions.
-    fn pre_open(&self, password_hash: Vec<u8>, password2_hash: Option<Vec<u8>>,
+    fn pre_open(&mut self, password_hash: Vec<u8>, password2_hash: Option<Vec<u8>>,
                 key_file_contents: Option<Vec<u8>>) -> Result<(), Error>;
     // open - opens database using download results.
     fn open(&self) -> Result<(), Error>;

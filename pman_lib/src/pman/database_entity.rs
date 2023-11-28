@@ -329,7 +329,8 @@ mod tests {
         OsRng.fill_bytes(&mut hash2);
         let hash1_vec = Vec::from(hash1);
         let hash2_vec = Vec::from(hash2);
-        let db = Arc::new(Mutex::new(PmanDatabaseFile::new(hash1_vec.clone(), hash2_vec.clone())?));
+        let db =
+            Arc::new(Mutex::new(PmanDatabaseFile::new(hash1_vec.clone(), hash2_vec.clone())?));
         let mut entity1 = PmanDatabaseEntity::new(db.clone(), 1, 2, 3, 4, None, HashMap::new());
         entity1.update(&mut db.lock().unwrap(),66, 77, 88, Some(99),
                        HashMap::from([(110, 111), (112, 113)]))?;
