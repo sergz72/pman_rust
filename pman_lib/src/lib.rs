@@ -175,15 +175,15 @@ fn get_pman_database<'a>(database_id: u64) -> Result<&'a PmanDatabase, PmanError
     db.database.as_any().downcast_ref().ok_or(PmanError::message("wrong database type"))
 }
 
-pub fn set_file1_location_qs3(database_id: u64, file_name: String, s3_key: Vec<u8>) -> Result<(), PmanError> {
+pub fn set_file1_location_qs3(database_id: u64, file_name: String, qs3_key: Vec<u8>) -> Result<(), PmanError> {
     let db = get_pman_database(database_id)?;
-    db.set_file1_location_qs3(file_name, s3_key)
+    db.set_file1_location_qs3(file_name, qs3_key)
         .map_err(|e|PmanError::message(e.to_string()))
 }
 
-pub fn set_file2_location_qs3(database_id: u64, file_name: String, s3_key: Vec<u8>) -> Result<(), PmanError> {
+pub fn set_file2_location_qs3(database_id: u64, file_name: String, qs3_key: Vec<u8>) -> Result<(), PmanError> {
     let db = get_pman_database(database_id)?;
-    db.set_file2_location_qs3(file_name, s3_key)
+    db.set_file2_location_qs3(file_name, qs3_key)
         .map_err(|e|PmanError::message(e.to_string()))
 }
 

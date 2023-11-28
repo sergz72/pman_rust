@@ -329,12 +329,12 @@ pub fn build_qs3_file_location(file_name: String, s3_key: Vec<u8>) -> Vec<u8> {
     result
 }
 
-pub fn build_qs3_location_data(result: &mut Vec<u8>, s3_path: String, s3_key: Vec<u8>) {
-    let bytes = s3_path.as_bytes();
+pub fn build_qs3_location_data(result: &mut Vec<u8>, qs3_path: String, qs3_key: Vec<u8>) {
+    let bytes = qs3_path.as_bytes();
     result.push(bytes.len() as u8);
     result.extend_from_slice(bytes);
-    result.push(s3_key.len() as u8);
-    result.extend_from_slice(&s3_key);
+    result.push(qs3_key.len() as u8);
+    result.extend_from_slice(&qs3_key);
 }
 
 #[cfg(test)]
