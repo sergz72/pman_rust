@@ -7,16 +7,14 @@ mod utils;
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind, Read};
 use std::env::args;
+use std::fs;
 use std::fs::File;
 use std::time::Instant;
 use arguments_parser::{Arguments, IntParameter, BoolParameter, Switch, StringParameter, EnumParameter};
 use pman_lib::{build_argon2_hash, create, get_database_type, lib_init, open, pre_open, prepare, save};
-use pman_lib::crypto::AesProcessor;
 use pman_lib::pman::data_file::build_qs3_location_data;
-use pman_lib::pman::id_value_map::id_value_map::IdValueMap;
-use pman_lib::pman::pman_database_file::ENCRYPTION_ALGORITHM_CHACHA20;
-use rand::RngCore;
-use rand::rngs::OsRng;
+use pman_lib::pman::network::{NetworkFileHandler, QS3Handler};
+use rand::Rng;
 use crate::db_properties::{set_hash1, set_hash2, set_file1_location, set_file2_location};
 use crate::entity_actions::{add_entities, modify_entities, remove_entities, search_entities, select_entities, show_entities, show_entity_properties};
 use crate::groups_users_actions::{add_groups, add_users, select_groups, select_users};
@@ -241,7 +239,7 @@ fn main() -> Result<(), Error> {
     } else if key_create_parameter.get_value() {
         create_key_file(parameters)
     } else if qs3_test(qs3_path_parameter.get_value(),
-                       qs3_key_parameter.get_value())? ||
+                       qs3_key_parameter.get_value(), parameters.database_key_file_parameter.get_value())? ||
         generate_password_command(generate_password_parameter.get_value())? {
         Ok(())
     } else {
@@ -370,36 +368,30 @@ fn build_database_actions() -> HashMap<&'static str, DatabaseAction> {
     database_actions
 }
 
-fn qs3_test(qs3_path: String, qs3_key: String) -> Result<bool, Error> {
+fn qs3_test(qs3_path: String, qs3_key: String, rsa_key_file: String) -> Result<bool, Error> {
     if qs3_path.is_empty() && qs3_key.is_empty() {
         return Ok(false);
     }
-    if qs3_path.is_empty() || qs3_key.is_empty() {
-        return Err(Error::new(ErrorKind::InvalidInput, "qs3-path & qs3-key must be provided"));
+    if qs3_path.is_empty() || qs3_key.is_empty() || rsa_key_file.is_empty() {
+        return Err(Error::new(ErrorKind::InvalidInput, "qs3-path & qs3-key & database key file must be provided"));
     }
-    /*let location_data = build_location_data(s3_path, s3_key)?;
-    let handler = IdValueMapS3Handler::new(location_data.clone())?;
-    let mut key = [0u8;32];
-    OsRng.fill_bytes(&mut key);
-    let mut map = IdValueMap::new(AesProcessor::new(key), vec![Box::new(handler)])?;
-    let v = "12345".to_string();
-    let k = map.add(v.clone())?;
-    let mut key2 = [0u8;32];
-    OsRng.fill_bytes(&mut key2);
-    map.save(None, Some(ENCRYPTION_ALGORITHM_CHACHA20), Some(key2))?;
-    let handler2 = IdValueMapS3Handler::load(location_data, key2, ENCRYPTION_ALGORITHM_CHACHA20)?;
-    let mut map2 = IdValueMap::new(AesProcessor::new(key), vec![Box::new(handler2)])?;
-    let v2: String = map2.get(k)?;
-    println!("{} {}", v, v2);*/
+    let rsa_key = fs::read_to_string(rsa_key_file)?;
+    let location_data = build_location_data(qs3_path, qs3_key)?;
+    let handler = QS3Handler::new(location_data.clone(), rsa_key)?;
+    let mut rng = rand::thread_rng();
+    let data: Vec<u8> = (0..1000).map(|_| rng.gen()).collect();
+    handler.upload(data.clone())?;
+    let received = handler.download()?;
+    println!("{}", if data == received {"Ok"} else {"Error"});
     Ok(true)
 }
 
-/*fn build_location_data(qs3_path: String, qs3_key: String) -> Result<Vec<u8>, Error> {
+fn build_location_data(qs3_path: String, qs3_key: String) -> Result<Vec<u8>, Error> {
     let data = load_file(qs3_key)?;
     let mut result = Vec::new();
     build_qs3_location_data(&mut result, qs3_path, data);
     Ok(result)
-}*/
+}
 
 fn test_argon2(password: String, iterations: isize, parallelism: isize, memory: isize, salt: &[u8]) -> Result<(), Error> {
     let mut s = [0u8; 16];

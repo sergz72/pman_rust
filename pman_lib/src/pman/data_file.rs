@@ -333,7 +333,6 @@ pub fn build_qs3_location_data(result: &mut Vec<u8>, qs3_path: String, qs3_key: 
     let bytes = qs3_path.as_bytes();
     result.push(bytes.len() as u8);
     result.extend_from_slice(bytes);
-    result.push(qs3_key.len() as u8);
     result.extend_from_slice(&qs3_key);
 }
 
