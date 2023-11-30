@@ -26,8 +26,8 @@ const PARALLELISM_DEFAULT: isize = 6;
 const MEMORY_DEFAULT: isize = 128;
 
 struct Parameters {
-    names_file_parameter: StringParameter,
-    passwords_file_parameter: StringParameter,
+    file1_parameter: StringParameter,
+    file2_parameter: StringParameter,
     password_parameter: StringParameter,
     password2_parameter: StringParameter,
     file_name_parameter: StringParameter,
@@ -69,8 +69,8 @@ struct DatabaseAction {
 }
 
 fn main() -> Result<(), Error> {
-    let names_file_parameter = StringParameter::new("local");
-    let passwords_file_parameter = StringParameter::new("local");
+    let file1_parameter = StringParameter::new("qs3");
+    let file2_parameter = StringParameter::new("qs3");
     let password_parameter = StringParameter::new("");
     let password2_parameter = StringParameter::new("");
     let file_name_parameter = StringParameter::new("");
@@ -112,8 +112,8 @@ fn main() -> Result<(), Error> {
     let key_file_parameter = StringParameter::new("");
     let database_key_file_parameter = StringParameter::new("");
     let parameters = Parameters{
-        names_file_parameter,
-        passwords_file_parameter,
+        file1_parameter,
+        file2_parameter,
         password_parameter,
         password2_parameter,
         file_name_parameter,
@@ -164,13 +164,13 @@ fn main() -> Result<(), Error> {
         Switch::new("key file create", None, Some("key-create"), &key_create_parameter),
         Switch::new("qs3 path for s3 test", None, Some("qs3-path"), &qs3_path_parameter),
         Switch::new("qs3 key file for s3 test", None, Some("qs3-key"), &qs3_key_parameter),
-        Switch::new("qs3 path for names file", None, Some("qs3-path1"), &parameters.qs3_path_parameter1),
-        Switch::new("qs3 key file for names file", None, Some("qs3-key1"), &parameters.qs3_key_parameter1),
-        Switch::new("qs3 path for passwords file", None, Some("qs3-path2"), &parameters.qs3_path_parameter2),
-        Switch::new("qs3 key file for passwords file", None, Some("qs3-key2"), &parameters.qs3_key_parameter2),
-        Switch::new("encryption algorithm for names file", Some('e'), None,
+        Switch::new("qs3 path for file1", None, Some("qs3-path1"), &parameters.qs3_path_parameter1),
+        Switch::new("qs3 key file for file1", None, Some("qs3-key1"), &parameters.qs3_key_parameter1),
+        Switch::new("qs3 path for file2", None, Some("qs3-path2"), &parameters.qs3_path_parameter2),
+        Switch::new("qs3 key file for file2", None, Some("qs3-key2"), &parameters.qs3_key_parameter2),
+        Switch::new("encryption algorithm for names", Some('e'), None,
                     &parameters.encryption_parameter),
-        Switch::new("encryption algorithm for passwords file", None, Some("e2"),
+        Switch::new("encryption algorithm for passwords", None, Some("e2"),
                     &parameters.encryption2_parameter),
         Switch::new("hash build time in ms for first hash algorithm", Some('t'),
                     None, &parameters.time_parameter),
@@ -188,10 +188,10 @@ fn main() -> Result<(), Error> {
                     None, &parameters.memory_parameter),
         Switch::new("memory size in Mb for second hash algorithm", None,
                     Some("m2"), &parameters.memory2_parameter),
-        Switch::new("names file location", None, Some("nf"),
-                    &parameters.names_file_parameter),
-        Switch::new("passwords_file_location", None, Some("pf"),
-                    &parameters.passwords_file_parameter),
+        Switch::new("file1 location", None, Some("f1"),
+                    &parameters.file1_parameter),
+        Switch::new("file2 location", None, Some("f2"),
+                    &parameters.file2_parameter),
         Switch::new("file name", Some('f'), None,
                     &parameters.file_name_parameter),
         Switch::new("salt for hash algorithm test", None, Some("salt"),
@@ -352,7 +352,7 @@ fn build_database_actions() -> HashMap<&'static str, DatabaseAction> {
         ("file1_location", DatabaseAction{description: "set file1 location",
             dependencies: vec!["qs3_path1", "qs3_key1"],
             handler: |database, parameters|set_file1_location(database, parameters)}),
-        ("file2_location", DatabaseAction{description: "set passwords file location",
+        ("file2_location", DatabaseAction{description: "set file2 location",
             dependencies: vec!["qs3_path2", "qs3_key2"],
             handler: |database, parameters|set_file2_location(database, parameters)}),
         ("search", DatabaseAction{description: "search by entity partial name",

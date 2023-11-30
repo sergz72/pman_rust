@@ -4,34 +4,34 @@ use crate::Parameters;
 use crate::utils::load_file;
 
 pub fn set_file1_location(database: u64, parameters: &Parameters) -> Result<bool, Error> {
-    match parameters.passwords_file_parameter.get_value().as_str() {
-        "qs3" => {
-            let qs3_path = parameters.qs3_path_parameter2.get_value();
-            let qs3_key = parameters.qs3_key_parameter2.get_value();
-            if qs3_path.is_empty() || qs3_key.is_empty() {
-                return Err(Error::new(ErrorKind::InvalidInput, "qs3-path2 & qs3-key2 must be provided"));
-            }
-            pman_lib::set_file1_location_qs3(database, qs3_path, load_file(qs3_key)?)
-                .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
-            Ok(true)
-        },
-        _ => Err(Error::new(ErrorKind::InvalidInput, "invalid passwords file location"))
-    }
-}
-
-pub fn set_file2_location(database: u64, parameters: &Parameters) -> Result<bool, Error> {
-    match parameters.names_file_parameter.get_value().as_str() {
+    match parameters.file1_parameter.get_value().as_str() {
         "qs3" => {
             let qs3_path = parameters.qs3_path_parameter1.get_value();
             let qs3_key = parameters.qs3_key_parameter1.get_value();
             if qs3_path.is_empty() || qs3_key.is_empty() {
                 return Err(Error::new(ErrorKind::InvalidInput, "qs3-path1 & qs3-key1 must be provided"));
             }
+            pman_lib::set_file1_location_qs3(database, qs3_path, load_file(qs3_key)?)
+                .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+            Ok(true)
+        },
+        _ => Err(Error::new(ErrorKind::InvalidInput, "invalid file1 location"))
+    }
+}
+
+pub fn set_file2_location(database: u64, parameters: &Parameters) -> Result<bool, Error> {
+    match parameters.file2_parameter.get_value().as_str() {
+        "qs3" => {
+            let qs3_path = parameters.qs3_path_parameter2.get_value();
+            let qs3_key = parameters.qs3_key_parameter2.get_value();
+            if qs3_path.is_empty() || qs3_key.is_empty() {
+                return Err(Error::new(ErrorKind::InvalidInput, "qs3-path2 & qs3-key2 must be provided"));
+            }
             pman_lib::set_file2_location_qs3(database, qs3_path, load_file(qs3_key)?)
                 .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
             Ok(true)
         },
-        _ => Err(Error::new(ErrorKind::InvalidInput, "invalid names file location"))
+        _ => Err(Error::new(ErrorKind::InvalidInput, "invalid file2 location"))
     }
 }
 
