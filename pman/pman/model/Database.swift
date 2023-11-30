@@ -87,7 +87,7 @@ struct Database: Equatable, Identifiable {
         entities = [DBEntity(entityName: eName)]
     }
 
-    mutating func open_database(firstPassword: String, secondPassword: String?) -> String {
+    mutating func open_database(firstPassword: String, secondPassword: String?, keyFile: URL?) -> String {
         if dbId == nil {
             return "Database is not prepared"
         }
@@ -95,11 +95,13 @@ struct Database: Equatable, Identifiable {
             return "Second password is required"
         }
         do {
+            let keyData: Data? = if keyFile != nil {
+                try Data(contentsOf: keyFile!)
+            } else { nil }
             let hash1 = Data(SHA256.hash(data: firstPassword.data(using: .utf8)!))
             let hash2 = if secondPassword == nil { nil as Data? } else {Data(SHA256.hash(data: secondPassword!.data(using: .utf8)!))}
-            let fileNames = try preOpen(databaseId: dbId!, passwordHash: hash1, password2Hash: hash2, keyFileContents: nil)
-            let data = try loadFiles(names: fileNames)
-            try open(databaseId: dbId!, data: data)
+            try preOpen(databaseId: dbId!, passwordHash: hash1, password2Hash: hash2, keyFileContents: keyData)
+            try open(databaseId: dbId!)
             let g = try getGroups(databaseId: dbId!)
             groups = g.map { DBGroup(group: $0) }.sorted {$0.name < $1.name}
             users = try getUsers(databaseId: dbId!)
@@ -158,15 +160,6 @@ struct Database: Equatable, Identifiable {
         return ValueError.init(v: "", message: "entity is null")
     }
 
-    func loadFiles(names: [String]) throws -> [Data] {
-        var result: [Data] = []
-        for name in names {
-            let data = try Data(contentsOf: URL(string: name)!)
-            result.append(data)
-        }
-        return result
-    }
-    
     private func getDatabaseEntities(groupId: UInt32) throws -> [UInt32: DatabaseEntity] {
         if !isOpened {
             throw DatabaseError.databaseIsNotOpened
