@@ -7,30 +7,27 @@ mod utils;
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind, Read};
 use std::env::args;
+use std::fs;
 use std::fs::File;
 use std::time::Instant;
 use arguments_parser::{Arguments, IntParameter, BoolParameter, Switch, StringParameter, EnumParameter};
 use pman_lib::{build_argon2_hash, create, get_database_type, lib_init, open, pre_open, prepare, save};
-use pman_lib::crypto::AesProcessor;
-use pman_lib::pman::data_file::build_s3_location_data;
-use pman_lib::pman::id_value_map::id_value_map::IdValueMap;
-use pman_lib::pman::id_value_map::id_value_map_s3_handler::IdValueMapS3Handler;
-use pman_lib::pman::pman_database_file::ENCRYPTION_ALGORITHM_CHACHA20;
-use rand::RngCore;
-use rand::rngs::OsRng;
-use crate::db_properties::{set_hash1, set_hash2, set_names_file_location, set_passwords_file_location};
+use pman_lib::pman::data_file::build_qs3_location_data;
+use pman_lib::pman::network::{NetworkFileHandler, QS3Handler};
+use rand::Rng;
+use crate::db_properties::{set_hash1, set_hash2, set_file1_location, set_file2_location};
 use crate::entity_actions::{add_entities, modify_entities, remove_entities, search_entities, select_entities, show_entities, show_entity_properties};
 use crate::groups_users_actions::{add_groups, add_users, select_groups, select_users};
 use crate::passwords::{build_password_hashes, build_password_hashes_from_key_file, create_key_file, generate_password_command};
-use crate::utils::{create_file, get_password, load_file, load_files};
+use crate::utils::{create_file, get_password, load_file};
 
 const TIME_DEFAULT: isize = 1000;
 const PARALLELISM_DEFAULT: isize = 6;
 const MEMORY_DEFAULT: isize = 128;
 
 struct Parameters {
-    names_file_parameter: StringParameter,
-    passwords_file_parameter: StringParameter,
+    file1_parameter: StringParameter,
+    file2_parameter: StringParameter,
     password_parameter: StringParameter,
     password2_parameter: StringParameter,
     file_name_parameter: StringParameter,
@@ -48,10 +45,10 @@ struct Parameters {
     memory2_parameter: IntParameter,
     iterations_parameter: IntParameter,
     iterations2_parameter: IntParameter,
-    s3_path_parameter1: StringParameter,
-    s3_key_parameter1: StringParameter,
-    s3_path_parameter2: StringParameter,
-    s3_key_parameter2: StringParameter,
+    qs3_path_parameter1: StringParameter,
+    qs3_key_parameter1: StringParameter,
+    qs3_path_parameter2: StringParameter,
+    qs3_key_parameter2: StringParameter,
     actions_parameter: StringParameter,
     group_names_parameter: StringParameter,
     user_names_parameter: StringParameter,
@@ -61,7 +58,8 @@ struct Parameters {
     entity_users_parameter: StringParameter,
     entity_urls_parameter: StringParameter,
     entity_properties_parameter: StringParameter,
-    key_file_parameter: StringParameter
+    key_file_parameter: StringParameter,
+    database_key_file_parameter: StringParameter,
 }
 
 struct DatabaseAction {
@@ -71,8 +69,8 @@ struct DatabaseAction {
 }
 
 fn main() -> Result<(), Error> {
-    let names_file_parameter = StringParameter::new("local");
-    let passwords_file_parameter = StringParameter::new("local");
+    let file1_parameter = StringParameter::new("qs3");
+    let file2_parameter = StringParameter::new("qs3");
     let password_parameter = StringParameter::new("");
     let password2_parameter = StringParameter::new("");
     let file_name_parameter = StringParameter::new("");
@@ -95,12 +93,12 @@ fn main() -> Result<(), Error> {
     let memory2_parameter = IntParameter::new(MEMORY_DEFAULT, |v|v>0);
     let iterations_parameter = IntParameter::new(0, |v|v>=0);
     let iterations2_parameter = IntParameter::new(0, |v|v>=0);
-    let s3_path_parameter = StringParameter::new("");
-    let s3_key_parameter = StringParameter::new("");
-    let s3_path_parameter1 = StringParameter::new("");
-    let s3_key_parameter1 = StringParameter::new("");
-    let s3_path_parameter2 = StringParameter::new("");
-    let s3_key_parameter2 = StringParameter::new("");
+    let qs3_path_parameter = StringParameter::new("");
+    let qs3_key_parameter = StringParameter::new("");
+    let qs3_path_parameter1 = StringParameter::new("");
+    let qs3_key_parameter1 = StringParameter::new("");
+    let qs3_path_parameter2 = StringParameter::new("");
+    let qs3_key_parameter2 = StringParameter::new("");
     let actions_parameter = StringParameter::new("none");
     let group_names_parameter = StringParameter::new("");
     let user_names_parameter = StringParameter::new("");
@@ -112,9 +110,10 @@ fn main() -> Result<(), Error> {
     let entity_properties_parameter = StringParameter::new("");
     let generate_password_parameter = StringParameter::new("");
     let key_file_parameter = StringParameter::new("");
+    let database_key_file_parameter = StringParameter::new("");
     let parameters = Parameters{
-        names_file_parameter,
-        passwords_file_parameter,
+        file1_parameter,
+        file2_parameter,
         password_parameter,
         password2_parameter,
         file_name_parameter,
@@ -132,10 +131,10 @@ fn main() -> Result<(), Error> {
         memory2_parameter,
         iterations_parameter,
         iterations2_parameter,
-        s3_path_parameter1,
-        s3_key_parameter1,
-        s3_path_parameter2,
-        s3_key_parameter2,
+        qs3_path_parameter1,
+        qs3_key_parameter1,
+        qs3_path_parameter2,
+        qs3_key_parameter2,
         actions_parameter,
         group_names_parameter,
         user_names_parameter,
@@ -145,7 +144,8 @@ fn main() -> Result<(), Error> {
         entity_users_parameter,
         entity_urls_parameter,
         entity_properties_parameter,
-        key_file_parameter
+        key_file_parameter,
+        database_key_file_parameter
     };
     let switches = [
         Switch::new("action", None, Some("actions"),
@@ -162,15 +162,15 @@ fn main() -> Result<(), Error> {
         Switch::new("create mode", Some('c'), None, &parameters.create_parameter),
         Switch::new("argon2 test mode", None, Some("argon2-test"), &argon2_test_parameter),
         Switch::new("key file create", None, Some("key-create"), &key_create_parameter),
-        Switch::new("s3 path for s3 test", None, Some("s3-path"), &s3_path_parameter),
-        Switch::new("s3 key file for s3 test", None, Some("s3-key"), &s3_key_parameter),
-        Switch::new("s3 path for names file", None, Some("s3-path1"), &parameters.s3_path_parameter1),
-        Switch::new("s3 key file for names file", None, Some("s3-key1"), &parameters.s3_key_parameter1),
-        Switch::new("s3 path for passwords file", None, Some("s3-path2"), &parameters.s3_path_parameter2),
-        Switch::new("s3 key file for passwords file", None, Some("s3-key2"), &parameters.s3_key_parameter2),
-        Switch::new("encryption algorithm for names file", Some('e'), None,
+        Switch::new("qs3 path for s3 test", None, Some("qs3-path"), &qs3_path_parameter),
+        Switch::new("qs3 key file for s3 test", None, Some("qs3-key"), &qs3_key_parameter),
+        Switch::new("qs3 path for file1", None, Some("qs3-path1"), &parameters.qs3_path_parameter1),
+        Switch::new("qs3 key file for file1", None, Some("qs3-key1"), &parameters.qs3_key_parameter1),
+        Switch::new("qs3 path for file2", None, Some("qs3-path2"), &parameters.qs3_path_parameter2),
+        Switch::new("qs3 key file for file2", None, Some("qs3-key2"), &parameters.qs3_key_parameter2),
+        Switch::new("encryption algorithm for names", Some('e'), None,
                     &parameters.encryption_parameter),
-        Switch::new("encryption algorithm for passwords file", None, Some("e2"),
+        Switch::new("encryption algorithm for passwords", None, Some("e2"),
                     &parameters.encryption2_parameter),
         Switch::new("hash build time in ms for first hash algorithm", Some('t'),
                     None, &parameters.time_parameter),
@@ -188,10 +188,10 @@ fn main() -> Result<(), Error> {
                     None, &parameters.memory_parameter),
         Switch::new("memory size in Mb for second hash algorithm", None,
                     Some("m2"), &parameters.memory2_parameter),
-        Switch::new("names file location", None, Some("nf"),
-                    &parameters.names_file_parameter),
-        Switch::new("passwords_file_location", None, Some("pf"),
-                    &parameters.passwords_file_parameter),
+        Switch::new("file1 location", None, Some("f1"),
+                    &parameters.file1_parameter),
+        Switch::new("file2 location", None, Some("f2"),
+                    &parameters.file2_parameter),
         Switch::new("file name", Some('f'), None,
                     &parameters.file_name_parameter),
         Switch::new("salt for hash algorithm test", None, Some("salt"),
@@ -215,7 +215,9 @@ fn main() -> Result<(), Error> {
         Switch::new("password generator", None, Some("generate-password"),
                     &generate_password_parameter),
         Switch::new("key file name", None, Some("key-file"),
-                    &parameters.key_file_parameter)
+                    &parameters.key_file_parameter),
+        Switch::new("database key file name", None, Some("db-key-file"),
+                    &parameters.database_key_file_parameter)
     ];
     let mut arguments = Arguments::new("pman_console", &switches, None);
     if let Err(e) = arguments.build(args().skip(1).collect()) {
@@ -236,8 +238,8 @@ fn main() -> Result<(), Error> {
                     parameters.memory_parameter.get_value(), salt)
     } else if key_create_parameter.get_value() {
         create_key_file(parameters)
-    } else if s3_test(s3_path_parameter.get_value(),
-                      s3_key_parameter.get_value())? ||
+    } else if qs3_test(qs3_path_parameter.get_value(),
+                       qs3_key_parameter.get_value(), parameters.database_key_file_parameter.get_value())? ||
         generate_password_command(generate_password_parameter.get_value())? {
         Ok(())
     } else {
@@ -259,21 +261,23 @@ fn execute_database_operations(parameters: Parameters) -> Result<(), Error> {
     } else {
         build_password_hashes_from_key_file(parameters.key_file_parameter.get_value())?
     };
+    let key_file_name = parameters.database_key_file_parameter.get_value();
+    let key_file_contents = if key_file_name.is_empty() {None} else {
+        Some(load_file(key_file_name)?)
+    };
     lib_init();
     let database = if parameters.create_parameter.get_value() {
-        create(database_type, password_hash, password2_hash, None, file_name)
+        create(database_type, password_hash, password2_hash, key_file_contents, file_name.clone())
             .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?
     } else {
         let mut f = File::open(file_name.clone())?;
         let mut data = Vec::new();
         f.read_to_end(&mut data)?;
-        let id = prepare(data, file_name)
+        let id = prepare(data, file_name.clone())
             .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
-        let files =
-            pre_open(id, password_hash, password2_hash, None)
-                .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
-        let data = load_files(files)?;
-        open(id, data)
+        pre_open(id, password_hash, password2_hash, key_file_contents)
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+        open(id)
             .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
         id
     };
@@ -290,9 +294,10 @@ fn execute_database_operations(parameters: Parameters) -> Result<(), Error> {
         }
     }
     if save_database {
-        for action in save(database)
-            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))? {
-            create_file(action)?;
+        let contents = save(database)
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+        if let Some(data) = contents {
+            create_file(&file_name, data)?;
         }
     }
     Ok(())
@@ -344,12 +349,12 @@ fn build_database_actions() -> HashMap<&'static str, DatabaseAction> {
         ("set_hash2", DatabaseAction{description: "set second password hashing algorithm",
             dependencies: vec!["iterations2", "memory2", "parallelism2"],
             handler: |database, parameters|set_hash2(database, parameters)}),
-        ("names_location", DatabaseAction{description: "set names file location",
-            dependencies: vec!["s3_path1", "s3_key1"],
-            handler: |database, parameters|set_names_file_location(database, parameters)}),
-        ("passwords_location", DatabaseAction{description: "set passwords file location",
-            dependencies: vec!["s3_path2", "s3_key2"],
-            handler: |database, parameters|set_passwords_file_location(database, parameters)}),
+        ("file1_location", DatabaseAction{description: "set file1 location",
+            dependencies: vec!["qs3_path1", "qs3_key1"],
+            handler: |database, parameters|set_file1_location(database, parameters)}),
+        ("file2_location", DatabaseAction{description: "set file2 location",
+            dependencies: vec!["qs3_path2", "qs3_key2"],
+            handler: |database, parameters|set_file2_location(database, parameters)}),
         ("search", DatabaseAction{description: "search by entity partial name",
             dependencies: vec!["entity_names"],
             handler: |database, parameters|search_entities(database, parameters)}),
@@ -363,34 +368,28 @@ fn build_database_actions() -> HashMap<&'static str, DatabaseAction> {
     database_actions
 }
 
-fn s3_test(s3_path: String, s3_key: String) -> Result<bool, Error> {
-    if s3_path.is_empty() && s3_key.is_empty() {
+fn qs3_test(qs3_path: String, qs3_key: String, rsa_key_file: String) -> Result<bool, Error> {
+    if qs3_path.is_empty() && qs3_key.is_empty() {
         return Ok(false);
     }
-    if s3_path.is_empty() || s3_key.is_empty() {
-        return Err(Error::new(ErrorKind::InvalidInput, "s3-path & s3-key must be provided"));
+    if qs3_path.is_empty() || qs3_key.is_empty() || rsa_key_file.is_empty() {
+        return Err(Error::new(ErrorKind::InvalidInput, "qs3-path & qs3-key & database key file must be provided"));
     }
-    let location_data = build_location_data(s3_path, s3_key)?;
-    let handler = IdValueMapS3Handler::new(location_data.clone())?;
-    let mut key = [0u8;32];
-    OsRng.fill_bytes(&mut key);
-    let mut map = IdValueMap::new(AesProcessor::new(key), vec![Box::new(handler)])?;
-    let v = "12345".to_string();
-    let k = map.add(v.clone())?;
-    let mut key2 = [0u8;32];
-    OsRng.fill_bytes(&mut key2);
-    map.save(None, Some(ENCRYPTION_ALGORITHM_CHACHA20), Some(key2))?;
-    let handler2 = IdValueMapS3Handler::load(location_data, key2, ENCRYPTION_ALGORITHM_CHACHA20)?;
-    let mut map2 = IdValueMap::new(AesProcessor::new(key), vec![Box::new(handler2)])?;
-    let v2: String = map2.get(k)?;
-    println!("{} {}", v, v2);
+    let rsa_key = fs::read_to_string(rsa_key_file)?;
+    let location_data = build_location_data(qs3_path, qs3_key)?;
+    let handler = QS3Handler::new(location_data.clone(), rsa_key)?;
+    let mut rng = rand::thread_rng();
+    let data: Vec<u8> = (0..1000).map(|_| rng.gen()).collect();
+    handler.upload(data.clone())?;
+    let received = handler.download()?;
+    println!("{}", if data == received {"Ok"} else {"Error"});
     Ok(true)
 }
 
-fn build_location_data(s3_path: String, s3_key: String) -> Result<Vec<u8>, Error> {
-    let data = load_file(s3_key)?;
+fn build_location_data(qs3_path: String, qs3_key: String) -> Result<Vec<u8>, Error> {
+    let data = load_file(qs3_key)?;
     let mut result = Vec::new();
-    build_s3_location_data(&mut result, s3_path, data);
+    build_qs3_location_data(&mut result, qs3_path, data);
     Ok(result)
 }
 

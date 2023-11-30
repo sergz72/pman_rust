@@ -148,7 +148,7 @@ impl PasswordDatabaseEntity for PmanDatabaseEntity {
     }
 
     fn get_name(&self) -> Result<String, Error> {
-        self.database_file.as_ref().unwrap().lock().unwrap().get_from_names_file(self.name_id)
+        self.database_file.as_ref().unwrap().lock().unwrap().get_from_names(self.name_id)
     }
 
     fn get_user_id(&self, version: u32) -> Result<u32, Error> {
@@ -164,14 +164,14 @@ impl PasswordDatabaseEntity for PmanDatabaseEntity {
     fn get_password(&self, version: u32) -> Result<String, Error> {
         self.check_version(version)?;
         let id = self.history.get(version as usize).unwrap().password_id;
-        self.database_file.as_ref().unwrap().lock().unwrap().get_from_passwords_file(id)
+        self.database_file.as_ref().unwrap().lock().unwrap().get_from_passwords(id)
     }
 
     fn get_url(&self, version: u32) -> Result<Option<String>, Error> {
         self.check_version(version)?;
         let url_id = self.history.get(version as usize).unwrap().url_id;
         if let Some(id) = url_id {
-            let url: String = self.database_file.as_ref().unwrap().lock().unwrap().get_from_names_file(id)?;
+            let url: String = self.database_file.as_ref().unwrap().lock().unwrap().get_from_names(id)?;
             return Ok(Some(url));
         }
         Ok(None)
@@ -182,7 +182,7 @@ impl PasswordDatabaseEntity for PmanDatabaseEntity {
         let mut result = HashMap::new();
         for (k, _v) in &self.history.get(version as usize).unwrap().properties {
             let kk = *k;
-            let name = self.database_file.as_ref().unwrap().lock().unwrap().get_from_names_file(kk)?;
+            let name = self.database_file.as_ref().unwrap().lock().unwrap().get_from_names(kk)?;
             result.insert(name, kk);
         }
         Ok(result)
@@ -191,7 +191,7 @@ impl PasswordDatabaseEntity for PmanDatabaseEntity {
     fn get_property_value(&self, version: u32, index: u32) -> Result<String, Error> {
         self.check_version(version)?;
         if let Some(v) = self.history.get(version as usize).unwrap().properties.get(&index) {
-            return self.database_file.as_ref().unwrap().lock().unwrap().get_from_passwords_file(*v);
+            return self.database_file.as_ref().unwrap().lock().unwrap().get_from_passwords(*v);
         }
         Err(build_not_found_error())
     }
@@ -239,10 +239,10 @@ impl PmanDatabaseEntity {
             let to_be_deleled_passwords_ids =
                 get_unused_ids(active_passwords_ids, deleted_passwords_ids);
             for id in to_be_deleled_names_ids {
-                file.remove_from_names_file(id)?;
+                file.remove_from_names(&id)?;
             }
             for id in to_be_deleled_passwords_ids {
-                file.remove_from_passwords_file(id)?;
+                file.remove_from_passwords(&id)?;
             }
         }
         Ok(())
@@ -329,7 +329,8 @@ mod tests {
         OsRng.fill_bytes(&mut hash2);
         let hash1_vec = Vec::from(hash1);
         let hash2_vec = Vec::from(hash2);
-        let db = Arc::new(Mutex::new(PmanDatabaseFile::new(hash1_vec.clone(), hash2_vec.clone())?));
+        let db =
+            Arc::new(Mutex::new(PmanDatabaseFile::new(hash1_vec.clone(), hash2_vec.clone())?));
         let mut entity1 = PmanDatabaseEntity::new(db.clone(), 1, 2, 3, 4, None, HashMap::new());
         entity1.update(&mut db.lock().unwrap(),66, 77, 88, Some(99),
                        HashMap::from([(110, 111), (112, 113)]))?;

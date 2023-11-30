@@ -1,18 +1,18 @@
 namespace pman_lib {
   void lib_init();
   [Throws=PmanError]
-  u64 create(PasswordDatabaseType database_type, bytes password_hash, bytes? password2_hash, bytes? key_file_contents,
-             string file_name);
+  u64 create(PasswordDatabaseType database_type, bytes password_hash, bytes? password2_hash,
+             bytes? key_file_contents, string file_name);
   [Throws=PmanError]
   u64 prepare(bytes data, string file_name);
   [Throws=PmanError]
   boolean is_read_only(u64 database_id);
   [Throws=PmanError]
-  sequence<string> pre_open(u64 database_id, bytes password_hash, bytes? password2_hash, bytes? key_file_contents);
+  void pre_open(u64 database_id, bytes password_hash, bytes? password2_hash, bytes? key_file_contents);
   [Throws=PmanError]
-  void open(u64 database_id, sequence<bytes> data);
+  void open(u64 database_id);
   [Throws=PmanError]
-  sequence<FileAction> save(u64 database_id);
+  bytes? save(u64 database_id);
   [Throws=PmanError]
   void close(u64 database_id);
   [Throws=PmanError]
@@ -45,13 +45,9 @@ namespace pman_lib {
   [Throws=PmanError]
   record<u32, record<u32, DatabaseEntity>> search(u64 database_id, string search_string);
   [Throws=PmanError]
-  boolean set_names_file_location_local(u64 database_id);
+  void set_file1_location_qs3(u64 database_id, string file_name, bytes s3_key);
   [Throws=PmanError]
-  boolean set_passwords_file_location_local(u64 database_id);
-  [Throws=PmanError]
-  boolean set_names_file_location_s3(u64 database_id, string file_name, bytes s3_key);
-  [Throws=PmanError]
-  boolean set_passwords_file_location_s3(u64 database_id, string file_name, bytes s3_key);
+  void set_file2_location_qs3(u64 database_id, string file_name, bytes s3_key);
 };
 
 [Error]
@@ -71,11 +67,6 @@ enum HashAlgorithm {
 enum CryptoEngine {
   "AES",
   "Chacha20"
-};
-
-interface FileAction {
-  string get_file_name();
-  bytes get_data();
 };
 
 interface DatabaseGroup {

@@ -15,3 +15,7 @@ pub fn build_corrupted_data_error(function_name: &str) -> Error {
 pub fn build_read_only_db_error() -> Error {
     Error::new(ErrorKind::Unsupported, "database is read only")
 }
+
+pub fn build_unsupported_algorithm_error() -> Error {
+    Error::new(ErrorKind::Unsupported, "unsupported encryption algorithm")
+}

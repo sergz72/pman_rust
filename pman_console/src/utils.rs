@@ -1,8 +1,6 @@
 use std::fs::File;
 use std::io::{Error, ErrorKind, Read, Write};
-use std::sync::Arc;
 use passterm::prompt_password_tty;
-use pman_lib::structs_interfaces::FileAction;
 use rand::Rng;
 
 const LETTER_TABLE: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -55,17 +53,9 @@ pub fn load_file(file_name: String) -> Result<Vec<u8>, Error> {
     Ok(data)
 }
 
-pub fn load_files(file_names: Vec<String>) -> Result<Vec<Vec<u8>>, Error> {
-    let mut result = Vec::new();
-    for file_name in file_names {
-        result.push(load_file(file_name)?);
-    }
-    Ok(result)
-}
-
-pub fn create_file(action: Arc<FileAction>) -> Result<(), Error> {
-    let mut f = File::create(&action.file_name)?;
-    f.write_all(action.data.as_slice())
+pub fn create_file(file_name: &String, data: Vec<u8>) -> Result<(), Error> {
+    let mut f = File::create(file_name)?;
+    f.write_all(data.as_slice())
 }
 
 pub fn get_password(prompt: &str, password: String) -> Result<String, Error> {
