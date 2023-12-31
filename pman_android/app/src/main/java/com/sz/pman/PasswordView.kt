@@ -1,5 +1,6 @@
 package com.sz.pman
 
+import android.net.Uri
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -31,7 +32,10 @@ import androidx.compose.ui.unit.sp
 import com.sz.pman.entities.Database
 import com.sz.pman.ui.theme.PmanTheme
 
-data class KeyFile(val name: String, val data: ByteArray?) {
+data class KeyFile(val name: String, val uri: Uri, val data: ByteArray?) {
+
+    constructor(): this("", Uri.EMPTY, null)
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
@@ -112,8 +116,8 @@ fun PasswordView(
 @Preview(showBackground = true)
 @Composable
 fun PasswordViewPreview() {
-    var keyFile = remember { mutableStateOf(KeyFile("", null)) }
+    val keyFile = remember { mutableStateOf(KeyFile()) }
     PmanTheme {
-        PasswordView(Database("test", "", 1UL, listOf()), keyFile) {}
+        PasswordView(Database("test", "", 1UL, keyFile.value, listOf(), listOf()), keyFile) {}
     }
 }

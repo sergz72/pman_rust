@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.material3.Button
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,6 +34,8 @@ fun DatabaseView(selectedDatabase: Database) {
                         onClick = {
                             if (group != selectedDatabase.selectedGroup.value) {
                                 selectedDatabase.selectGroup(group)
+                            } else {
+                                selectedDatabase.selectGroup(null)
                             }
                         }
                     )
@@ -45,7 +48,38 @@ fun DatabaseView(selectedDatabase: Database) {
         Divider()
         HeaderView("Entities", Color.Yellow) { }
         Column(modifier = Modifier.fillMaxHeight()) {
-
+            selectedDatabase.entities.forEach { entity ->
+                Row(modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        if (entity == selectedDatabase.selectedEntity.value)
+                            Color.Green else Color.White
+                    )
+                    .selectable(
+                        selected = entity == selectedDatabase.selectedEntity.value,
+                        onClick = {
+                            if (entity != selectedDatabase.selectedEntity.value) {
+                                selectedDatabase.selectedEntity.value = entity
+                            }
+                        }
+                    )
+                ) {
+                    Row {
+                        Text(text = entity.name)
+                        if (entity == selectedDatabase.selectedEntity.value) {
+                            Button(onClick = { }) {
+                                Text("Copy user name")
+                            }
+                            Button(onClick = { }) {
+                                Text("Copy password")
+                            }
+                            Button(onClick = { }) {
+                                Text("Show properties")
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -54,10 +88,11 @@ fun DatabaseView(selectedDatabase: Database) {
 @Composable
 fun DatabaseViewPreview() {
     PmanTheme {
-        DatabaseView(Database("test", "", 1UL,
+        DatabaseView(Database("test", "", 1UL, KeyFile(),
             listOf(
                 DBGroup(1U, "group1", 10U),
                 DBGroup(2U, "group2", 20U)
-            )))
+            ), listOf()
+        ))
     }
 }
