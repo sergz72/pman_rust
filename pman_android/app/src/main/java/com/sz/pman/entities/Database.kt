@@ -1,11 +1,15 @@
 package com.sz.pman.entities
 
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
 import uniffi.pman_lib.PmanException
 import java.security.MessageDigest
 
-data class Database(val name: String, val errorMessage: String, val id: ULong) {
+data class DBGroup(val id: UInt, val name: String, val items: UInt)
+
+data class Database(val name: String, val errorMessage: String, val id: ULong, var groups: List<DBGroup>) {
     companion object {
-        fun NewDatabase(name: String, data: ByteArray): Database {
+        fun newDatabase(name: String, data: ByteArray): Database {
             var dbId = 0UL
             var message = ""
             try {
@@ -13,11 +17,16 @@ data class Database(val name: String, val errorMessage: String, val id: ULong) {
             } catch (e: PmanException) {
                 message = e.toString()
             }
-            return Database(name, message, dbId)
+            return Database(name, message, dbId, listOf())
         }
     }
 
-    var isOpened = false
+    var isOpened = mutableStateOf(false)
+    var selectedGroup: MutableState<DBGroup?> = mutableStateOf(null)
+
+    fun selectGroup(dbGroup: DBGroup) {
+        selectedGroup.value = dbGroup
+    }
 
     fun open(password: String, password2: String, keyFileContents: ByteArray?): String {
         try {
@@ -27,6 +36,10 @@ data class Database(val name: String, val errorMessage: String, val id: ULong) {
             uniffi.pman_lib.preOpen(id, md.digest(passwordBytes), md.digest(password2Bytes),
                 keyFileContents)
             uniffi.pman_lib.open(id)
+            isOpened.value = true
+            val dbGroups = uniffi.pman_lib.getGroups(id)
+            groups = dbGroups.map { DBGroup(it.getId(), it.getName(), it.getEntitiesCount()) }
+                .sortedBy { it.name }
         } catch (e: PmanException) {
             return e.toString()
         }

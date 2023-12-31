@@ -24,14 +24,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.Divider
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,8 +35,6 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.documentfile.provider.DocumentFile
 import com.sz.pman.entities.Database
 import java.io.FileInputStream
@@ -104,7 +97,7 @@ class MainActivity : ComponentActivity(), ActivityResultCallback<ActivityResult>
                 val bytes = stream.readBytes()
                 val document = DocumentFile.fromSingleUri(this, uri)
                 if (openFileCode == PICK_FILE) {
-                    mDatabases.add(Database.NewDatabase(document?.name!!, bytes))
+                    mDatabases.add(Database.newDatabase(document?.name!!, bytes))
                 } else {
                     keyFile.value = KeyFile(document?.name!!, bytes)
                 }
@@ -167,8 +160,8 @@ fun PasswordOrMessageView(selectedDatabase: Database?, keyFile: MutableState<Key
         Spacer(modifier = Modifier.fillMaxHeight())
     } else if (selectedDatabase.errorMessage != "") {
         Text(selectedDatabase.errorMessage, modifier = Modifier.fillMaxHeight(), color = Color.Red)
-    } else if (selectedDatabase.isOpened) {
-        Spacer(modifier = Modifier.fillMaxHeight())
+    } else if (selectedDatabase.isOpened.value) {
+        DatabaseView(selectedDatabase)
     } else {
         PasswordView(selectedDatabase, keyFile, openFile)
     }
@@ -181,8 +174,8 @@ fun MainViewPreview() {
 
     PmanTheme {
         MainView(listOf(
-            Database("test", "", 1UL),
-            Database("test2", "test error", 2UL)
+            Database("test", "", 1UL, listOf()),
+            Database("test2", "test error", 2UL, listOf())
         ), keyFile) {}
     }
 }

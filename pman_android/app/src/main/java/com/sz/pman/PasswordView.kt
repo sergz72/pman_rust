@@ -56,45 +56,35 @@ fun PasswordView(
     var errorMessage by remember { mutableStateOf("") }
 
     Column(modifier = Modifier.fillMaxHeight(), verticalArrangement = Arrangement.Center) {
+        Text("First password", modifier = Modifier.width(150.dp))
+        BasicTextField(
+            value = password1,
+            onValueChange = { password1 = it },
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(Modifier.border(1.dp, Color.LightGray))
+                .then(Modifier.height(40.dp)),
+            textStyle = LocalTextStyle.current.copy(fontSize = 28.sp)
+        )
+        Text("Second password", modifier = Modifier.width(150.dp))
+        BasicTextField(
+            value = password2,
+            onValueChange = { password2 = it },
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(Modifier.border(1.dp, Color.LightGray))
+                .then(Modifier.height(40.dp)),
+            textStyle = LocalTextStyle.current.copy(fontSize = 28.sp)
+        )
+        Text("Key file", modifier = Modifier.width(150.dp))
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.height(50.dp)
         ) {
-            Text("First password", modifier = Modifier.width(150.dp))
-            BasicTextField(
-                value = password1,
-                onValueChange = { password1 = it },
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .then(Modifier.border(1.dp, Color.LightGray))
-                    .then(Modifier.height(40.dp)),
-                textStyle = LocalTextStyle.current.copy(fontSize = 28.sp)
-            )
-        }
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.height(50.dp)
-        ) {
-            Text("Second password", modifier = Modifier.width(150.dp))
-            BasicTextField(
-                value = password2,
-                onValueChange = { password2 = it },
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .then(Modifier.border(1.dp, Color.LightGray))
-                    .then(Modifier.height(40.dp)),
-                textStyle = LocalTextStyle.current.copy(fontSize = 28.sp)
-            )
-        }
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.height(50.dp)
-        ) {
-            Text("Key file", modifier = Modifier.width(150.dp))
             Text(
                 text = keyFile.component1().name,
                 modifier = Modifier
@@ -124,6 +114,6 @@ fun PasswordView(
 fun PasswordViewPreview() {
     var keyFile = remember { mutableStateOf(KeyFile("", null)) }
     PmanTheme {
-        PasswordView(Database("test", "", 1UL), keyFile) {}
+        PasswordView(Database("test", "", 1UL, listOf()), keyFile) {}
     }
 }
