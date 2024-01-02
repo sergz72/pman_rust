@@ -1,5 +1,6 @@
 package com.sz.pman
 
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -92,7 +93,7 @@ fun DatabaseViewPreview() {
     val keyFile = remember { mutableStateOf(KeyFile()) }
 
     PmanTheme {
-        DatabaseView(Database("test", "", 1UL, keyFile,
+        DatabaseView(Database("test", Uri.EMPTY, "", 1UL, keyFile,
             listOf(
                 DBGroup(1U, "group1", 10U),
                 DBGroup(2U, "group2", 20U)

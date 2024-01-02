@@ -14,10 +14,10 @@ data class DBEntity(val id: UInt, val entity: DatabaseEntity) {
     val name: String = entity.getName()
 }
 
-data class Database(val name: String, val errorMessage: String, val id: ULong,
+data class Database(val name: String, val uri: Uri, val errorMessage: String, val id: ULong,
                     var keyFile: MutableState<KeyFile>, var groups: List<DBGroup>, var entities: List<DBEntity>) {
     companion object {
-        fun newDatabase(name: String, data: ByteArray): Database {
+        fun newDatabase(name: String, uri: Uri, data: ByteArray): Database {
             var dbId = 0UL
             var message = ""
             try {
@@ -25,10 +25,10 @@ data class Database(val name: String, val errorMessage: String, val id: ULong,
             } catch (e: PmanException) {
                 message = e.toString()
             }
-            return Database(name, message, dbId, mutableStateOf(KeyFile()), listOf(), listOf())
+            return Database(name, uri, message, dbId, mutableStateOf(KeyFile()), listOf(), listOf())
         }
 
-        fun newDatabase(name: String, keyFile: KeyFile, data: ByteArray): Database {
+        fun newDatabase(name: String, uri: Uri, keyFile: KeyFile, data: ByteArray): Database {
             var dbId = 0UL
             var message = ""
             try {
@@ -36,7 +36,7 @@ data class Database(val name: String, val errorMessage: String, val id: ULong,
             } catch (e: PmanException) {
                 message = e.toString()
             }
-            return Database(name, message, dbId, mutableStateOf(keyFile), listOf(), listOf())
+            return Database(name, uri, message, dbId, mutableStateOf(keyFile), listOf(), listOf())
         }
     }
 

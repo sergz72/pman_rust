@@ -26,19 +26,17 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Divider
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.sp
 import androidx.documentfile.provider.DocumentFile
 import com.sz.pman.entities.Database
 import java.io.FileInputStream
@@ -46,6 +44,7 @@ import java.lang.Exception
 
 const val PICK_FILE = 1
 const val PICK_KEY = 2
+const val REMOVE_DATABASE = 3
 
 class MainActivity : ComponentActivity(), ActivityResultCallback<ActivityResult> {
 
@@ -63,7 +62,8 @@ class MainActivity : ComponentActivity(), ActivityResultCallback<ActivityResult>
         mSharedPreferences = getSharedPreferences("pman", Context.MODE_PRIVATE)
         loadDatabases()
 
-        mActivityResultLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult(), this)
+        mActivityResultLauncher =
+            registerForActivityResult(ActivityResultContracts.StartActivityForResult(), this)
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -77,42 +77,76 @@ class MainActivity : ComponentActivity(), ActivityResultCallback<ActivityResult>
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    MainView(mDatabases, selectedDatabase) { code -> openFile(code) }
+                    MainView(mDatabases, selectedDatabase) { code -> mainViewAction(code) }
                 }
             }
         }
     }
 
     private fun loadDatabases() {
-        mDatabases =  mSharedPreferences.getStringSet("databases", setOf())!!
-            .map { toDatabase(it) }
-            .filterNotNull()
+        mDatabases = mSharedPreferences.getStringSet("databases", setOf())!!
+            .mapNotNull { toDatabase(it) }
             .toMutableStateList()
     }
 
     private fun toDatabase(it: String): Database? {
-        val params = it.split(':')
+        val params = it.split('|')
         return if (params.size == 2) {
             try {
-                val mainFileContents = readFile(Uri.parse(params[0]))
-                val keyFileUri = if (params[1].isNotEmpty()) {Uri.parse(params[1])} else {Uri.EMPTY}
+                val mainFileUri = Uri.parse(params[0])
+                val mainDocument = DocumentFile.fromSingleUri(this, mainFileUri)
+                val mainFileContents = readFile(mainFileUri)
+                val keyFileUri = if (params[1].isNotEmpty()) {
+                    Uri.parse(params[1])
+                } else {
+                    Uri.EMPTY
+                }
                 val keyFileContents = if (keyFileUri != Uri.EMPTY) {
                     try {
                         readFile(keyFileUri)
                     } catch (e: Exception) {
                         null
                     }
-                } else {null}
-                var keyFileName = if (keyFileContents != null) {params[1]} else {""}
-                Database.newDatabase(params[0], KeyFile(keyFileName, keyFileUri, keyFileContents),
-                    mainFileContents)
+                } else {
+                    null
+                }
+                val keyFileName = if (keyFileContents != null) {
+                    val keyDocument = DocumentFile.fromSingleUri(this, keyFileUri)
+                    keyDocument?.name!!
+                } else {
+                    ""
+                }
+                Database.newDatabase(
+                    mainDocument?.name!!,
+                    mainFileUri,
+                    KeyFile(keyFileName, keyFileUri, keyFileContents),
+                    mainFileContents
+                )
             } catch (e: Exception) {
-                Database(params[0], e.message!!, 0UL, mutableStateOf(KeyFile()), listOf(), listOf())
+                Database(
+                    params[0],
+                    Uri.EMPTY,
+                    e.message!!,
+                    0UL,
+                    mutableStateOf(KeyFile()),
+                    listOf(),
+                    listOf()
+                )
             }
-        } else {null}
+        } else {
+            null
+        }
     }
 
-    private fun openFile(code: Int) {
+    private fun mainViewAction(code: Int) {
+        if (code == REMOVE_DATABASE) {
+            mDatabases.remove(selectedDatabase.value)
+            //uniffi.pman_lib.
+            saveDatabases()
+            selectedDatabase.value = null
+            return
+        }
+
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
             type = "application/*"
@@ -142,25 +176,65 @@ class MainActivity : ComponentActivity(), ActivityResultCallback<ActivityResult>
                 val bytes = readFile(uri)
                 val document = DocumentFile.fromSingleUri(this, uri)
                 if (openFileCode == PICK_FILE) {
-                    mDatabases.add(Database.newDatabase(document?.name!!, bytes))
+                    mDatabases.add(Database.newDatabase(document?.name!!, uri, bytes))
                 } else {
                     selectedDatabase.value!!.keyFile.value = KeyFile(document?.name!!, uri, bytes)
                 }
+                saveDatabases()
             }
         }
     }
+
+    private fun saveDatabases() {
+        val databaseList = mDatabases.map { it.uri.toString() + "|" + it.keyFile.value.uri }.toSet()
+        val editor = mSharedPreferences.edit()
+        editor.putStringSet("databases", databaseList)
+        editor.apply()
+    }
+}
+
+data class Alert(
+    var show: MutableState<Boolean>, val title: String, val message: String, val confirmButtonText: String,
+    val handler: () -> Unit
+) {
+    constructor(): this(mutableStateOf(false), "", "", "", {})
 }
 
 @Composable
-fun MainView(databases: List<Database>, selectedDatabase: MutableState<Database?>, openFile: (Int) -> Unit) {
+fun MainView(
+    databases: List<Database>, selectedDatabase: MutableState<Database?>,
+    action: (Int) -> Unit
+) {
+    val alert = remember { mutableStateOf(Alert()) }
+
+    if (alert.value.show.value) {
+        AlertDialog(
+            onDismissRequest = { alert.value.show.value = false },
+            confirmButton = {
+                Button(onClick = {
+                    alert.value.handler.invoke()
+                    alert.value.show.value = false
+                }) {
+                    Text(alert.value.confirmButtonText)
+                }
+            },
+            title = { Text(alert.value.title) },
+            text = { Text(alert.value.message) },
+            dismissButton = {
+                Button(onClick = {
+                    alert.value.show.value = false
+                }) {
+                    Text("Cancel")
+                }
+            })
+    }
     Column {
-        HeaderView("Databases", Color.Cyan) { openFile(1) }
+        HeaderView("Databases", Color.Cyan) { action(PICK_FILE) }
         Column {
-            databases.forEach {database ->
-                Text(
-                    text = database.name,
+            databases.forEach { database ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
-                        .fillMaxWidth()
                         .background(
                             if (database == selectedDatabase.value)
                                 Color.Green else Color.White
@@ -172,12 +246,29 @@ fun MainView(databases: List<Database>, selectedDatabase: MutableState<Database?
                                     selectedDatabase.value = database
                                 }
                             }
-                        )
-                )
+                        ),
+                ) {
+                    Text(
+                        text = database.name,
+                        modifier = Modifier.weight(1f),
+                        fontSize = 20.sp
+                    )
+                    if (database == selectedDatabase.value) {
+                        Button(onClick = {
+                            alert.value = Alert(
+                                mutableStateOf(true),
+                                "Remove database", "Remove database?",
+                                "Remove"
+                            ) { action(REMOVE_DATABASE) }
+                        }) {
+                            Text("Remove")
+                        }
+                    }
+                }
             }
         }
         Divider()
-        PasswordOrMessageView(selectedDatabase.value, openFile)
+        PasswordOrMessageView(selectedDatabase.value, action)
     }
 }
 
@@ -215,9 +306,11 @@ fun MainViewPreview() {
     var selectedDatabase = remember { mutableStateOf(null as Database?) }
 
     PmanTheme {
-        MainView(listOf(
-            Database("test", "", 1UL, keyFile, listOf(), listOf()),
-            Database("test2", "test error", 2UL, keyFile, listOf(), listOf())
-        ), selectedDatabase) {}
+        MainView(
+            listOf(
+                Database("test", Uri.EMPTY, "", 1UL, keyFile, listOf(), listOf()),
+                Database("test2", Uri.EMPTY, "test error", 2UL, keyFile, listOf(), listOf())
+            ), selectedDatabase
+        ) {}
     }
 }

@@ -118,6 +118,6 @@ fun PasswordViewPreview() {
     val keyFile = remember { mutableStateOf(KeyFile()) }
 
     PmanTheme {
-        PasswordView(Database("test", "", 1UL, keyFile, listOf(), listOf())) {}
+        PasswordView(Database("test", Uri.EMPTY, "", 1UL, keyFile, listOf(), listOf())) {}
     }
 }
