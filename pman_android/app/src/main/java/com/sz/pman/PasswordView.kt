@@ -52,8 +52,7 @@ data class KeyFile(val name: String, val uri: Uri, val data: ByteArray?) {
 
 @Composable
 fun PasswordView(
-    selectedDatabase: Database, keyFile: MutableState<KeyFile>,
-    openFile: (Int) -> Unit
+    selectedDatabase: Database, openFile: (Int) -> Unit
 ) {
     var password1 by remember { mutableStateOf("") }
     var password2 by remember { mutableStateOf("") }
@@ -90,7 +89,7 @@ fun PasswordView(
             modifier = Modifier.height(50.dp)
         ) {
             Text(
-                text = keyFile.component1().name,
+                text = selectedDatabase.keyFile.value.name,
                 modifier = Modifier
                     .weight(1f)
                     .then(Modifier.border(1.dp, Color.LightGray))
@@ -103,7 +102,7 @@ fun PasswordView(
         }
         Button(
             onClick = {
-                errorMessage = selectedDatabase.open(password1, password2, keyFile.value.data)
+                errorMessage = selectedDatabase.open(password1, password2, selectedDatabase.keyFile.value.data)
             },
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -117,7 +116,8 @@ fun PasswordView(
 @Composable
 fun PasswordViewPreview() {
     val keyFile = remember { mutableStateOf(KeyFile()) }
+
     PmanTheme {
-        PasswordView(Database("test", "", 1UL, keyFile.value, listOf(), listOf()), keyFile) {}
+        PasswordView(Database("test", "", 1UL, keyFile, listOf(), listOf())) {}
     }
 }

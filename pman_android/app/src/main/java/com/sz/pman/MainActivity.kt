@@ -51,8 +51,8 @@ class MainActivity : ComponentActivity(), ActivityResultCallback<ActivityResult>
 
     private var mActivityResultLauncher: ActivityResultLauncher<Intent>? = null
     private lateinit var mDatabases: MutableList<Database>
-    private var keyFile = mutableStateOf(KeyFile("", Uri.EMPTY, null))
     private var openFileCode = -1
+    private var selectedDatabase = mutableStateOf(null as Database?)
 
     private lateinit var mSharedPreferences: SharedPreferences
 
@@ -77,7 +77,7 @@ class MainActivity : ComponentActivity(), ActivityResultCallback<ActivityResult>
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    MainView(mDatabases, keyFile) { code -> openFile(code) }
+                    MainView(mDatabases, selectedDatabase) { code -> openFile(code) }
                 }
             }
         }
@@ -107,7 +107,7 @@ class MainActivity : ComponentActivity(), ActivityResultCallback<ActivityResult>
                 Database.newDatabase(params[0], KeyFile(keyFileName, keyFileUri, keyFileContents),
                     mainFileContents)
             } catch (e: Exception) {
-                Database(params[0], e.message!!, 0UL, KeyFile(), listOf(), listOf())
+                Database(params[0], e.message!!, 0UL, mutableStateOf(KeyFile()), listOf(), listOf())
             }
         } else {null}
     }
@@ -144,7 +144,7 @@ class MainActivity : ComponentActivity(), ActivityResultCallback<ActivityResult>
                 if (openFileCode == PICK_FILE) {
                     mDatabases.add(Database.newDatabase(document?.name!!, bytes))
                 } else {
-                    keyFile.value = KeyFile(document?.name!!, uri, bytes)
+                    selectedDatabase.value!!.keyFile.value = KeyFile(document?.name!!, uri, bytes)
                 }
             }
         }
@@ -152,9 +152,7 @@ class MainActivity : ComponentActivity(), ActivityResultCallback<ActivityResult>
 }
 
 @Composable
-fun MainView(databases: List<Database>, keyFile: MutableState<KeyFile>, openFile: (Int) -> Unit) {
-    var selectedDatabase by remember{mutableStateOf(null as Database?)}
-
+fun MainView(databases: List<Database>, selectedDatabase: MutableState<Database?>, openFile: (Int) -> Unit) {
     Column {
         HeaderView("Databases", Color.Cyan) { openFile(1) }
         Column {
@@ -164,14 +162,14 @@ fun MainView(databases: List<Database>, keyFile: MutableState<KeyFile>, openFile
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
-                            if (database == selectedDatabase)
+                            if (database == selectedDatabase.value)
                                 Color.Green else Color.White
                         )
                         .selectable(
-                            selected = database == selectedDatabase,
+                            selected = database == selectedDatabase.value,
                             onClick = {
-                                if (database != selectedDatabase) {
-                                    selectedDatabase = database
+                                if (database != selectedDatabase.value) {
+                                    selectedDatabase.value = database
                                 }
                             }
                         )
@@ -179,7 +177,7 @@ fun MainView(databases: List<Database>, keyFile: MutableState<KeyFile>, openFile
             }
         }
         Divider()
-        PasswordOrMessageView(selectedDatabase, keyFile, openFile)
+        PasswordOrMessageView(selectedDatabase.value, openFile)
     }
 }
 
@@ -198,8 +196,7 @@ fun HeaderView(title: String, color: Color, addHandler: () -> Unit) {
 }
 
 @Composable
-fun PasswordOrMessageView(selectedDatabase: Database?, keyFile: MutableState<KeyFile>,
-                          openFile: (Int) -> Unit) {
+fun PasswordOrMessageView(selectedDatabase: Database?, openFile: (Int) -> Unit) {
     if (selectedDatabase == null) {
         Spacer(modifier = Modifier.fillMaxHeight())
     } else if (selectedDatabase.errorMessage != "") {
@@ -207,7 +204,7 @@ fun PasswordOrMessageView(selectedDatabase: Database?, keyFile: MutableState<Key
     } else if (selectedDatabase.isOpened.value) {
         DatabaseView(selectedDatabase)
     } else {
-        PasswordView(selectedDatabase, keyFile, openFile)
+        PasswordView(selectedDatabase, openFile)
     }
 }
 
@@ -215,11 +212,12 @@ fun PasswordOrMessageView(selectedDatabase: Database?, keyFile: MutableState<Key
 @Composable
 fun MainViewPreview() {
     var keyFile = remember { mutableStateOf(KeyFile()) }
+    var selectedDatabase = remember { mutableStateOf(null as Database?) }
 
     PmanTheme {
         MainView(listOf(
-            Database("test", "", 1UL, KeyFile(), listOf(), listOf()),
-            Database("test2", "test error", 2UL, KeyFile(), listOf(), listOf())
-        ), keyFile) {}
+            Database("test", "", 1UL, keyFile, listOf(), listOf()),
+            Database("test2", "test error", 2UL, keyFile, listOf(), listOf())
+        ), selectedDatabase) {}
     }
 }

@@ -10,6 +10,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
@@ -87,8 +89,10 @@ fun DatabaseView(selectedDatabase: Database) {
 @Preview(showBackground = true)
 @Composable
 fun DatabaseViewPreview() {
+    val keyFile = remember { mutableStateOf(KeyFile()) }
+
     PmanTheme {
-        DatabaseView(Database("test", "", 1UL, KeyFile(),
+        DatabaseView(Database("test", "", 1UL, keyFile,
             listOf(
                 DBGroup(1U, "group1", 10U),
                 DBGroup(2U, "group2", 20U)

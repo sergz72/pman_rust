@@ -15,7 +15,7 @@ data class DBEntity(val id: UInt, val entity: DatabaseEntity) {
 }
 
 data class Database(val name: String, val errorMessage: String, val id: ULong,
-                    var keyFile: KeyFile, var groups: List<DBGroup>, var entities: List<DBEntity>) {
+                    var keyFile: MutableState<KeyFile>, var groups: List<DBGroup>, var entities: List<DBEntity>) {
     companion object {
         fun newDatabase(name: String, data: ByteArray): Database {
             var dbId = 0UL
@@ -25,7 +25,7 @@ data class Database(val name: String, val errorMessage: String, val id: ULong,
             } catch (e: PmanException) {
                 message = e.toString()
             }
-            return Database(name, message, dbId, KeyFile(), listOf(), listOf())
+            return Database(name, message, dbId, mutableStateOf(KeyFile()), listOf(), listOf())
         }
 
         fun newDatabase(name: String, keyFile: KeyFile, data: ByteArray): Database {
@@ -36,7 +36,7 @@ data class Database(val name: String, val errorMessage: String, val id: ULong,
             } catch (e: PmanException) {
                 message = e.toString()
             }
-            return Database(name, message, dbId, keyFile, listOf(), listOf())
+            return Database(name, message, dbId, mutableStateOf(keyFile), listOf(), listOf())
         }
     }
 
