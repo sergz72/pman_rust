@@ -111,6 +111,12 @@ pub fn create(database_type: PasswordDatabaseType, password_hash: Vec<u8>,
     Ok(db_id)
 }
 
+pub fn remove(database_id: u64) {
+    unsafe{
+        DATABASES.as_mut().unwrap().remove(&database_id);
+    };
+}
+
 fn get_database<'a>(database_id: u64) -> Result<&'a DatabaseFile, PmanError> {
     match unsafe{DATABASES.as_ref()}.unwrap().get(&database_id) {
         None => Err(build_database_not_found_error()),

@@ -439,6 +439,8 @@ internal interface _UniFFILib : Library {
     ): Unit
     fun uniffi_pman_lib_fn_func_prepare(`data`: RustBuffer.ByValue,`fileName`: RustBuffer.ByValue,_uniffi_out_err: RustCallStatus, 
     ): Long
+    fun uniffi_pman_lib_fn_func_remove(`databaseId`: Long,_uniffi_out_err: RustCallStatus, 
+    ): Unit
     fun uniffi_pman_lib_fn_func_remove_entity(`databaseId`: Long,`id`: Int,_uniffi_out_err: RustCallStatus, 
     ): Unit
     fun uniffi_pman_lib_fn_func_remove_group(`databaseId`: Long,`id`: Int,_uniffi_out_err: RustCallStatus, 
@@ -601,6 +603,8 @@ internal interface _UniFFILib : Library {
     ): Short
     fun uniffi_pman_lib_checksum_func_prepare(
     ): Short
+    fun uniffi_pman_lib_checksum_func_remove(
+    ): Short
     fun uniffi_pman_lib_checksum_func_remove_entity(
     ): Short
     fun uniffi_pman_lib_checksum_func_remove_group(
@@ -702,6 +706,9 @@ private fun uniffiCheckApiChecksums(lib: _UniFFILib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_pman_lib_checksum_func_prepare() != 43921.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_pman_lib_checksum_func_remove() != 24111.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_pman_lib_checksum_func_remove_entity() != 46671.toShort()) {
@@ -1902,6 +1909,14 @@ fun `prepare`(`data`: ByteArray, `fileName`: String): ULong {
     _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_prepare(FfiConverterByteArray.lower(`data`),FfiConverterString.lower(`fileName`),_status)
 })
 }
+
+
+fun `remove`(`databaseId`: ULong) =
+    
+    rustCall() { _status ->
+    _UniFFILib.INSTANCE.uniffi_pman_lib_fn_func_remove(FfiConverterULong.lower(`databaseId`),_status)
+}
+
 
 @Throws(PmanException::class)
 

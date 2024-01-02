@@ -91,13 +91,13 @@ class MainActivity : ComponentActivity(), ActivityResultCallback<ActivityResult>
 
     private fun toDatabase(it: String): Database? {
         val params = it.split('|')
-        return if (params.size == 2) {
+        return if (params.size == 3) {
+            val mainFileName = params[0]
+            val mainFileUri = Uri.parse(params[1])
             try {
-                val mainFileUri = Uri.parse(params[0])
-                val mainDocument = DocumentFile.fromSingleUri(this, mainFileUri)
                 val mainFileContents = readFile(mainFileUri)
-                val keyFileUri = if (params[1].isNotEmpty()) {
-                    Uri.parse(params[1])
+                val keyFileUri = if (params[2].isNotEmpty()) {
+                    Uri.parse(params[2])
                 } else {
                     Uri.EMPTY
                 }
@@ -117,15 +117,15 @@ class MainActivity : ComponentActivity(), ActivityResultCallback<ActivityResult>
                     ""
                 }
                 Database.newDatabase(
-                    mainDocument?.name!!,
+                    mainFileName,
                     mainFileUri,
                     KeyFile(keyFileName, keyFileUri, keyFileContents),
                     mainFileContents
                 )
             } catch (e: Exception) {
                 Database(
-                    params[0],
-                    Uri.EMPTY,
+                    mainFileName,
+                    mainFileUri,
                     e.message!!,
                     0UL,
                     mutableStateOf(KeyFile()),
@@ -140,8 +140,8 @@ class MainActivity : ComponentActivity(), ActivityResultCallback<ActivityResult>
 
     private fun mainViewAction(code: Int) {
         if (code == REMOVE_DATABASE) {
+            uniffi.pman_lib.remove(selectedDatabase.value!!.id)
             mDatabases.remove(selectedDatabase.value)
-            //uniffi.pman_lib.
             saveDatabases()
             selectedDatabase.value = null
             return
@@ -186,7 +186,7 @@ class MainActivity : ComponentActivity(), ActivityResultCallback<ActivityResult>
     }
 
     private fun saveDatabases() {
-        val databaseList = mDatabases.map { it.uri.toString() + "|" + it.keyFile.value.uri }.toSet()
+        val databaseList = mDatabases.map { it.name + "|" + it.uri.toString() + "|" + it.keyFile.value.uri }.toSet()
         val editor = mSharedPreferences.edit()
         editor.putStringSet("databases", databaseList)
         editor.apply()
