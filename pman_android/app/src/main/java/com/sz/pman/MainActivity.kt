@@ -31,6 +31,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Divider
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.toMutableStateList
@@ -38,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.sp
 import androidx.documentfile.provider.DocumentFile
+import com.sz.pman.entities.DBEntity
 import com.sz.pman.entities.Database
 import java.io.FileInputStream
 import java.lang.Exception
@@ -297,6 +299,17 @@ fun PasswordOrMessageView(selectedDatabase: Database?, openFile: (Int) -> Unit) 
         DatabaseView(selectedDatabase)
     } else {
         PasswordView(selectedDatabase, openFile)
+    }
+}
+
+@Composable
+fun DatabaseView(selectedDatabase: Database) {
+    val entityToEdit by remember { mutableStateOf(null as DBEntity?) }
+
+    if (entityToEdit != null) {
+        EntityView(entityToEdit!!)
+    } else {
+        GroupsEntitiesView(selectedDatabase)
     }
 }
 

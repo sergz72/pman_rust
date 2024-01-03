@@ -18,6 +18,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.tooling.preview.Preview
 import com.sz.pman.entities.DBGroup
 import com.sz.pman.entities.Database
@@ -25,7 +27,9 @@ import com.sz.pman.ui.theme.PmanTheme
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun DatabaseView(selectedDatabase: Database) {
+fun GroupsEntitiesView(selectedDatabase: Database) {
+    val clipboardManager = LocalClipboardManager.current
+
     Column {
         HeaderView("Groups", Color.Green, false) { }
         Column {
@@ -74,21 +78,46 @@ fun DatabaseView(selectedDatabase: Database) {
                     FlowRow(verticalAlignment = Alignment.CenterVertically) {
                         Text(text = entity.name)
                         if (entity == selectedDatabase.selectedEntity.value) {
-                            Button(onClick = { }) {
+                            Button(onClick = {
+                                clipboardManager.setText(AnnotatedString(entity.entity!!.getName()))
+                            }) {
                                 Text("Copy user name")
                             }
-                            Button(onClick = { }) {
+                            Button(onClick = {
+                                clipboardManager.setText(
+                                    AnnotatedString(
+                                        entity.entity!!.getPassword(
+                                            0U
+                                        )
+                                    )
+                                )
+                            }) {
                                 Text("Copy password")
                             }
                             Button(onClick = {
                                 selectedDatabase.selectedEntity.value!!.showProperties.value =
-                                    !selectedDatabase.selectedEntity.value!!.showProperties.value }) {
-                                Text(if (selectedDatabase.selectedEntity.value!!.showProperties.value)
-                                        {"Hide properties"} else {"Show properties"})
+                                    !selectedDatabase.selectedEntity.value!!.showProperties.value
+                            }) {
+                                Text(
+                                    if (selectedDatabase.selectedEntity.value!!.showProperties.value) {
+                                        "Hide properties"
+                                    } else {
+                                        "Show properties"
+                                    }
+                                )
                             }
                             if (selectedDatabase.selectedEntity.value!!.showProperties.value) {
                                 selectedDatabase.selectedEntity.value!!.propertyNames.forEach {
-                                    Button(onClick = { }) {
+                                    Button(onClick = {
+                                        clipboardManager.setText(
+                                            AnnotatedString(
+                                                entity.entity!!.getPropertyValue(
+                                                    0U,
+                                                    it.value
+                                                )
+                                            )
+                                        )
+                                    }) {
                                         Text("Copy " + it.key + " value")
                                     }
                                 }
@@ -109,11 +138,11 @@ fun DatabaseView(selectedDatabase: Database) {
 
 @Preview(showBackground = true)
 @Composable
-fun DatabaseViewPreview() {
+fun GroupsEntitiesViewPreview() {
     val keyFile = remember { mutableStateOf(KeyFile()) }
 
     PmanTheme {
-        DatabaseView(Database("test", Uri.EMPTY, "", 1UL, keyFile,
+        GroupsEntitiesView(Database("test", Uri.EMPTY, "", 1UL, keyFile,
             listOf(
                 DBGroup(1U, "group1", 10U),
                 DBGroup(2U, "group2", 20U)
