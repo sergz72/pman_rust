@@ -230,7 +230,7 @@ fun MainView(
             })
     }
     Column {
-        HeaderView("Databases", Color.Cyan) { action(PICK_FILE) }
+        HeaderView("Databases", Color.Cyan, true) { action(PICK_FILE) }
         Column {
             databases.forEach { database ->
                 Row(
@@ -274,14 +274,14 @@ fun MainView(
 }
 
 @Composable
-fun HeaderView(title: String, color: Color, addHandler: () -> Unit) {
+fun HeaderView(title: String, color: Color, buttonEnabled: Boolean, addHandler: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.background(color)
     ) {
         Text(text = title)
         Spacer(Modifier.weight(1f))
-        Button(onClick = addHandler) {
+        Button(onClick = addHandler, enabled = buttonEnabled) {
             Text("+")
         }
     }

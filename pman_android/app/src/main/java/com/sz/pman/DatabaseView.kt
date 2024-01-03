@@ -3,6 +3,8 @@ package com.sz.pman
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
@@ -20,10 +23,11 @@ import com.sz.pman.entities.DBGroup
 import com.sz.pman.entities.Database
 import com.sz.pman.ui.theme.PmanTheme
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DatabaseView(selectedDatabase: Database) {
     Column {
-        HeaderView("Groups", Color.Green) { }
+        HeaderView("Groups", Color.Green, false) { }
         Column {
             selectedDatabase.groups.forEach { group ->
                 Row(modifier = Modifier
@@ -49,7 +53,7 @@ fun DatabaseView(selectedDatabase: Database) {
             }
         }
         Divider()
-        HeaderView("Entities", Color.Yellow) { }
+        HeaderView("Entities", Color.Yellow, true) { }
         Column(modifier = Modifier.fillMaxHeight()) {
             selectedDatabase.entities.forEach { entity ->
                 Row(modifier = Modifier
@@ -67,7 +71,7 @@ fun DatabaseView(selectedDatabase: Database) {
                         }
                     )
                 ) {
-                    Row {
+                    FlowRow(verticalAlignment = Alignment.CenterVertically) {
                         Text(text = entity.name)
                         if (entity == selectedDatabase.selectedEntity.value) {
                             Button(onClick = { }) {
@@ -76,8 +80,24 @@ fun DatabaseView(selectedDatabase: Database) {
                             Button(onClick = { }) {
                                 Text("Copy password")
                             }
+                            Button(onClick = {
+                                selectedDatabase.selectedEntity.value!!.showProperties.value =
+                                    !selectedDatabase.selectedEntity.value!!.showProperties.value }) {
+                                Text(if (selectedDatabase.selectedEntity.value!!.showProperties.value)
+                                        {"Hide properties"} else {"Show properties"})
+                            }
+                            if (selectedDatabase.selectedEntity.value!!.showProperties.value) {
+                                selectedDatabase.selectedEntity.value!!.propertyNames.forEach {
+                                    Button(onClick = { }) {
+                                        Text("Copy " + it.key + " value")
+                                    }
+                                }
+                            }
                             Button(onClick = { }) {
-                                Text("Show properties")
+                                Text("Edit")
+                            }
+                            Button(onClick = { }) {
+                                Text("Delete")
                             }
                         }
                     }

@@ -12,6 +12,8 @@ data class DBGroup(val id: UInt, val name: String, val items: UInt)
 
 data class DBEntity(val id: UInt, val entity: DatabaseEntity) {
     val name: String = entity.getName()
+    var showProperties = mutableStateOf(false)
+    val propertyNames = entity.getPropertyNames(0U)
 }
 
 data class Database(val name: String, val uri: Uri, val errorMessage: String, val id: ULong,
