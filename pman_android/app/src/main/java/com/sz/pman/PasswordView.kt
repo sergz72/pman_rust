@@ -102,7 +102,7 @@ fun PasswordView(
         }
         Button(
             onClick = {
-                errorMessage = selectedDatabase.open(password1, password2, selectedDatabase.keyFile.value.data)
+                errorMessage = selectedDatabase.open(password1, password2)
             },
             modifier = Modifier.fillMaxWidth()
         ) {

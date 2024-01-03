@@ -173,6 +173,7 @@ class MainActivity : ComponentActivity(), ActivityResultCallback<ActivityResult>
         }
         if (result.resultCode == Activity.RESULT_OK) {
             result.data?.data?.also { uri ->
+                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 val bytes = readFile(uri)
                 val document = DocumentFile.fromSingleUri(this, uri)
                 if (openFileCode == PICK_FILE) {

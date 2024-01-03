@@ -59,13 +59,13 @@ data class Database(val name: String, val uri: Uri, val errorMessage: String, va
         }
     }
 
-    fun open(password: String, password2: String, keyFileContents: ByteArray?): String {
+    fun open(password: String, password2: String): String {
         try {
             val md = MessageDigest.getInstance("SHA-256")
             val passwordBytes = password.toByteArray(Charsets.UTF_8)
             val password2Bytes = password2.toByteArray(Charsets.UTF_8)
             uniffi.pman_lib.preOpen(id, md.digest(passwordBytes), md.digest(password2Bytes),
-                keyFileContents)
+                keyFile.value.data)
             uniffi.pman_lib.open(id)
             isOpened.value = true
             val dbGroups = uniffi.pman_lib.getGroups(id)
