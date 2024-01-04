@@ -13,6 +13,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -21,13 +23,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.tooling.preview.Preview
+import com.sz.pman.entities.DBEntity
 import com.sz.pman.entities.DBGroup
 import com.sz.pman.entities.Database
 import com.sz.pman.ui.theme.PmanTheme
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun GroupsEntitiesView(selectedDatabase: Database) {
+fun GroupsEntitiesView(selectedDatabase: Database, entityToEdit: MutableState<DBEntity?>) {
     val clipboardManager = LocalClipboardManager.current
 
     Column {
@@ -122,7 +125,7 @@ fun GroupsEntitiesView(selectedDatabase: Database) {
                                     }
                                 }
                             }
-                            Button(onClick = { }) {
+                            Button(onClick = { entityToEdit.value = entity }) {
                                 Text("Edit")
                             }
                             Button(onClick = { }) {
@@ -140,6 +143,7 @@ fun GroupsEntitiesView(selectedDatabase: Database) {
 @Composable
 fun GroupsEntitiesViewPreview() {
     val keyFile = remember { mutableStateOf(KeyFile()) }
+    val entityToEdit = remember { mutableStateOf(null as DBEntity?) }
 
     PmanTheme {
         GroupsEntitiesView(Database("test", Uri.EMPTY, "", 1UL, keyFile,
@@ -147,6 +151,6 @@ fun GroupsEntitiesViewPreview() {
                 DBGroup(1U, "group1", 10U),
                 DBGroup(2U, "group2", 20U)
             ), listOf()
-        ))
+        ), entityToEdit)
     }
 }

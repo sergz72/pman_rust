@@ -14,6 +14,34 @@ data class DBEntity(val id: UInt, val entity: DatabaseEntity?) {
     val name: String = entity?.getName() ?: ""
     var showProperties = mutableStateOf(false)
     var propertyNames = entity?.getPropertyNames(0U) ?: mapOf()
+    val userNameField = UIntEntityField(entity) { entity -> entity.getUserId(0U) }
+    val passwordField = StringEntityField(entity) { entity -> entity.getPassword(0U)}
+    val urlField = StringEntityField(entity) { entity -> entity.getUrl(0U) ?: ""}
+}
+
+data class StringEntityField(val entity: DatabaseEntity?, val getter: (DatabaseEntity) -> String) {
+    var initialValue = ""
+    var value = ""
+    var editMode = mutableStateOf(false)
+    fun getValue() {
+        value = if (entity != null) {getter.invoke(entity)} else {""}
+        initialValue = value
+    }
+}
+
+data class UIntEntityField(val entity: DatabaseEntity?, val getter: (DatabaseEntity) -> UInt) {
+    var initialValue = 0U
+    var value = 0U
+    var editMode = mutableStateOf(false)
+
+    constructor(): this(null, {_ -> 1U}) {
+        editMode.value = true
+    }
+
+    fun getValue() {
+        value = if (entity != null) {getter.invoke(entity)} else {0U}
+        initialValue = value
+    }
 }
 
 data class Database(val name: String, val uri: Uri, val errorMessage: String, val id: ULong,
@@ -45,6 +73,7 @@ data class Database(val name: String, val uri: Uri, val errorMessage: String, va
     var isOpened = mutableStateOf(false)
     var selectedGroup: MutableState<DBGroup?> = mutableStateOf(null)
     var selectedEntity: MutableState<DBEntity?> = mutableStateOf(null)
+    var users = mapOf<UInt, String>()
 
     fun selectGroup(dbGroup: DBGroup?): String {
         selectedGroup.value = dbGroup
@@ -73,6 +102,7 @@ data class Database(val name: String, val uri: Uri, val errorMessage: String, va
             val dbGroups = uniffi.pman_lib.getGroups(id)
             groups = dbGroups.map { DBGroup(it.getId(), it.getName(), it.getEntitiesCount()) }
                 .sortedBy { it.name }
+            users = uniffi.pman_lib.getUsers(id)
         } catch (e: PmanException) {
             return e.toString()
         }

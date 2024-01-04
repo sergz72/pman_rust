@@ -276,20 +276,6 @@ fun MainView(
 }
 
 @Composable
-fun HeaderView(title: String, color: Color, buttonEnabled: Boolean, addHandler: () -> Unit) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.background(color)
-    ) {
-        Text(text = title)
-        Spacer(Modifier.weight(1f))
-        Button(onClick = addHandler, enabled = buttonEnabled) {
-            Text("+")
-        }
-    }
-}
-
-@Composable
 fun PasswordOrMessageView(selectedDatabase: Database?, openFile: (Int) -> Unit) {
     if (selectedDatabase == null) {
         Spacer(modifier = Modifier.fillMaxHeight())
@@ -304,20 +290,20 @@ fun PasswordOrMessageView(selectedDatabase: Database?, openFile: (Int) -> Unit) 
 
 @Composable
 fun DatabaseView(selectedDatabase: Database) {
-    val entityToEdit by remember { mutableStateOf(null as DBEntity?) }
+    val entityToEdit = remember { mutableStateOf(null as DBEntity?) }
 
-    if (entityToEdit != null) {
-        EntityView(entityToEdit!!)
+    if (entityToEdit.value != null) {
+        EntityView(entityToEdit.value!!, selectedDatabase)
     } else {
-        GroupsEntitiesView(selectedDatabase)
+        GroupsEntitiesView(selectedDatabase, entityToEdit)
     }
 }
 
 @Preview(showBackground = true)
 @Composable
 fun MainViewPreview() {
-    var keyFile = remember { mutableStateOf(KeyFile()) }
-    var selectedDatabase = remember { mutableStateOf(null as Database?) }
+    val keyFile = remember { mutableStateOf(KeyFile()) }
+    val selectedDatabase = remember { mutableStateOf(null as Database?) }
 
     PmanTheme {
         MainView(
