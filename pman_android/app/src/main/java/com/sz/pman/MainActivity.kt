@@ -293,7 +293,7 @@ fun DatabaseView(selectedDatabase: Database) {
     val entityToEdit = remember { mutableStateOf(null as DBEntity?) }
 
     if (entityToEdit.value != null) {
-        EntityView(entityToEdit.value!!, selectedDatabase)
+        EntityView(entityToEdit, selectedDatabase)
     } else {
         GroupsEntitiesView(selectedDatabase, entityToEdit)
     }

@@ -13,6 +13,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,15 +31,13 @@ import com.sz.pman.entities.UIntEntityField
 import com.sz.pman.ui.theme.PmanTheme
 
 @Composable
-fun EntityView(entityToEdit: DBEntity, database: Database) {
-    var propertiesShown by remember { mutableStateOf(false) }
-
+fun EntityView(entityToEdit: MutableState<DBEntity?>, database: Database) {
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Name", modifier = Modifier.width(60.dp))
             BasicTextField(
-                value = entityToEdit.name,
-                readOnly = entityToEdit.entity != null,
+                value = entityToEdit.value!!.name,
+                readOnly = entityToEdit.value!!.entity != null,
                 onValueChange = { },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -48,20 +47,50 @@ fun EntityView(entityToEdit: DBEntity, database: Database) {
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Group", modifier = Modifier.width(60.dp))
-            UIntFieldEdit(entityToEdit.groupField, database.groups.map { it.id to it.name }.toMap())
+            UIntFieldEdit(
+                entityToEdit.value!!.groupField,
+                database.groups.map { it.id to it.name }.toMap()
+            )
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("User", modifier = Modifier.width(60.dp))
-            UIntFieldEdit(entityToEdit.userNameField, database.users)
+            UIntFieldEdit(entityToEdit.value!!.userNameField, database.users)
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("URL", modifier = Modifier.width(60.dp))
-            StringFieldEdit(entityToEdit.urlField)
+            StringFieldEdit(entityToEdit.value!!.urlField)
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Properties", modifier = Modifier.weight(1f))
-            Button(onClick = { }) {
-                Text("Show")
+            if (entityToEdit.value!!.showProperties.value) {
+                Button(onClick = { }) {
+                    Text("+")
+                }
+            } else {
+                Button(onClick = { entityToEdit.value!!.toggleShowProperties() }) {
+                    Text("Show")
+                }
+            }
+        }
+        if (entityToEdit.value!!.showProperties.value) {
+            Column {
+                entityToEdit.value!!.propertyNames.forEach {
+                    Row {
+                        Text(it.key)
+                        StringFieldEdit(entityToEdit.value!!.propertyFields[it.value]!!)
+                    }
+                }
+            }
+        }
+        Row {
+            Button(onClick = {
+                entityToEdit.value?.reset()
+                entityToEdit.value = null
+            }, modifier = Modifier.weight(0.5f)) {
+                Text("Cancel")
+            }
+            Button(onClick = { }, modifier = Modifier.weight(0.5f)) {
+                Text("Save")
             }
         }
     }
@@ -80,7 +109,10 @@ fun StringFieldEdit(field: StringEntityField) {
             textStyle = LocalTextStyle.current.copy(fontSize = 28.sp)
         )
     } else {
-        Button(onClick = { field.editMode.value = true }, modifier = Modifier.fillMaxWidth()) {
+        Button(onClick = {
+            field.getValue()
+            field.editMode.value = true
+        }, modifier = Modifier.fillMaxWidth()) {
             Text("Edit")
         }
     }
@@ -105,11 +137,13 @@ fun UIntFieldEdit(field: UIntEntityField, list: Map<UInt, String>) {
                             .then(Modifier.fillMaxWidth()))
                 }
             } else {
-                Text(selectedItemText, modifier = Modifier
-                    .fillMaxWidth()
-                    .then(Modifier.clickable {
-                        expanded = true
-                    }))
+                Text(
+                    selectedItemText, modifier = Modifier
+                        .fillMaxWidth()
+                        .then(Modifier.clickable {
+                            expanded = true
+                        })
+                )
             }
         }
     } else {
@@ -127,10 +161,11 @@ fun UIntFieldEdit(field: UIntEntityField, list: Map<UInt, String>) {
 @Composable
 fun EntityViewPreview() {
     val keyFile = remember { mutableStateOf(KeyFile()) }
+    val entityToEdit = remember { mutableStateOf(DBEntity(0U, null) as DBEntity?) }
 
     PmanTheme {
         EntityView(
-            DBEntity(0U, null),
+            entityToEdit,
             Database("test", Uri.EMPTY, "", 1UL, keyFile, listOf(), listOf())
         )
     }

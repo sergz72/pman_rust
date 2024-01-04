@@ -1,6 +1,7 @@
 package com.sz.pman.entities
 
 import android.net.Uri
+import android.provider.Contacts.Intents.UI
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import com.sz.pman.KeyFile
@@ -13,11 +14,33 @@ data class DBGroup(val id: UInt, val name: String, val items: UInt)
 data class DBEntity(val id: UInt, val entity: DatabaseEntity?) {
     val name: String = entity?.getName() ?: ""
     var showProperties = mutableStateOf(false)
-    var propertyNames = entity?.getPropertyNames(0U) ?: mapOf()
+    var propertyNames = mapOf<String, UInt>()
+    var propertyFields = mapOf<UInt, StringEntityField>()
     val userNameField = UIntEntityField(entity) { entity -> entity.getUserId(0U) }
     val groupField = UIntEntityField(entity) { entity -> entity.getGroupId(0U) }
     val passwordField = StringEntityField(entity) { entity -> entity.getPassword(0U)}
     val urlField = StringEntityField(entity) { entity -> entity.getUrl(0U) ?: ""}
+
+    fun toggleShowProperties() {
+        showProperties.value = !showProperties.value
+        if (showProperties.value) {
+            getPropertyNames()
+        }
+    }
+    fun getPropertyNames() {
+        propertyNames = entity?.getPropertyNames(0U) ?: mapOf()
+        propertyFields = propertyNames.map { it.value to
+                StringEntityField(entity) {entity -> entity.getPropertyValue(0U, it.value)}
+        }.toMap()
+    }
+
+    fun reset() {
+        showProperties.value = false
+        userNameField.editMode.value = false
+        groupField.editMode.value = false
+        passwordField.editMode.value = false
+        urlField.editMode.value = false
+    }
 }
 
 data class StringEntityField(val entity: DatabaseEntity?, val getter: (DatabaseEntity) -> String) {

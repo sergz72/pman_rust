@@ -98,8 +98,7 @@ fun GroupsEntitiesView(selectedDatabase: Database, entityToEdit: MutableState<DB
                                 Text("Copy password")
                             }
                             Button(onClick = {
-                                selectedDatabase.selectedEntity.value!!.showProperties.value =
-                                    !selectedDatabase.selectedEntity.value!!.showProperties.value
+                                selectedDatabase.selectedEntity.value!!.toggleShowProperties()
                             }) {
                                 Text(
                                     if (selectedDatabase.selectedEntity.value!!.showProperties.value) {
