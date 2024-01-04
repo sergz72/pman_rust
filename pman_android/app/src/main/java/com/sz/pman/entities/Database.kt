@@ -15,17 +15,18 @@ data class DBEntity(val id: UInt, val entity: DatabaseEntity?) {
     var showProperties = mutableStateOf(false)
     var propertyNames = entity?.getPropertyNames(0U) ?: mapOf()
     val userNameField = UIntEntityField(entity) { entity -> entity.getUserId(0U) }
+    val groupField = UIntEntityField(entity) { entity -> entity.getGroupId(0U) }
     val passwordField = StringEntityField(entity) { entity -> entity.getPassword(0U)}
     val urlField = StringEntityField(entity) { entity -> entity.getUrl(0U) ?: ""}
 }
 
 data class StringEntityField(val entity: DatabaseEntity?, val getter: (DatabaseEntity) -> String) {
     var initialValue = ""
-    var value = ""
+    var value = mutableStateOf("")
     var editMode = mutableStateOf(false)
     fun getValue() {
-        value = if (entity != null) {getter.invoke(entity)} else {""}
-        initialValue = value
+        value.value = if (entity != null) {getter.invoke(entity)} else {""}
+        initialValue = value.value
     }
 }
 
