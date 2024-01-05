@@ -60,7 +60,12 @@ fun GroupsEntitiesView(selectedDatabase: Database, entityToEdit: MutableState<DB
             }
         }
         Divider()
-        HeaderView("Entities", Color.Yellow, true) { }
+        HeaderView("Entities", Color.Yellow, true) {
+            entityToEdit.value =
+                DBEntity(selectedDatabase.users,
+                    selectedDatabase.groups.associate { it.id to it.name }
+                )
+        }
         Column(modifier = Modifier.fillMaxHeight()) {
             selectedDatabase.entities.forEach { entity ->
                 Row(modifier = Modifier
@@ -79,7 +84,7 @@ fun GroupsEntitiesView(selectedDatabase: Database, entityToEdit: MutableState<DB
                     )
                 ) {
                     FlowRow(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = entity.name)
+                        Text(text = entity.name.value)
                         if (entity == selectedDatabase.selectedEntity.value) {
                             Button(onClick = {
                                 clipboardManager.setText(AnnotatedString(entity.entity!!.getName()))
@@ -145,11 +150,14 @@ fun GroupsEntitiesViewPreview() {
     val entityToEdit = remember { mutableStateOf(null as DBEntity?) }
 
     PmanTheme {
-        GroupsEntitiesView(Database("test", Uri.EMPTY, "", 1UL, keyFile,
-            listOf(
-                DBGroup(1U, "group1", 10U),
-                DBGroup(2U, "group2", 20U)
-            ), listOf()
-        ), entityToEdit)
+        GroupsEntitiesView(
+            Database(
+                "test", Uri.EMPTY, "", 1UL, keyFile,
+                listOf(
+                    DBGroup(1U, "group1", 10U),
+                    DBGroup(2U, "group2", 20U)
+                ), listOf()
+            ), entityToEdit
+        )
     }
 }

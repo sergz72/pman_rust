@@ -1,9 +1,10 @@
 package com.sz.pman.entities
 
 import android.net.Uri
-import android.provider.Contacts.Intents.UI
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.toMutableStateMap
 import com.sz.pman.KeyFile
 import uniffi.pman_lib.DatabaseEntity
 import uniffi.pman_lib.PmanException
@@ -12,14 +13,24 @@ import java.security.MessageDigest
 data class DBGroup(val id: UInt, val name: String, val items: UInt)
 
 data class DBEntity(val id: UInt, val entity: DatabaseEntity?) {
-    val name: String = entity?.getName() ?: ""
+    var name = mutableStateOf(entity?.getName() ?: "")
     var showProperties = mutableStateOf(false)
     var propertyNames = mapOf<String, UInt>()
-    var propertyFields = mapOf<UInt, StringEntityField>()
+    var propertyFields = mutableStateMapOf<Int, Pair<MutableState<String>, StringEntityField>>()
     val userNameField = UIntEntityField(entity) { entity -> entity.getUserId(0U) }
     val groupField = UIntEntityField(entity) { entity -> entity.getGroupId(0U) }
     val passwordField = StringEntityField(entity) { entity -> entity.getPassword(0U)}
     val urlField = StringEntityField(entity) { entity -> entity.getUrl(0U) ?: ""}
+
+    private var nextNewPropertyID = -1
+
+    constructor(users: Map<UInt, String>, groups: Map<UInt, String>): this(0U, null) {
+        showProperties.value = true
+        userNameField.selectFirst(users)
+        groupField.selectFirst(groups)
+        passwordField.editMode.value = true
+        urlField.editMode.value = true
+    }
 
     fun toggleShowProperties() {
         showProperties.value = !showProperties.value
@@ -27,11 +38,16 @@ data class DBEntity(val id: UInt, val entity: DatabaseEntity?) {
             getPropertyNames()
         }
     }
-    fun getPropertyNames() {
+
+    private fun getPropertyNames() {
         propertyNames = entity?.getPropertyNames(0U) ?: mapOf()
-        propertyFields = propertyNames.map { it.value to
-                StringEntityField(entity) {entity -> entity.getPropertyValue(0U, it.value)}
-        }.toMap()
+        propertyFields = propertyNames.map { it.value.toInt() to
+                Pair(mutableStateOf(it.key), StringEntityField(entity) { entity -> entity.getPropertyValue(0U, it.value)})
+        }.toMutableStateMap()
+    }
+
+    fun newProperty() {
+        propertyFields[nextNewPropertyID--] = Pair(mutableStateOf(""), StringEntityField())
     }
 
     fun reset() {
@@ -44,9 +60,14 @@ data class DBEntity(val id: UInt, val entity: DatabaseEntity?) {
 }
 
 data class StringEntityField(val entity: DatabaseEntity?, val getter: (DatabaseEntity) -> String) {
-    var initialValue = ""
+    private var initialValue = ""
     var value = mutableStateOf("")
     var editMode = mutableStateOf(false)
+
+    constructor(): this(null, {_ -> ""}) {
+        editMode.value = true
+    }
+
     fun getValue() {
         value.value = if (entity != null) {getter.invoke(entity)} else {""}
         initialValue = value.value
@@ -54,7 +75,7 @@ data class StringEntityField(val entity: DatabaseEntity?, val getter: (DatabaseE
 }
 
 data class UIntEntityField(val entity: DatabaseEntity?, val getter: (DatabaseEntity) -> UInt) {
-    var initialValue = 0U
+    private var initialValue = 0U
     var value = 0U
     var editMode = mutableStateOf(false)
 
@@ -65,6 +86,12 @@ data class UIntEntityField(val entity: DatabaseEntity?, val getter: (DatabaseEnt
     fun getValue() {
         value = if (entity != null) {getter.invoke(entity)} else {0U}
         initialValue = value
+    }
+
+    fun selectFirst(list: Map<UInt, String>) {
+        editMode.value = true
+        value = list.keys.firstOrNull() ?: 0U
+        initialValue = UInt.MAX_VALUE
     }
 }
 
@@ -131,6 +158,18 @@ data class Database(val name: String, val uri: Uri, val errorMessage: String, va
             return e.toString()
         }
         return ""
+    }
+
+    fun saveEntity(entity: DBEntity) {
+        if (entity.id > 0U) {
+
+        } else {
+            uniffi.pman_lib.addEntity(id, entity.name.value, entity.groupField.value,
+                entity.userNameField.value, entity.passwordField.value.value,
+                if (entity.urlField.value.value.isEmpty()) {null} else {entity.urlField.value.value},
+                mapOf()
+            )
+        }
     }
 
     override fun equals(other: Any?): Boolean {

@@ -36,9 +36,9 @@ fun EntityView(entityToEdit: MutableState<DBEntity?>, database: Database) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Name", modifier = Modifier.width(60.dp))
             BasicTextField(
-                value = entityToEdit.value!!.name,
+                value = entityToEdit.value!!.name.value,
                 readOnly = entityToEdit.value!!.entity != null,
-                onValueChange = { },
+                onValueChange = { entityToEdit.value!!.name.value = it },
                 modifier = Modifier
                     .fillMaxWidth()
                     .then(Modifier.border(1.dp, Color.LightGray))
@@ -49,7 +49,7 @@ fun EntityView(entityToEdit: MutableState<DBEntity?>, database: Database) {
             Text("Group", modifier = Modifier.width(60.dp))
             UIntFieldEdit(
                 entityToEdit.value!!.groupField,
-                database.groups.map { it.id to it.name }.toMap()
+                database.groups.associate { it.id to it.name }
             )
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -57,13 +57,19 @@ fun EntityView(entityToEdit: MutableState<DBEntity?>, database: Database) {
             UIntFieldEdit(entityToEdit.value!!.userNameField, database.users)
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Pwd", modifier = Modifier.width(60.dp))
+            StringFieldEdit(entityToEdit.value!!.passwordField, Modifier.fillMaxWidth())
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Text("URL", modifier = Modifier.width(60.dp))
-            StringFieldEdit(entityToEdit.value!!.urlField)
+            StringFieldEdit(entityToEdit.value!!.urlField, Modifier.fillMaxWidth())
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Properties", modifier = Modifier.weight(1f))
             if (entityToEdit.value!!.showProperties.value) {
-                Button(onClick = { }) {
+                Button(onClick = {
+                    entityToEdit.value!!.newProperty()
+                }) {
                     Text("+")
                 }
             } else {
@@ -74,10 +80,27 @@ fun EntityView(entityToEdit: MutableState<DBEntity?>, database: Database) {
         }
         if (entityToEdit.value!!.showProperties.value) {
             Column {
-                entityToEdit.value!!.propertyNames.forEach {
+                entityToEdit.value!!.propertyFields.forEach { entity ->
                     Row {
-                        Text(it.key)
-                        StringFieldEdit(entityToEdit.value!!.propertyFields[it.value]!!)
+                        if (entity.key > 0) {
+                            Text(entity.value.first.value)
+                        } else {
+                            BasicTextField(
+                                value = entity.value.first.value,
+                                onValueChange = { entity.value.first.value = it },
+                                modifier = Modifier
+                                    .width(60.dp)
+                                    .then(Modifier.border(1.dp, Color.LightGray))
+                                    .then(Modifier.height(40.dp)),
+                            )
+                        }
+                        StringFieldEdit(
+                            entityToEdit.value!!.propertyFields[entity.key]!!.second,
+                            Modifier.weight(1f)
+                        )
+                        Button(onClick = { entityToEdit.value!!.propertyFields.remove(entity.key) }) {
+                            Text("Delete")
+                        }
                     }
                 }
             }
@@ -89,7 +112,10 @@ fun EntityView(entityToEdit: MutableState<DBEntity?>, database: Database) {
             }, modifier = Modifier.weight(0.5f)) {
                 Text("Cancel")
             }
-            Button(onClick = { }, modifier = Modifier.weight(0.5f)) {
+            Button(onClick = {
+                database.saveEntity(entityToEdit.value!!)
+                entityToEdit.value = null
+            }, modifier = Modifier.weight(0.5f)) {
                 Text("Save")
             }
         }
@@ -97,13 +123,12 @@ fun EntityView(entityToEdit: MutableState<DBEntity?>, database: Database) {
 }
 
 @Composable
-fun StringFieldEdit(field: StringEntityField) {
+fun StringFieldEdit(field: StringEntityField, modifier: Modifier) {
     if (field.editMode.value) {
         BasicTextField(
             value = field.value.value,
             onValueChange = { field.value.value = it },
-            modifier = Modifier
-                .fillMaxWidth()
+            modifier = modifier
                 .then(Modifier.border(1.dp, Color.LightGray))
                 .then(Modifier.height(40.dp)),
             textStyle = LocalTextStyle.current.copy(fontSize = 28.sp)
@@ -112,7 +137,7 @@ fun StringFieldEdit(field: StringEntityField) {
         Button(onClick = {
             field.getValue()
             field.editMode.value = true
-        }, modifier = Modifier.fillMaxWidth()) {
+        }, modifier = modifier) {
             Text("Edit")
         }
     }
