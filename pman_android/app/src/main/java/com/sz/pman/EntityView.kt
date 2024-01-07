@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,6 +35,11 @@ import com.sz.pman.ui.theme.PmanTheme
 
 @Composable
 fun EntityView(entityToEdit: MutableState<DBEntity?>, database: Database) {
+    var showPasswordGenerator by remember { mutableStateOf(false) }
+    var genNumbers by remember { mutableStateOf(true) }
+    var genSymbols by remember { mutableStateOf(true) }
+    var genLength by remember { mutableStateOf(30) }
+
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Name", modifier = Modifier.width(60.dp))
@@ -60,7 +66,37 @@ fun EntityView(entityToEdit: MutableState<DBEntity?>, database: Database) {
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Pwd", modifier = Modifier.width(60.dp))
-            StringFieldEdit(entityToEdit.value!!.passwordField, Modifier.fillMaxWidth())
+            StringFieldEdit(entityToEdit.value!!.passwordField, Modifier.weight(1f))
+            Button(onClick = {
+                showPasswordGenerator = !showPasswordGenerator
+                entityToEdit.value!!.passwordField.getValue()
+                entityToEdit.value!!.passwordField.editMode.value = true
+            }) {
+                Text("Gen")
+            }
+        }
+        if (showPasswordGenerator) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Num")
+                Checkbox(checked = genNumbers, onCheckedChange = { genNumbers = !genNumbers })
+                Text("Sy")
+                Checkbox(checked = genSymbols, onCheckedChange = { genSymbols = !genSymbols })
+                Text("Len")
+                Button(onClick = { if (genLength > 1) { genLength--} }) {
+                    Text("<")
+                }
+                Text(genLength.toString())
+                Button(onClick = { genLength++ }) {
+                    Text(">")
+                }
+                Button(onClick = {
+                    entityToEdit.value!!.passwordField.value.value =
+                        generatePassword(genNumbers, genSymbols, genLength)
+                    showPasswordGenerator = false
+                }) {
+                    Text("Gen")
+                }
+            }
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("URL", modifier = Modifier.width(60.dp))
@@ -124,6 +160,22 @@ fun EntityView(entityToEdit: MutableState<DBEntity?>, database: Database) {
     }
 }
 
+const val letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+const val numbers = "0123456789"
+const val symbols = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
+
+fun generatePassword(genNumbers: Boolean, genSymbols: Boolean, genLength: Int): String {
+    var table = letters
+    if (genNumbers) {
+        table += numbers
+    }
+    if (genSymbols) {
+        table += symbols
+    }
+    return (0 until genLength).map { table[table.indices.random()] }
+        .joinToString(prefix = "", postfix = "", separator = "")
+}
+
 @Composable
 fun StringFieldEdit(field: StringEntityField, modifier: Modifier) {
     if (field.editMode.value) {
@@ -132,8 +184,8 @@ fun StringFieldEdit(field: StringEntityField, modifier: Modifier) {
             onValueChange = { field.value.value = it },
             modifier = modifier
                 .then(Modifier.border(1.dp, Color.LightGray))
-                .then(Modifier.height(40.dp)),
-            textStyle = LocalTextStyle.current.copy(fontSize = 28.sp)
+                .then(Modifier.height(20.dp)),
+            textStyle = LocalTextStyle.current.copy(fontSize = 15.sp)
         )
     } else {
         Button(onClick = {
@@ -148,7 +200,7 @@ fun StringFieldEdit(field: StringEntityField, modifier: Modifier) {
 @Composable
 fun UIntFieldEdit(field: UIntEntityField, list: Map<UInt, String>) {
     var expanded by remember { mutableStateOf(false) }
-    var selectedItemText by remember { mutableStateOf("") }
+    var selectedItemText by remember { mutableStateOf(list[field.value] ?: "") }
 
     if (field.editMode.value) {
         Column {
