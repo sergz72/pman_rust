@@ -32,6 +32,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Divider
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.toMutableStateList
@@ -40,6 +41,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.sp
 import androidx.documentfile.provider.DocumentFile
 import com.sz.pman.entities.DBEntity
+import com.sz.pman.entities.DBGroup
 import com.sz.pman.entities.Database
 import java.io.FileInputStream
 import java.lang.Exception
@@ -47,6 +49,7 @@ import java.lang.Exception
 const val PICK_FILE = 1
 const val PICK_KEY = 2
 const val REMOVE_DATABASE = 3
+const val SAVE_DATABASE = 4
 
 class MainActivity : ComponentActivity(), ActivityResultCallback<ActivityResult> {
 
@@ -131,8 +134,8 @@ class MainActivity : ComponentActivity(), ActivityResultCallback<ActivityResult>
                     e.message!!,
                     0UL,
                     mutableStateOf(KeyFile()),
-                    listOf(),
-                    listOf()
+                    mutableStateListOf(),
+                    mutableStateListOf()
                 )
             }
         } else {
@@ -146,6 +149,11 @@ class MainActivity : ComponentActivity(), ActivityResultCallback<ActivityResult>
             mDatabases.remove(selectedDatabase.value)
             saveDatabases()
             selectedDatabase.value = null
+            return
+        }
+        if (code == SAVE_DATABASE) {
+            uniffi.pman_lib.save(selectedDatabase.value!!.id)
+            selectedDatabase.value!!.isModified.value = false
             return
         }
 
@@ -260,6 +268,15 @@ fun MainView(
                         Button(onClick = {
                             alert.value = Alert(
                                 mutableStateOf(true),
+                                "Save database", "Save database?",
+                                "Save"
+                            ) { action(SAVE_DATABASE) }
+                        }, enabled = database.isModified.value) {
+                            Text("Save")
+                        }
+                        Button(onClick = {
+                            alert.value = Alert(
+                                mutableStateOf(true),
                                 "Remove database", "Remove database?",
                                 "Remove"
                             ) { action(REMOVE_DATABASE) }
@@ -304,12 +321,15 @@ fun DatabaseView(selectedDatabase: Database) {
 fun MainViewPreview() {
     val keyFile = remember { mutableStateOf(KeyFile()) }
     val selectedDatabase = remember { mutableStateOf(null as Database?) }
+    val groups = remember { mutableStateListOf<DBGroup>() }
+    val entities = remember { mutableStateListOf<DBEntity>() }
 
     PmanTheme {
         MainView(
             listOf(
-                Database("test", Uri.EMPTY, "", 1UL, keyFile, listOf(), listOf()),
-                Database("test2", Uri.EMPTY, "test error", 2UL, keyFile, listOf(), listOf())
+                Database("test", Uri.EMPTY, "", 1UL, keyFile, groups, entities),
+                Database("test2", Uri.EMPTY, "test error", 2UL, keyFile,
+                    groups, entities)
             ), selectedDatabase
         ) {}
     }

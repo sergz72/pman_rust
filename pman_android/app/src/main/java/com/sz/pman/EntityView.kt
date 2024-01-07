@@ -15,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -25,6 +26,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sz.pman.entities.DBEntity
+import com.sz.pman.entities.DBGroup
 import com.sz.pman.entities.Database
 import com.sz.pman.entities.StringEntityField
 import com.sz.pman.entities.UIntEntityField
@@ -187,11 +189,13 @@ fun UIntFieldEdit(field: UIntEntityField, list: Map<UInt, String>) {
 fun EntityViewPreview() {
     val keyFile = remember { mutableStateOf(KeyFile()) }
     val entityToEdit = remember { mutableStateOf(DBEntity(0U, null) as DBEntity?) }
+    val groups = remember { mutableStateListOf<DBGroup>() }
+    val entities = remember { mutableStateListOf<DBEntity>() }
 
     PmanTheme {
         EntityView(
             entityToEdit,
-            Database("test", Uri.EMPTY, "", 1UL, keyFile, listOf(), listOf())
+            Database("test", Uri.EMPTY, "", 1UL, keyFile, groups, entities)
         )
     }
 }

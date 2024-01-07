@@ -2,8 +2,11 @@ package com.sz.pman.entities
 
 import android.net.Uri
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.runtime.toMutableStateList
 import androidx.compose.runtime.toMutableStateMap
 import com.sz.pman.KeyFile
 import uniffi.pman_lib.DatabaseEntity
@@ -96,7 +99,8 @@ data class UIntEntityField(val entity: DatabaseEntity?, val getter: (DatabaseEnt
 }
 
 data class Database(val name: String, val uri: Uri, val errorMessage: String, val id: ULong,
-                    var keyFile: MutableState<KeyFile>, var groups: List<DBGroup>, var entities: List<DBEntity>) {
+                    var keyFile: MutableState<KeyFile>, var groups: SnapshotStateList<DBGroup>,
+                    var entities: SnapshotStateList<DBEntity>) {
     companion object {
         fun newDatabase(name: String, uri: Uri, data: ByteArray): Database {
             var dbId = 0UL
@@ -106,7 +110,8 @@ data class Database(val name: String, val uri: Uri, val errorMessage: String, va
             } catch (e: PmanException) {
                 message = e.toString()
             }
-            return Database(name, uri, message, dbId, mutableStateOf(KeyFile()), listOf(), listOf())
+            return Database(name, uri, message, dbId, mutableStateOf(KeyFile()), mutableStateListOf(),
+                mutableStateListOf())
         }
 
         fun newDatabase(name: String, uri: Uri, keyFile: KeyFile, data: ByteArray): Database {
@@ -117,11 +122,13 @@ data class Database(val name: String, val uri: Uri, val errorMessage: String, va
             } catch (e: PmanException) {
                 message = e.toString()
             }
-            return Database(name, uri, message, dbId, mutableStateOf(keyFile), listOf(), listOf())
+            return Database(name, uri, message, dbId, mutableStateOf(keyFile), mutableStateListOf(),
+                mutableStateListOf())
         }
     }
 
     var isOpened = mutableStateOf(false)
+    var isModified = mutableStateOf(false)
     var selectedGroup: MutableState<DBGroup?> = mutableStateOf(null)
     var selectedEntity: MutableState<DBEntity?> = mutableStateOf(null)
     var users = mapOf<UInt, String>()
@@ -131,9 +138,9 @@ data class Database(val name: String, val uri: Uri, val errorMessage: String, va
         selectedEntity.value = null
         return try {
             entities = if (dbGroup != null) {
-                uniffi.pman_lib.getEntities(id, dbGroup.id).map { DBEntity(it.key, it.value) }
+                uniffi.pman_lib.getEntities(id, dbGroup.id).map { DBEntity(it.key, it.value) }.toMutableStateList()
             } else {
-                listOf()
+                mutableStateListOf()
             }
             ""
         } catch (e: PmanException) {
@@ -152,7 +159,7 @@ data class Database(val name: String, val uri: Uri, val errorMessage: String, va
             isOpened.value = true
             val dbGroups = uniffi.pman_lib.getGroups(id)
             groups = dbGroups.map { DBGroup(it.getId(), it.getName(), it.getEntitiesCount()) }
-                .sortedBy { it.name }
+                .sortedBy { it.name }.toMutableStateList()
             users = uniffi.pman_lib.getUsers(id)
         } catch (e: PmanException) {
             return e.toString()
@@ -169,7 +176,13 @@ data class Database(val name: String, val uri: Uri, val errorMessage: String, va
                 if (entity.urlField.value.value.isEmpty()) {null} else {entity.urlField.value.value},
                 mapOf()
             )
+            val dbGroups = uniffi.pman_lib.getGroups(id)
+            groups = dbGroups.map { DBGroup(it.getId(), it.getName(), it.getEntitiesCount()) }
+                .sortedBy { it.name }.toMutableStateList()
+            entities = uniffi.pman_lib.getEntities(id, selectedGroup.value!!.id)
+                .map { DBEntity(it.key, it.value) }.toMutableStateList()
         }
+        isModified.value = true
     }
 
     override fun equals(other: Any?): Boolean {

@@ -16,6 +16,7 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -27,6 +28,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sz.pman.entities.DBEntity
+import com.sz.pman.entities.DBGroup
 import com.sz.pman.entities.Database
 import com.sz.pman.ui.theme.PmanTheme
 
@@ -114,8 +117,10 @@ fun PasswordView(
 @Composable
 fun PasswordViewPreview() {
     val keyFile = remember { mutableStateOf(KeyFile()) }
+    val groups = remember { mutableStateListOf<DBGroup>() }
+    val entities = remember { mutableStateListOf<DBEntity>() }
 
     PmanTheme {
-        PasswordView(Database("test", Uri.EMPTY, "", 1UL, keyFile, listOf(), listOf())) {}
+        PasswordView(Database("test", Uri.EMPTY, "", 1UL, keyFile, groups, entities)) {}
     }
 }
