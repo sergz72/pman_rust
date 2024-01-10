@@ -13,6 +13,7 @@
 		632556C02AB3554500F350AC /* utils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632556BF2AB3554500F350AC /* utils.swift */; };
 		632556C32AB355B100F350AC /* Database.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632556C22AB355B100F350AC /* Database.swift */; };
 		632958872AB3702100516811 /* Common.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632958862AB3702100516811 /* Common.swift */; };
+		633938B52B4EA65500291EBD /* EntityToEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 633938B42B4EA65500291EBD /* EntityToEditView.swift */; };
 		63949F592AC09CDE003FD7AF /* pman_lib_framework.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 63949F552AC09925003FD7AF /* pman_lib_framework.xcframework */; };
 		63949F5F2AC0BF59003FD7AF /* pman_lib.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63949F5E2AC0BF59003FD7AF /* pman_lib.swift */; };
 		63B788562AA4CE8D00364835 /* pmanApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63B788552AA4CE8D00364835 /* pmanApp.swift */; };
@@ -53,6 +54,7 @@
 		632556BF2AB3554500F350AC /* utils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = utils.swift; sourceTree = "<group>"; };
 		632556C22AB355B100F350AC /* Database.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Database.swift; sourceTree = "<group>"; };
 		632958862AB3702100516811 /* Common.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Common.swift; sourceTree = "<group>"; };
+		633938B42B4EA65500291EBD /* EntityToEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntityToEditView.swift; sourceTree = "<group>"; };
 		63949F552AC09925003FD7AF /* pman_lib_framework.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = pman_lib_framework.xcframework; sourceTree = "<group>"; };
 		63949F5E2AC0BF59003FD7AF /* pman_lib.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = pman_lib.swift; path = ../../pman_lib/bindings/pman_lib.swift; sourceTree = "<group>"; };
 		63B788522AA4CE8D00364835 /* pman.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = pman.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -148,6 +150,7 @@
 				63B788882AA510E400364835 /* HeaderView.swift */,
 				632556BF2AB3554500F350AC /* utils.swift */,
 				6319CE8B2AFE89D800446731 /* PasswordView.swift */,
+				633938B42B4EA65500291EBD /* EntityToEditView.swift */,
 			);
 			path = pman;
 			sourceTree = "<group>";
@@ -321,6 +324,7 @@
 				63B788582AA4CE8D00364835 /* ContentView.swift in Sources */,
 				63B788562AA4CE8D00364835 /* pmanApp.swift in Sources */,
 				63B788852AA4D5DC00364835 /* EntityView.swift in Sources */,
+				633938B52B4EA65500291EBD /* EntityToEditView.swift in Sources */,
 				63B788832AA4D5CB00364835 /* GroupsView.swift in Sources */,
 				63B788812AA4D58000364835 /* DBView.swift in Sources */,
 				63B788872AA4FD9B00364835 /* DraggableDivider.swift in Sources */,

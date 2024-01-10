@@ -214,7 +214,7 @@ enum DatabaseError: Error {
     case databaseIsNotOpened
 }
 
-struct DBGroup: Equatable, Identifiable {
+struct DBGroup: Equatable, Identifiable, Hashable {
     let name: String
     let entitesCount: String
     let id: UInt32

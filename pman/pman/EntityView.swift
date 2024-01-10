@@ -10,6 +10,7 @@ import SwiftUI
 struct EntityView: View {
     @Binding var selectedDatabase: Database?
     @Binding var errorMessage: String
+    @Binding var entityToEdit: DBEntity?
 
     @State var entityOperation = EntityOperations.none
     @State var showPropertiesForEntity: UInt32 = 0
@@ -66,8 +67,8 @@ struct EntityView: View {
                 }
 #if os(macOS)
                     .contextMenu {
-                        Button("Rename") {
-                            
+                        Button("Edit") {
+                            entityToEdit = item
                         }
                         Button("Delete") {
                             
@@ -75,7 +76,8 @@ struct EntityView: View {
                     }
 #else
                     .swipeActions {
-                        Button("Rename") {
+                        Button("Edit") {
+                            entityToEdit = item
                         }
                         .tint(.yellow)
                         Button("Delete") {
@@ -94,8 +96,9 @@ struct EntityView: View {
 
 struct EntityView_Previews: PreviewProvider {
     static var previews: some View {
-        StatefulPreviewWrapper2(value: Database.init(eName: "test entity"), value2: "") {
-            EntityView(selectedDatabase: $0, errorMessage: $1)
+        StatefulPreviewWrapper3(value: Database.init(eName: "test entity"), value2: "",
+                                value3: nil) {
+            EntityView(selectedDatabase: $0, errorMessage: $1, entityToEdit: $2)
         }
     }
 }

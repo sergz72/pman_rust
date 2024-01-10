@@ -13,7 +13,8 @@ struct ContentView: View {
 
     @State var selectedDatabase: Database?
     @State var errorMessage: String = ""
-    
+    @State var entityToEdit: DBEntity?
+
     @Binding var databaseOperation: EntityOperations
 
     var body: some View {
@@ -68,11 +69,16 @@ struct ContentView: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
                         if selectedDatabase!.isOpened {
-                            GroupsView(selectedDatabase: $selectedDatabase, errorMessage: $errorMessage)
-                                .frame(width: groupsViewWidth)
-                            DraggableDivider(viewWidth: $groupsViewWidth, minViewWidth: 200)
-                            EntityView(selectedDatabase: $selectedDatabase, errorMessage: $errorMessage)
-                                .frame(maxWidth: .infinity)
+                            if entityToEdit == nil {
+                                GroupsView(selectedDatabase: $selectedDatabase, errorMessage: $errorMessage)
+                                    .frame(width: groupsViewWidth)
+                                DraggableDivider(viewWidth: $groupsViewWidth, minViewWidth: 200)
+                                EntityView(selectedDatabase: $selectedDatabase, errorMessage: $errorMessage, entityToEdit: $entityToEdit)
+                                    .frame(maxWidth: .infinity)
+                            } else {
+                                EntityToEditView(entity: $entityToEdit, database: $selectedDatabase)
+                                    .frame(maxWidth: .infinity)
+                            }
                         } else {
                             PasswordView(selectedDatabase: $selectedDatabase)
                         }
