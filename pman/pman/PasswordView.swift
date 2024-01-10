@@ -14,7 +14,6 @@ struct PasswordView: View {
     @State var firstPassword = ""
     @State var secondPassword = ""
     @State var errorMessage = ""
-    @State var keyFile: URL?
     @State var isPresented = false
 
     var body: some View {
@@ -36,7 +35,7 @@ struct PasswordView: View {
             }
             GridRow {
                 Text("Key file")
-                Text(keyFile?.absoluteString ?? "")
+                Text(selectedDatabase?.keyFile?.absoluteString ?? "")
                     .frame(maxWidth: .infinity)
                 Button("Select") {
                     isPresented = true
@@ -49,7 +48,7 @@ struct PasswordView: View {
                     onCompletion: { result in
                         switch result {
                         case .success(let file):
-                            keyFile = file.absoluteURL
+                            selectedDatabase!.keyFile = file.absoluteURL
                         case .failure:
                             break
                         }
@@ -59,8 +58,11 @@ struct PasswordView: View {
                 Button("Open database") {
                     errorMessage = selectedDatabase?
                         .open_database(
-                            firstPassword: firstPassword, secondPassword: secondPassword, keyFile: keyFile)
+                            firstPassword: firstPassword, secondPassword: secondPassword)
                         ?? "Database is not selected"
+                    if errorMessage.isEmpty {
+                        Databases.saveToUserDefaults()
+                    }
                 }
                 .buttonStyle(.bordered)
                 .background(Color.green)

@@ -24,9 +24,13 @@ struct Database: Equatable, Identifiable {
     var entities: [DBEntity]
     var selectedGroup: UInt32
     var propertyNames: [IdName]
+    var keyFile: URL?
 
-    init(dbURL: URL) {
-        name = dbURL.absoluteString
+    init(dbString: String) {
+        let parts = dbString.components(separatedBy: "|")
+        name = parts[0]
+        let dbURL = URL(string: parts[0])!
+        keyFile = parts.count == 2 ? URL(string: parts[1]) : nil
         id = name
         isOpened = false
         groups = []
@@ -87,7 +91,7 @@ struct Database: Equatable, Identifiable {
         entities = [DBEntity(entityName: eName)]
     }
 
-    mutating func open_database(firstPassword: String, secondPassword: String?, keyFile: URL?) -> String {
+    mutating func open_database(firstPassword: String, secondPassword: String?) -> String {
         if dbId == nil {
             return "Database is not prepared"
         }
@@ -166,6 +170,10 @@ struct Database: Equatable, Identifiable {
         }
         return try getEntities(databaseId: dbId!, groupId: groupId)
     }
+    
+    func buildDBString() -> String {
+        return self.name + (self.keyFile == nil ? "" : "|" + self.keyFile!.absoluteString)
+    }
 }
 
 class Databases: ObservableObject {
@@ -174,7 +182,7 @@ class Databases: ObservableObject {
     static func staticInit() -> [Database] {
         libInit();
         let dbs = UserDefaults.standard.array(forKey: "databases") as? [String] ?? []
-        return dbs.map{ Database(dbURL: URL(string: $0)!) }
+        return dbs.map{ Database(dbString: $0) }
     }
     
     static func save(database: Database) {
@@ -186,16 +194,19 @@ class Databases: ObservableObject {
         }
     }
     
-    func add(databaseURL: URL) {
-        Databases.databases.append(Database(dbURL: databaseURL))
-        let dbs = Databases.databases.map { $0.name }
+    static func saveToUserDefaults() {
+        let dbs = Databases.databases.map { $0.buildDBString() }
         UserDefaults.standard.set(dbs, forKey: "databases")
+    }
+    
+    func add(databaseURL: URL) {
+        Databases.databases.append(Database(dbString: databaseURL.absoluteString))
+        Databases.saveToUserDefaults()
     }
     
     func remove(database: Database) {
         Databases.databases.removeAll(where: { $0 == database })
-        let dbs = Databases.databases.map { $0.name }
-        UserDefaults.standard.set(dbs, forKey: "databases")
+        Databases.saveToUserDefaults()
     }
 }
 
