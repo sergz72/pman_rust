@@ -14,11 +14,16 @@ struct EntityToEditView: View {
     @State var name = ""
     @State var group = ""
     @State var userName = ""
+    @State var showProperties: Bool
+    @State var properties: [UInt32 : String] = [:]
 
     init(entity: Binding<DBEntity?>, database: Binding<Database?>) {
         self._entityToEdit = entity
         self._selectedDatabase = database
+        self._showProperties = State(initialValue: entity.wrappedValue?.entity == nil)
+
         self.name = entity.wrappedValue?.name ?? ""
+
         let groupId = try? entity.wrappedValue?.entity?.getGroupId(version: 0)
         let group = selectedDatabase?.groups.first(where: { $0.id == groupId})
         let groupName = group?.name ?? ""
@@ -38,19 +43,110 @@ struct EntityToEditView: View {
             }
             GridRow {
                 Text("Group")
-                Picker("", selection: $group) {
-                    ForEach(selectedDatabase?.groups.map { $0.name } ?? [], id: \.self ) {
-                        Text($0)
-                    }
-                }.labelsHidden()
+                PickerView(database: $selectedDatabase,
+                           entity: $entityToEdit,
+                           getter: {try? $0.entity?.getGroupId(version: 0)},
+                           list: selectedDatabase?.groups.reduce(into: [:]) { dict, item in
+                    dict[item.id] = item.name
+                } ?? [:])
             }
             GridRow {
                 Text("User")
-                Picker("", selection: $userName) {
-                    ForEach(selectedDatabase?.users.map { $0.value } ?? [], id: \.self ) {
-                        Text($0)
+                PickerView(database: $selectedDatabase,
+                           entity: $entityToEdit,
+                           getter: {try? $0.entity?.getUserId(version: 0)},
+                           list: selectedDatabase?.users ?? [:])
+            }
+            GridRow {
+                Text("Password")
+                TextView(entity: $entityToEdit, getter: {try? $0.entity?.getPassword(version: 0)})
+            }
+            GridRow {
+                Text("URL")
+                TextView(entity: $entityToEdit, getter: {try? $0.entity?.getUrl(version: 0)})
+            }
+            GridRow {
+                Text("Properties")
+                HStack {
+                    Spacer()
+                    Button("Show") {
+                        
                     }
-                }.labelsHidden()
+                }
+            }
+            if self.showProperties {
+                ForEach(self.properties.map{}) {
+                    
+                }
+            }
+        }
+    }
+}
+
+struct PickerView: View {
+    @Binding var selectedDatabase: Database?
+    @Binding var entityToEdit: DBEntity?
+
+    @State var editMode: Bool
+    @State var selection = ""
+    
+    let getter: ((DBEntity) -> UInt32?)
+    let list: [UInt32 : String]
+    
+    init(database: Binding<Database?>, entity: Binding<DBEntity?>, getter: @escaping (DBEntity) -> UInt32?, list: [UInt32 : String]) {
+        self._selectedDatabase = database
+        self._entityToEdit = entity
+        self._editMode = State(initialValue: entity.wrappedValue?.entity == nil)
+        //self._editMode = State(initialValue: false)
+        self.getter = getter
+        self.list = list
+    }
+    
+    var body: some View {
+        if editMode {
+            Picker("", selection: $selection) {
+                ForEach(list.map{$0.value}, id: \.self ) {
+                    Text($0)
+                }
+            }.labelsHidden()
+        } else {
+            Button {
+                let id = entityToEdit == nil ? nil : self.getter(entityToEdit!)
+                let name = id == nil ? "" : (list[id!] ?? "")
+                self.selection = name
+                self.editMode = true
+            } label: {
+                Text("Edit").frame(maxWidth: /*@START_MENU_TOKEN@*/.infinity/*@END_MENU_TOKEN@*/)
+            }
+        }
+    }
+}
+
+struct TextView: View {
+    @Binding var entityToEdit: DBEntity?
+
+    @State var editMode: Bool
+    @State var value = ""
+    
+    let getter: ((DBEntity) -> String?)
+    
+    init(entity: Binding<DBEntity?>, getter: @escaping (DBEntity) -> String?) {
+        self._entityToEdit = entity
+        self._editMode = State(initialValue: entity.wrappedValue?.entity == nil)
+        //self._editMode = State(initialValue: false)
+        self.getter = getter
+    }
+    
+    var body: some View {
+        if editMode {
+            TextField("", text: $value)
+        } else {
+            Button {
+                let value = entityToEdit == nil ? nil : self.getter(entityToEdit!)
+                self.value = value ?? ""
+                self.editMode = true
+            } label: {
+                Text("Edit").frame(maxWidth: /*@START_MENU_TOKEN@*/.infinity/*@END_MENU_TOKEN@*/)
             }
         }
     }

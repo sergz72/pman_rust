@@ -55,7 +55,7 @@ struct PasswordView: View {
                     })
             }
             GridRow {
-                Button("Open database") {
+                Button {
                     errorMessage = selectedDatabase?
                         .open_database(
                             firstPassword: firstPassword, secondPassword: secondPassword)
@@ -63,6 +63,8 @@ struct PasswordView: View {
                     if errorMessage.isEmpty {
                         Databases.saveToUserDefaults()
                     }
+                } label: {
+                    Text("Open database").frame(maxWidth: /*@START_MENU_TOKEN@*/.infinity/*@END_MENU_TOKEN@*/)
                 }
                 .buttonStyle(.bordered)
                 .background(Color.green)
