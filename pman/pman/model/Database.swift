@@ -7,6 +7,7 @@
 
 import Foundation
 import CryptoKit
+import SwiftUI
 #if os(macOS)
 import AppKit
 #else
@@ -23,7 +24,6 @@ struct Database: Equatable, Identifiable {
     var groups: [DBGroup]
     var entities: [DBEntity]
     var selectedGroup: UInt32
-    var propertyNames: [IdName]
     var keyFile: URL?
 
     init(dbString: String) {
@@ -269,7 +269,8 @@ struct DBEntity: Equatable, Identifiable {
     let id: UInt32
     let name: String
     let entity: DatabaseEntity?
-    
+    var propertyNames: [IdName]
+
     init(entityName: String) {
         self.id = 1
         self.name = entityName
@@ -313,4 +314,21 @@ struct DBEntity: Equatable, Identifiable {
     static func == (lhs: DBEntity, rhs: DBEntity) -> Bool {
         return lhs.id == rhs.id && lhs.name == rhs.name
     }
+}
+
+struct DBProperty: Identifiable {
+    static var nextNewId: Int32 = -1
+    
+    let id: Int32
+    let name: State<String>
+    let value: String
+    
+    init() {
+        id = DBProperty.nextNewId
+        DBProperty.nextNewId -= 1
+        name = State(initialValue: "")
+        value = ""
+    }
+    
+    //init(pid: UInt32, pname: String, )
 }
