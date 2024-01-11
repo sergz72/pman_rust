@@ -78,25 +78,43 @@ struct EntityToEditView: View {
                     } else {
                         Button("Show") {
                             errorMessage = selectedDatabase!.fetchPropertyNames(entity: entityToEdit?.entity)
+                            properties = selectedDatabase!.propertyNames.map { DBProperty(pid: $0.id, pname: $0.name)}
                             showProperties = true
                         }
                     }
                 }
             }
             if self.showProperties {
-                /*ForEach(selectedDatabase!.propertyNames) {
-                    TextField("name", text: $0.name)
-                        .disabled($0.id > 0)
-                }*/
+                ForEach($properties) { p in
+                    GridRow {
+                        PropertyView(property: p, entity: $entityToEdit)
+                            .gridCellColumns(2)
+                    }
+                }
             }
             GridRow {
-                Button("Cancel") {
-                    entityToEdit = nil
-                }
                 Button("Save") {
                     
                 }
+                Button {
+                    entityToEdit = nil
+                } label: {
+                    Text("Cancel").frame(maxWidth: /*@START_MENU_TOKEN@*/.infinity/*@END_MENU_TOKEN@*/)
+                }
             }
+        }
+    }
+}
+
+struct PropertyView: View {
+    @Binding var property: DBProperty
+    @Binding var entity: DBEntity?
+    
+    var body: some View {
+        HStack {
+            TextField("name", text: $property.name)
+                .disabled($property.id > 0)
+            TextView(entity: $entity, getter: {try? $0.entity?.getPropertyValue(version: 0, id: UInt32(property.id))}, value: $property.value)
         }
     }
 }

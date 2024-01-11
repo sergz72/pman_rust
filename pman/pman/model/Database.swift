@@ -321,19 +321,21 @@ struct DBEntity: Equatable, Identifiable {
     }
 }
 
-struct DBProperty: Identifiable {
+struct DBProperty: Identifiable, Equatable {
     static var nextNewId: Int32 = -1
     
     let id: Int32
-    let name: State<String>
-    let value: String
+    var name: String
+    var value: String?
     
     init() {
         id = DBProperty.nextNewId
         DBProperty.nextNewId -= 1
-        name = State(initialValue: "")
-        value = ""
+        name = ""
     }
     
-    //init(pid: UInt32, pname: String, )
+    init(pid: UInt32, pname: String) {
+        id = Int32(pid)
+        name = pname
+    }
 }
