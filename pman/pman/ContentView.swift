@@ -76,7 +76,7 @@ struct ContentView: View {
                                 EntityView(selectedDatabase: $selectedDatabase, errorMessage: $errorMessage, entityToEdit: $entityToEdit)
                                     .frame(maxWidth: .infinity)
                             } else {
-                                EntityToEditView(entity: $entityToEdit, database: $selectedDatabase)
+                                EntityToEditView(entity: $entityToEdit, database: $selectedDatabase, errorMessage: $errorMessage)
                                     .frame(maxWidth: .infinity)
                             }
                         } else {

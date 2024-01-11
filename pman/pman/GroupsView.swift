@@ -23,7 +23,7 @@ struct GroupsView: View {
                     Text(item.entitesCount)
                 }
                 .contentShape(Rectangle())
-                .listRowBackground(selectedDatabase?.selectedGroup ?? 0 == item.id ? Color.green : Color.gray)
+                .listRowBackground(selectedDatabase?.selectedGroup ?? 0 == item.id ? Color.green : Color.clear)
                 .onTapGesture {
                     errorMessage = selectedDatabase?.selectGroup(groupId: item.id) ?? "Database is not selected"
                 }

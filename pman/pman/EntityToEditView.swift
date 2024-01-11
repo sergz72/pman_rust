@@ -10,7 +10,8 @@ import SwiftUI
 struct EntityToEditView: View {
     @Binding var selectedDatabase: Database?
     @Binding var entityToEdit: DBEntity?
-    
+    @Binding var errorMessage: String
+
     @State var name = ""
     @State var showProperties: Bool
     @State var properties: [DBProperty] = []
@@ -19,12 +20,14 @@ struct EntityToEditView: View {
     @State var password: String?
     @State var URL: String?
     
-    init(entity: Binding<DBEntity?>, database: Binding<Database?>) {
+    init(entity: Binding<DBEntity?>, database: Binding<Database?>, errorMessage: Binding<String>) {
         self._entityToEdit = entity
         self._selectedDatabase = database
         self._showProperties = State(initialValue: entity.wrappedValue?.entity == nil)
 
-        self.name = entity.wrappedValue?.name ?? ""
+        self._name = State(initialValue: entity.wrappedValue?.name ?? "")
+        
+        self._errorMessage = errorMessage
     }
     
     var body: some View {
@@ -32,7 +35,7 @@ struct EntityToEditView: View {
             GridRow {
                 Text("Name")
                 TextField("name", text: $name)
-                    .disabled(entityToEdit?.entity == nil)
+                    .disabled(entityToEdit?.entity != nil)
             }
             GridRow {
                 Text("Group")
@@ -74,18 +77,24 @@ struct EntityToEditView: View {
                         }
                     } else {
                         Button("Show") {
-                            selectedDatabase?.fetchPropertyNames(entity: entityToEdit?.entity)
-                            let mayBeProperties = try? entityToEdit?.
-                            properties = entityToEdit?.
+                            errorMessage = selectedDatabase!.fetchPropertyNames(entity: entityToEdit?.entity)
                             showProperties = true
                         }
                     }
                 }
             }
             if self.showProperties {
-                ForEach(self.properties) {
+                /*ForEach(selectedDatabase!.propertyNames) {
                     TextField("name", text: $0.name)
                         .disabled($0.id > 0)
+                }*/
+            }
+            GridRow {
+                Button("Cancel") {
+                    entityToEdit = nil
+                }
+                Button("Save") {
+                    
                 }
             }
         }
@@ -187,7 +196,7 @@ struct TextView: View {
 }
 
 #Preview {
-    StatefulPreviewWrapper2(value: DBEntity(entityName: "eee"), value2: Database(groupName: "gr1", entitiesCount: 1)) {
-        EntityToEditView(entity: $0, database: $1)
+    StatefulPreviewWrapper3(value: DBEntity(entityName: "eee"), value2: Database(groupName: "gr1", entitiesCount: 1), value3: "") {
+        EntityToEditView(entity: $0, database: $1, errorMessage: $2)
     }
 }

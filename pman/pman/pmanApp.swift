@@ -22,7 +22,7 @@ struct pmanApp: App {
             GeometryReader { geometry in
                 ContentView(databaseOperation: $databaseOperation)
                     .frame(minWidth: width, maxWidth: .infinity, minHeight: height, maxHeight: .infinity)
-                    .onChange(of: geometry.size) { newSize in
+                    .onChange(of: geometry.size) { oldSize, newSize in
                         width = newSize.width
                         height = newSize.height
                     }

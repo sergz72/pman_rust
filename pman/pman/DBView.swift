@@ -24,7 +24,7 @@ struct DBView: View {
             HeaderView(entityOperation: $databaseOperation, title: "Databases", backgroundColor: .cyan)
             List(Databases.databases) { item in
                 Text(item.name)
-                    .listRowBackground(selectedDatabase == item ? Color.green : Color.gray)
+                    .listRowBackground(selectedDatabase == item ? Color.green : Color.clear)
                     .onTapGesture {
                         selectedDatabase = item
                     }

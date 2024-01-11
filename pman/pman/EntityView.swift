@@ -13,7 +13,7 @@ struct EntityView: View {
     @Binding var entityToEdit: DBEntity?
 
     @State var entityOperation = EntityOperations.none
-    @State var showPropertiesForEntity: UInt32 = 0
+    @State var showProperties = false
     
     var body: some View {
         VStack {
@@ -24,34 +24,36 @@ struct EntityView: View {
                         Text(item.name)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .font(.system(size: 18))
-                        Button("Copy user name") {
-                            let result = selectedDatabase!.getUserName(entity: item.entity)
-                            errorMessage = result.copy()
-                        }
-                        .buttonStyle(.bordered)
-                        .background(Color.green)
-                        Button("Copy password") {
-                            let result = item.getPassword()
-                            errorMessage = result.copy()
-                        }
-                        .buttonStyle(.bordered)
-                        .background(Color.green)
-                        if showPropertiesForEntity != item.id {
-                            Button("Show Properties") {
-                                showPropertiesForEntity = item.id
-                                errorMessage = selectedDatabase!.fetchPropertyNames(entity: item.entity)
+                        if (selectedDatabase?.selectedEntity ?? 0 == item.id) {
+                            Button("Copy user name") {
+                                let result = selectedDatabase!.getUserName(entity: item.entity)
+                                errorMessage = result.copy()
                             }
                             .buttonStyle(.bordered)
                             .background(Color.green)
-                        } else {
-                            Button("Hide Properties") {
-                                showPropertiesForEntity = 0
+                            Button("Copy password") {
+                                let result = item.getPassword()
+                                errorMessage = result.copy()
                             }
                             .buttonStyle(.bordered)
                             .background(Color.green)
+                            if showProperties {
+                                Button("Hide Properties") {
+                                    showProperties = false
+                                }
+                                .buttonStyle(.bordered)
+                                .background(Color.green)
+                            } else {
+                                Button("Show Properties") {
+                                    errorMessage = selectedDatabase!.fetchPropertyNames(entity: item.entity)
+                                    showProperties = true
+                                }
+                                .buttonStyle(.bordered)
+                                .background(Color.green)
+                            }
                         }
                     }
-                    if showPropertiesForEntity == item.id {
+                    if showProperties {
                         HStack {
                             Spacer()
                             ForEach(selectedDatabase?.propertyNames ?? []) { p in
@@ -63,6 +65,14 @@ struct EntityView: View {
                                 .background(Color.green)
                             }
                         }.frame(alignment: .leading)
+                    }
+                }
+                .contentShape(Rectangle())
+                .listRowBackground(selectedDatabase?.selectedEntity ?? 0 == item.id ? Color.green : Color.clear)
+                .onTapGesture {
+                    if selectedDatabase!.selectedEntity != item.id {
+                        selectedDatabase!.selectedEntity = item.id
+                        showProperties = false
                     }
                 }
 #if os(macOS)

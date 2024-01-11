@@ -24,7 +24,9 @@ struct Database: Equatable, Identifiable {
     var groups: [DBGroup]
     var entities: [DBEntity]
     var selectedGroup: UInt32
+    var selectedEntity: UInt32
     var keyFile: URL?
+    var propertyNames: [IdName]
 
     init(dbString: String) {
         let parts = dbString.components(separatedBy: "|")
@@ -38,6 +40,7 @@ struct Database: Equatable, Identifiable {
         entities = []
         propertyNames = []
         selectedGroup = 0
+        selectedEntity = 0
         do {
             let rawData: Data = try Data(contentsOf: dbURL)
             dbId = try prepare(data: rawData, fileName: name)
@@ -62,6 +65,7 @@ struct Database: Equatable, Identifiable {
         entities = []
         propertyNames = []
         selectedGroup = 0
+        selectedEntity = 0
     }
     
     init(groupName: String, entitiesCount: Int) {
@@ -73,6 +77,7 @@ struct Database: Equatable, Identifiable {
         entities = []
         users = [:]
         selectedGroup = 0
+        selectedEntity = 0
         propertyNames = []
         groups = [DBGroup(n: groupName, eCount: entitiesCount)]
     }
@@ -86,6 +91,7 @@ struct Database: Equatable, Identifiable {
         entities = []
         users = [:]
         selectedGroup = 0
+        selectedEntity = 0
         groups = []
         propertyNames = []
         entities = [DBEntity(entityName: eName)]
@@ -269,7 +275,6 @@ struct DBEntity: Equatable, Identifiable {
     let id: UInt32
     let name: String
     let entity: DatabaseEntity?
-    var propertyNames: [IdName]
 
     init(entityName: String) {
         self.id = 1
