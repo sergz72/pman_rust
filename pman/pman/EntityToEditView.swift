@@ -59,13 +59,13 @@ struct EntityToEditView: View {
                 Text("Password")
                 TextView(entity: $entityToEdit,
                          getter: {try? $0.entity?.getPassword(version: 0)},
-                         value: $password)
+                         value: $password, forceEditMode: false)
             }
             GridRow {
                 Text("URL")
                 TextView(entity: $entityToEdit,
                          getter: {try? $0.entity?.getUrl(version: 0)},
-                         value: $URL)
+                         value: $URL, forceEditMode: false)
             }
             GridRow {
                 Text("Properties")
@@ -115,7 +115,9 @@ struct PropertyView: View {
         HStack {
             TextField("name", text: $property.name)
                 .disabled($property.id > 0)
-            TextView(entity: $entity, getter: {try? $0.entity?.getPropertyValue(version: 0, id: UInt32(property.id))}, value: $property.value)
+            TextView(entity: $entity, getter: {
+                try? $0.entity?.getPropertyValue(version: 0, id: UInt32(property.id))
+            }, value: $property.value, forceEditMode: $property.id < 0)
             Button("Delete") {
                 property.isDeleted = true
             }
@@ -191,10 +193,14 @@ struct TextView: View {
     let getter: ((DBEntity) -> String?)
     
     init(entity: Binding<DBEntity?>, getter: @escaping (DBEntity) -> String?,
-         value: Binding<String?>) {
+         value: Binding<String?>, forceEditMode: Bool) {
         self._entityToEdit = entity
         self._value = value
-        self._editMode = State(initialValue: entity.wrappedValue?.entity == nil)
+        if forceEditMode {
+            self._editMode = State(initialValue: true)
+        } else {
+            self._editMode = State(initialValue: entity.wrappedValue?.entity == nil)
+        }
         //self._editMode = State(initialValue: false)
         self.getter = getter
     }

@@ -17,7 +17,12 @@ struct EntityView: View {
     
     var body: some View {
         VStack {
-            HeaderView(entityOperation: $entityOperation, title: "Entities", backgroundColor: .white)
+            HeaderView(entityOperation: $entityOperation, title: "Entities", backgroundColor: .white).onChange(of: entityOperation) {
+                if entityOperation == EntityOperations.add {
+                    entityToEdit = DBEntity.init(entityName: "")
+                    entityOperation = EntityOperations.none
+                }
+            }
             List(selectedDatabase?.entities ?? []) { item in
                 VStack {
                     HStack {
