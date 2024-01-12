@@ -195,6 +195,13 @@ struct Database: Equatable, Identifiable {
     }
     
     mutating func save() -> String {
+        do {
+            _ = try pman.save(databaseId: dbId!)
+        } catch PmanError.ErrorMessage(let e) {
+            return e
+        } catch {
+            return error.localizedDescription
+        }
         isUpdated = false
         Databases.save(database: self)
         return ""
@@ -220,13 +227,14 @@ struct Database: Equatable, Identifiable {
                 if password == nil {
                     return "no password provided"
                 }
-                _ = try addEntity(databaseId: dbId!, name: entity.name, groupId: groupId!, userId: userId!, password: password!, url: url, properties: newProperties)
+                _ = try addEntity(databaseId: dbId!, name: name, groupId: groupId!, userId: userId!, password: password!, url: url, properties: newProperties)
             } else {
                 let modifiedProperties = properties.filter{$0.id > 0 && ($0.value != nil || $0.isDeleted)}.reduce(into: [:]) { dict, item in
                     dict[UInt32(item.id)] = item.isDeleted ? nil : item.value
                 }
                 try modifyEntity(databaseId: dbId!, entityId: entity.id, newGroupId: groupId, newUserId: userId, newPassword: password, newUrl: url, changeUrl: changeUrl, newProperties: newProperties, modifiedProperties: modifiedProperties)
             }
+            try refreshGroups()
         } catch PmanError.ErrorMessage(let e) {
             return e
         } catch {

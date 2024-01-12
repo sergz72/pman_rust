@@ -23,11 +23,17 @@ struct EntityToEditView: View {
     init(entity: Binding<DBEntity?>, database: Binding<Database?>, errorMessage: Binding<String>) {
         self._entityToEdit = entity
         self._selectedDatabase = database
-        self._showProperties = State(initialValue: entity.wrappedValue?.entity == nil)
+        let showProperties = entity.wrappedValue?.entity == nil
+        self._showProperties = State(initialValue: showProperties)
 
         self._name = State(initialValue: entity.wrappedValue?.name ?? "")
         
         self._errorMessage = errorMessage
+        
+        if showProperties {
+            self._userId = State(initialValue: selectedDatabase?.users.first?.key)
+            self._groupId = State(initialValue: selectedDatabase?.groups.first?.id)
+        }
     }
     
     var body: some View {
@@ -151,10 +157,9 @@ struct PickerView: View {
         self.list2 = list.reduce(into: [:]) {
             $0[$1.value] = $1.key
         }
-        if self.editMode {
-            let f = list.first
-            self.selection = f?.value ?? ""
-            self.value = f?.key
+        if self.value != nil {
+            let name = list[self.value!]
+            self._selection = State(initialValue: name ?? "")
         }
     }
     
