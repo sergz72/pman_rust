@@ -94,7 +94,7 @@ struct EntityToEditView: View {
             }
             GridRow {
                 Button("Save") {
-                    errorMessage = selectedDatabase!.saveEntity(database: selectedDatabase!, entity: entityToEdit!, name: name, properties: properties, groupId: groupId, userId: userId, password: password, url: URL, changeUrl: false)
+                    errorMessage = selectedDatabase!.saveEntity(entity: entityToEdit!, name: name, properties: properties, groupId: groupId, userId: userId, password: password, url: URL, changeUrl: false)
                     entityToEdit = nil
                 }
                 Button {

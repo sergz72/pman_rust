@@ -113,11 +113,9 @@ struct Database: Equatable, Identifiable {
             let hash2 = if secondPassword == nil { nil as Data? } else {Data(SHA256.hash(data: secondPassword!.data(using: .utf8)!))}
             try preOpen(databaseId: dbId!, passwordHash: hash1, password2Hash: hash2, keyFileContents: keyData)
             try open(databaseId: dbId!)
-            let g = try getGroups(databaseId: dbId!)
-            groups = g.map { DBGroup(group: $0) }.sorted {$0.name < $1.name}
             users = try getUsers(databaseId: dbId!)
+            try refreshGroups()
             isOpened = true
-            Databases.save(database: self)
         } catch PmanError.ErrorMessage(let e) {
             return e
         } catch {
@@ -126,12 +124,26 @@ struct Database: Equatable, Identifiable {
         return ""
     }
     
+    mutating func refreshGroups() throws {
+        let g = try getGroups(databaseId: dbId!)
+        groups = g.map { DBGroup(group: $0) }.sorted {$0.name < $1.name}
+        if selectedGroup > 0 {
+            try groupSelect(groupId: selectedGroup)
+        } else {
+            Databases.save(database: self)
+        }
+    }
+    
+    mutating func groupSelect(groupId: UInt32) throws {
+        let e = try getEntities(databaseId: dbId!, groupId: groupId)
+        entities = try e.map { try DBEntity(entityId: $0.key, e: $0.value) }.sorted {$0.name < $1.name}
+        Databases.save(database: self)
+    }
+    
     mutating func selectGroup(groupId: UInt32) -> String {
         selectedGroup = groupId
         do {
-            let e = try getEntities(databaseId: dbId!, groupId: groupId)
-            entities = try e.map { try DBEntity(entityId: $0.key, e: $0.value) }.sorted {$0.name < $1.name}
-            Databases.save(database: self)
+            try groupSelect(groupId: groupId)
         } catch PmanError.ErrorMessage(let e) {
             entities = []
             return e
@@ -188,9 +200,38 @@ struct Database: Equatable, Identifiable {
         return ""
     }
     
-    mutating func saveEntity(database: Database, entity: DBEntity, name: String, properties: [DBProperty],
+    mutating func saveEntity(entity: DBEntity, name: String, properties: [DBProperty],
                              groupId: UInt32?, userId: UInt32?, password: String?, url: String?,
                              changeUrl: Bool) -> String {
+        let newProperties = properties.filter{!$0.isDeleted && $0.id < 0}.reduce(into: [:]) { dict, item in
+            dict[item.name] = item.value
+        }
+        do {
+            if entity.entity == nil {
+                if name.isEmpty {
+                    return "name is empty"
+                }
+                if groupId == nil {
+                    return "no group id provided"
+                }
+                if userId == nil {
+                    return "no user id provided"
+                }
+                if password == nil {
+                    return "no password provided"
+                }
+                _ = try addEntity(databaseId: dbId!, name: entity.name, groupId: groupId!, userId: userId!, password: password!, url: url, properties: newProperties)
+            } else {
+                let modifiedProperties = properties.filter{$0.id > 0 && ($0.value != nil || $0.isDeleted)}.reduce(into: [:]) { dict, item in
+                    dict[UInt32(item.id)] = item.isDeleted ? nil : item.value
+                }
+                try modifyEntity(databaseId: dbId!, entityId: entity.id, newGroupId: groupId, newUserId: userId, newPassword: password, newUrl: url, changeUrl: changeUrl, newProperties: newProperties, modifiedProperties: modifiedProperties)
+            }
+        } catch PmanError.ErrorMessage(let e) {
+            return e
+        } catch {
+            return error.localizedDescription
+        }
         isUpdated = true
         Databases.save(database: self)
         return ""
