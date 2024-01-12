@@ -72,6 +72,7 @@ struct EntityView: View {
                 .onTapGesture {
                     if selectedDatabase!.selectedEntity != item.id {
                         selectedDatabase!.selectedEntity = item.id
+                        Databases.save(database: selectedDatabase!)
                         showProperties = false
                     }
                 }

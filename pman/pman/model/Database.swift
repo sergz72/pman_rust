@@ -27,7 +27,8 @@ struct Database: Equatable, Identifiable {
     var selectedEntity: UInt32
     var keyFile: URL?
     var propertyNames: [IdName]
-
+    var isUpdated = false
+    
     init(dbString: String) {
         let parts = dbString.components(separatedBy: "|")
         name = parts[0]
@@ -81,7 +82,7 @@ struct Database: Equatable, Identifiable {
         propertyNames = []
         groups = [DBGroup(n: groupName, eCount: entitiesCount)]
     }
-
+    
     init(eName: String) {
         name = "test"
         id = name
@@ -96,7 +97,7 @@ struct Database: Equatable, Identifiable {
         propertyNames = []
         entities = [DBEntity(entityName: eName)]
     }
-
+    
     mutating func open_database(firstPassword: String, secondPassword: String?) -> String {
         if dbId == nil {
             return "Database is not prepared"
@@ -140,7 +141,7 @@ struct Database: Equatable, Identifiable {
         }
         return ""
     }
-
+    
     mutating func fetchPropertyNames(entity: DatabaseEntity?) -> String {
         if entity != nil {
             do {
@@ -155,7 +156,7 @@ struct Database: Equatable, Identifiable {
         }
         return "entity is null"
     }
-
+    
     func getUserName(entity: DatabaseEntity?) -> ValueError {
         if entity != nil {
             do {
@@ -169,7 +170,7 @@ struct Database: Equatable, Identifiable {
         }
         return ValueError.init(v: "", message: "entity is null")
     }
-
+    
     private func getDatabaseEntities(groupId: UInt32) throws -> [UInt32: DatabaseEntity] {
         if !isOpened {
             throw DatabaseError.databaseIsNotOpened
@@ -179,6 +180,20 @@ struct Database: Equatable, Identifiable {
     
     func buildDBString() -> String {
         return self.name + (self.keyFile == nil ? "" : "|" + self.keyFile!.absoluteString)
+    }
+    
+    mutating func save() -> String {
+        isUpdated = false
+        Databases.save(database: self)
+        return ""
+    }
+    
+    mutating func saveEntity(database: Database, entity: DBEntity, name: String, properties: [DBProperty],
+                             groupId: UInt32?, userId: UInt32?, password: String?, url: String?,
+                             changeUrl: Bool) -> String {
+        isUpdated = true
+        Databases.save(database: self)
+        return ""
     }
 }
 
@@ -327,6 +342,7 @@ struct DBProperty: Identifiable, Equatable {
     let id: Int32
     var name: String
     var value: String?
+    var isDeleted = false
     
     init() {
         id = DBProperty.nextNewId

@@ -73,7 +73,7 @@ struct EntityToEditView: View {
                     Spacer()
                     if showProperties {
                         Button("Add") {
-                            
+                            properties.append(DBProperty.init())
                         }
                     } else {
                         Button("Show") {
@@ -85,7 +85,7 @@ struct EntityToEditView: View {
                 }
             }
             if self.showProperties {
-                ForEach($properties) { p in
+                ForEach($properties.filter{!$0.isDeleted.wrappedValue}) { p in
                     GridRow {
                         PropertyView(property: p, entity: $entityToEdit)
                             .gridCellColumns(2)
@@ -94,7 +94,8 @@ struct EntityToEditView: View {
             }
             GridRow {
                 Button("Save") {
-                    
+                    errorMessage = selectedDatabase!.saveEntity(database: selectedDatabase!, entity: entityToEdit!, name: name, properties: properties, groupId: groupId, userId: userId, password: password, url: URL, changeUrl: false)
+                    entityToEdit = nil
                 }
                 Button {
                     entityToEdit = nil
@@ -115,6 +116,9 @@ struct PropertyView: View {
             TextField("name", text: $property.name)
                 .disabled($property.id > 0)
             TextView(entity: $entity, getter: {try? $0.entity?.getPropertyValue(version: 0, id: UInt32(property.id))}, value: $property.value)
+            Button("Delete") {
+                property.isDeleted = true
+            }
         }
     }
 }

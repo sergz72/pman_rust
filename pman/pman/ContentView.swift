@@ -58,7 +58,7 @@ struct ContentView: View {
     func buildHorizontalView() -> some View {
         VStack {
             HStack(spacing: 3) {
-                DBView(selectedDatabase: $selectedDatabase, databaseOperation: $databaseOperation)
+                DBView(selectedDatabase: $selectedDatabase, databaseOperation: $databaseOperation, errorMessage: $errorMessage)
                     .frame(width: dbViewWidth)
                 DraggableDivider(viewWidth: $dbViewWidth, minViewWidth: 200)
                 if selectedDatabase == nil {

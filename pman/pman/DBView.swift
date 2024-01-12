@@ -11,6 +11,7 @@ import UniformTypeIdentifiers
 struct DBView: View {
     @Binding var selectedDatabase: Database?
     @Binding var databaseOperation: EntityOperations
+    @Binding var errorMessage: String
 
     var databases = Databases()
 
@@ -23,33 +24,44 @@ struct DBView: View {
         VStack {
             HeaderView(entityOperation: $databaseOperation, title: "Databases", backgroundColor: .cyan)
             List(Databases.databases) { item in
-                Text(item.name)
-                    .listRowBackground(selectedDatabase == item ? Color.green : Color.clear)
-                    .onTapGesture {
-                        selectedDatabase = item
+                HStack {
+                    Text(item.name)
+                    if selectedDatabase == item {
+                        Spacer()
+                        Button("Save") {
+                            var db = item
+                            errorMessage = db.save()
+                            Databases.save(database: db)
+                            selectedDatabase = db
+                        }.disabled(!item.isUpdated)
                     }
+                }
+                .listRowBackground(selectedDatabase == item ? Color.green : Color.clear)
+                .onTapGesture {
+                    selectedDatabase = item
+                }
 #if os(macOS)
-                    .contextMenu {
-                        Button("Remove") {
-                            if selectedDatabase != nil {
-                                databases.remove(database: selectedDatabase!)
-                                selectedDatabase = nil
-                            }
-                        }
-                        Button("Edit") {
-                            databaseOperation = .edit
+                .contextMenu {
+                    Button("Remove") {
+                        if selectedDatabase != nil {
+                            databases.remove(database: selectedDatabase!)
+                            selectedDatabase = nil
                         }
                     }
+                    Button("Edit") {
+                        databaseOperation = .edit
+                    }
+                }
 #else
-                    .swipeActions {
-                        Button("Remove") {
-                            if selectedDatabase != nil {
-                                databases.remove(database: selectedDatabase!)
-                                selectedDatabase = nil
-                            }
+                .swipeActions {
+                    Button("Remove") {
+                        if selectedDatabase != nil {
+                            databases.remove(database: selectedDatabase!)
+                            selectedDatabase = nil
                         }
-                        .tint(.red)
                     }
+                    .tint(.red)
+                }
 #endif
             }
             .listStyle(PlainListStyle())
@@ -73,8 +85,8 @@ struct DBView: View {
 
 struct DBView_Previews: PreviewProvider {
     static var previews: some View {
-        StatefulPreviewWrapper2(value: Database.init(dbName: "", message: nil), value2: EntityOperations.none) {
-            DBView(selectedDatabase: $0, databaseOperation: $1)
+        StatefulPreviewWrapper3(value: Database.init(dbName: "", message: nil), value2: EntityOperations.none, value3: "") {
+            DBView(selectedDatabase: $0, databaseOperation: $1, errorMessage: $2)
         }
     }
 }
