@@ -22,7 +22,7 @@ struct ContentView: View {
         GeometryReader { geometry in
             if geometry.size.width < geometry.size.height + 100 {
                 VStack {
-                    DBView(selectedDatabase: $selectedDatabase, databaseOperation: $databaseOperation)
+                    DBView(selectedDatabase: $selectedDatabase, databaseOperation: $databaseOperation, errorMessage: $errorMessage)
                         .frame(minHeight: 200, maxHeight: 200)
                     Divider()
                     if selectedDatabase?.name == nil {
@@ -33,11 +33,16 @@ struct ContentView: View {
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                         } else {
                             if selectedDatabase!.isOpened {
-                                GroupsView(selectedDatabase: $selectedDatabase, errorMessage: $errorMessage)
-                                    .frame(minHeight: 200, maxHeight: 200)
-                                Divider()
-                                EntityView(selectedDatabase: $selectedDatabase, errorMessage: $errorMessage)
-                                    .frame(maxHeight: .infinity)
+                                if entityToEdit == nil {
+                                    GroupsView(selectedDatabase: $selectedDatabase, errorMessage: $errorMessage)
+                                        .frame(minHeight: 200, maxHeight: 200)
+                                    Divider()
+                                    EntityView(selectedDatabase: $selectedDatabase, errorMessage: $errorMessage, entityToEdit: $entityToEdit)
+                                        .frame(maxHeight: .infinity)
+                                } else {
+                                    EntityToEditView(entity: $entityToEdit, database: $selectedDatabase, errorMessage: $errorMessage)
+                                        .frame(maxWidth: .infinity)
+                                }
                             } else {
                                 PasswordView(selectedDatabase: $selectedDatabase)
                             }
