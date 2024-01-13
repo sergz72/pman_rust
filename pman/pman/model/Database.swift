@@ -33,6 +33,7 @@ struct Database: Equatable, Identifiable {
         let parts = dbString.components(separatedBy: "|")
         name = parts[0]
         let dbURL = URL(string: parts[0])!
+        _ = dbURL.startAccessingSecurityScopedResource()
         keyFile = parts.count == 2 ? URL(string: parts[1]) : nil
         id = name
         isOpened = false
@@ -44,6 +45,7 @@ struct Database: Equatable, Identifiable {
         selectedEntity = 0
         do {
             let rawData: Data = try Data(contentsOf: dbURL)
+            dbURL.stopAccessingSecurityScopedResource()
             dbId = try prepare(data: rawData, fileName: name)
             errorMessage = nil
         } catch PmanError.ErrorMessage(let e) {
@@ -106,9 +108,15 @@ struct Database: Equatable, Identifiable {
             return "Second password is required"
         }
         do {
+            if keyFile != nil {
+                _ = keyFile!.startAccessingSecurityScopedResource()
+            }
             let keyData: Data? = if keyFile != nil {
                 try Data(contentsOf: keyFile!)
             } else { nil }
+            if keyFile != nil {
+                keyFile!.stopAccessingSecurityScopedResource()
+            }
             let hash1 = Data(SHA256.hash(data: firstPassword.data(using: .utf8)!))
             let hash2 = if secondPassword == nil { nil as Data? } else {Data(SHA256.hash(data: secondPassword!.data(using: .utf8)!))}
             try preOpen(databaseId: dbId!, passwordHash: hash1, password2Hash: hash2, keyFileContents: keyData)
